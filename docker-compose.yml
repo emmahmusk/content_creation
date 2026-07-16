@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: recast
+      POSTGRES_USER: recast
+      POSTGRES_PASSWORD: recast-local
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  redis:
+    image: redis:8-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://recast:recast-local@db:5432/recast
+      CELERY_BROKER_URL: redis://redis:6379/0
+      FFMPEG_BINARY: ffmpeg
+      FFPROBE_BINARY: ffprobe
+    command: sh -c "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+    ports:
+      - "8000:8000"
+    volumes:
+      - media_data:/app/media
+    depends_on: [db, redis]
+  worker:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://recast:recast-local@db:5432/recast
+      CELERY_BROKER_URL: redis://redis:6379/0
+      FFMPEG_BINARY: ffmpeg
+      FFPROBE_BINARY: ffprobe
+    command: celery -A config worker -l info --concurrency=2
+    volumes:
+      - media_data:/app/media
+    depends_on: [db, redis]
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:

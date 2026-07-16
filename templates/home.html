@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% block content %}
+<section class="hero"><div class="eyebrow">24-hour content repurposing</div><h1>Your best ideas deserve<br><em>more than one post.</em></h1><p class="hero-copy">Send us one long-form video. Get a complete, ready-to-publish content package back by tomorrow.</p><div class="hero-actions"><a class="btn" href="{% url 'register' %}">Repurpose my video <span>→</span></a><a class="text-link" href="#package">See what you get</a></div><div class="trust"><span>Built for</span> Podcasters · Coaches · Churches · Consultants · Creators</div></section>
+<section class="package" id="package"><div class="section-heading"><span>THE PACKAGE</span><h2>One upload. Every format.</h2><p>We find the moments worth sharing, then shape them for each channel.</p></div><div class="deliverable-grid">
+<article><b>01</b><h3>10 clip moments</h3><p>Strong short-form ideas with precise timestamps, captions, and scroll-stopping hooks.</p></article>
+<article><b>02</b><h3>Social posts</h3><p>Platform-native copy for LinkedIn, X, and Instagram—not generic cross-posts.</p></article>
+<article><b>03</b><h3>YouTube package</h3><p>Clickable title options, a search-aware description, and clean chapters.</p></article>
+<article><b>04</b><h3>Newsletter or article</h3><p>Your core idea developed into a polished long-form piece in your voice.</p></article>
+<article><b>05</b><h3>Clean audio</h3><p>Optional polished audio ready for your podcast feed or private distribution.</p></article>
+<article class="accent-card"><b>24H</b><h3>Ready by tomorrow</h3><p>A focused production workflow without the agency wait.</p></article></div></section>
+<section class="process"><div class="section-heading"><span>HOW IT WORKS</span><h2>Simple in. Powerful out.</h2></div><div class="steps"><div><strong>1</strong><h3>Upload</h3><p>Share your file or paste a private video link.</p></div><div><strong>2</strong><h3>We transform</h3><p>Our team extracts, writes, edits, and quality-checks.</p></div><div><strong>3</strong><h3>You publish</h3><p>Download an organized package within 24 hours.</p></div></div><a class="btn" href="{% url 'register' %}">Start your first order →</a></section>
+{% endblock %}

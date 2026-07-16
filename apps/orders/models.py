@@ -1,0 +1,62 @@
+import uuid
+from datetime import timedelta
+from django.conf import settings
+from django.core.validators import FileExtensionValidator
+from django.db import models
+from django.utils import timezone
+
+class ContentOrder(models.Model):
+    class Status(models.TextChoices):
+        SUBMITTED = "submitted", "Submitted"
+        REVIEWING = "reviewing", "Reviewing source"
+        IN_PROGRESS = "in_progress", "In production"
+        QUALITY_CHECK = "quality_check", "Quality check"
+        DELIVERED = "delivered", "Delivered"
+        REVISION = "revision", "Revision requested"
+        CANCELLED = "cancelled", "Cancelled"
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="content_orders")
+    title = models.CharField(max_length=200)
+    content_brief = models.TextField(help_text="Audience, goals, tone, and any important context.")
+    brand_voice = models.TextField(blank=True)
+    target_platforms = models.JSONField(default=list, blank=True)
+    include_audio_cleanup = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.SUBMITTED, db_index=True)
+    due_at = models.DateTimeField(blank=True, null=True)
+    delivered_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["customer", "status"])]
+    def save(self, *args, **kwargs):
+        if not self.due_at:
+            self.due_at = timezone.now() + timedelta(hours=24)
+        if self.status == self.Status.DELIVERED and not self.delivered_at:
+            self.delivered_at = timezone.now()
+        super().save(*args, **kwargs)
+    def __str__(self):
+        return self.title
+
+class SourceAsset(models.Model):
+    order = models.ForeignKey(ContentOrder, on_delete=models.CASCADE, related_name="source_assets")
+    file = models.FileField(upload_to="source/%Y/%m/", blank=True, validators=[FileExtensionValidator(["mp4", "mov", "mkv", "webm", "mp3", "wav", "m4a"])])
+    external_url = models.URLField(blank=True)
+    original_filename = models.CharField(max_length=255, blank=True)
+    duration_seconds = models.PositiveIntegerField(blank=True, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if not self.file and not self.external_url:
+            raise ValidationError("Upload a file or provide an external video URL.")
+    def __str__(self):
+        return self.original_filename or self.external_url or str(self.pk)
+
+class OrderEvent(models.Model):
+    order = models.ForeignKey(ContentOrder, on_delete=models.CASCADE, related_name="events")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    event_type = models.CharField(max_length=50)
+    message = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        ordering = ["-created_at"]
