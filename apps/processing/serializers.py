@@ -7,6 +7,6 @@ class PipelineRunSerializer(serializers.ModelSerializer):
     class Meta: model=PipelineRun; fields=["id","order","status","current_stage","progress","error","started_at","finished_at","created_at","stages"]
 class ClipSerializer(serializers.ModelSerializer):
     duration_seconds=serializers.FloatField(read_only=True)
-    class Meta: model=Clip; fields=["id","order","rank","title","hook","caption","start_ms","end_ms","duration_seconds","score","rationale","video","subtitle","thumbnail","status"]
+    class Meta: model=Clip; fields=["id","order","rank","title","hook","caption","start_ms","end_ms","duration_seconds","score","rationale","preview_url","video","audio","subtitle","thumbnail","status"]
 class TranscriptSegmentSerializer(serializers.ModelSerializer):
     class Meta: model=TranscriptSegment; fields=["id","order","start_ms","end_ms","text","words","speaker"]

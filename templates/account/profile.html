@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Social profiles — Recast{% endblock %}
+{% block content %}
+<section class="dashboard narrow social-profile-page">
+  <div class="page-head"><div><div class="eyebrow">ACCOUNT SETTINGS</div><h1>Social profiles</h1><p>Save the destinations you publish to. Add, update, or remove them whenever you need.</p></div></div>
+  <section class="panel social-manager" data-api-url="/api/v1/social-handles/">
+    <form class="social-handle-form">
+      <div><label for="social-platform">Platform</label><select id="social-platform" name="platform" required><option value="">Choose a platform</option>{% for value,label in platforms %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+      <div><label for="social-handle">Handle or profile URL</label><input id="social-handle" name="handle" maxlength="160" placeholder="@yourhandle" required></div>
+      <button class="btn" type="submit">Add profile</button>
+      <p class="social-form-error hidden" role="alert"></p>
+    </form>
+    <div class="social-handle-list">
+      {% for item in social_handles %}
+      <article data-id="{{ item.id }}" data-platform="{{ item.platform }}"><strong>{{ item.get_platform_display }}</strong><input value="{{ item.handle }}" maxlength="160" aria-label="{{ item.get_platform_display }} handle"><button class="download-chip social-update" type="button">Update</button><button class="download-chip social-delete" type="button">Delete</button></article>
+      {% empty %}<p class="social-empty">No social profiles added yet.</p>{% endfor %}
+    </div>
+  </section>
+</section>
+{% endblock %}

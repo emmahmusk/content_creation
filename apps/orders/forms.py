@@ -13,11 +13,17 @@ class ContentOrderForm(forms.ModelForm):
         }
 
 class SourceAssetForm(forms.ModelForm):
+    rights_confirmed = forms.BooleanField(
+        required=False,
+        label="I confirm that I own this content or have permission to download, clip, and republish it.",
+    )
     class Meta:
         model = SourceAsset
-        fields = ["file", "external_url"]
+        fields = ["file", "external_url", "rights_confirmed"]
     def clean(self):
         cleaned = super().clean()
         if not cleaned.get("file") and not cleaned.get("external_url"):
             raise forms.ValidationError("Upload a video/audio file or provide a link.")
+        if cleaned.get("external_url") and not cleaned.get("rights_confirmed"):
+            self.add_error("rights_confirmed", "You must confirm your rights before importing a public URL.")
         return cleaned

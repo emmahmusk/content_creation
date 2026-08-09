@@ -10,3 +10,5 @@ redis==6.2.0
 openai==1.93.0
 requests==2.32.4
 Pillow==11.3.0
+cloudinary>=1.44,<2
+yt-dlp[default]>=2026.7.4

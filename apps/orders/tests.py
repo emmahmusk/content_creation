@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 from .models import ContentOrder, SourceAsset
+from .forms import SourceAssetForm
 
 class ContentOrderTests(TestCase):
     def setUp(self):
@@ -32,3 +33,10 @@ class ContentOrderTests(TestCase):
         asset = SourceAsset(order=self.order)
         with self.assertRaisesMessage(Exception, "Upload a file or provide"):
             asset.full_clean()
+
+    def test_public_url_requires_rights_confirmation(self):
+        form=SourceAssetForm(data={"external_url":"https://www.youtube.com/watch?v=example"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("rights_confirmed",form.errors)
+        form=SourceAssetForm(data={"external_url":"https://www.youtube.com/watch?v=example","rights_confirmed":True})
+        self.assertTrue(form.is_valid(),form.errors)

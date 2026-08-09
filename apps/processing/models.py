@@ -52,7 +52,9 @@ class Clip(models.Model):
     end_ms = models.PositiveIntegerField()
     score = models.DecimalField(max_digits=4, decimal_places=2, default=0)
     rationale = models.TextField(blank=True)
+    preview_url = models.URLField(blank=True, max_length=1000)
     video = models.FileField(upload_to="clips/%Y/%m/", blank=True)
+    audio = models.FileField(upload_to="clips/%Y/%m/", blank=True)
     subtitle = models.FileField(upload_to="clips/%Y/%m/", blank=True)
     thumbnail = models.ImageField(upload_to="thumbnails/%Y/%m/", blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
@@ -62,3 +64,11 @@ class Clip(models.Model):
         constraints=[models.UniqueConstraint(fields=["order","rank"], name="unique_clip_rank")]
     @property
     def duration_seconds(self): return round((self.end_ms-self.start_ms)/1000, 1)
+    @staticmethod
+    def _timecode(milliseconds):
+        seconds=max(0,milliseconds//1000); minutes,seconds=divmod(seconds,60); hours,minutes=divmod(minutes,60)
+        return f"{hours}:{minutes:02}:{seconds:02}" if hours else f"{minutes}:{seconds:02}"
+    @property
+    def start_timecode(self): return self._timecode(self.start_ms)
+    @property
+    def end_timecode(self): return self._timecode(self.end_ms)

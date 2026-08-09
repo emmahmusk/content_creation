@@ -1,4 +1,5 @@
 import json
+import mimetypes
 from pathlib import Path
 
 import requests
@@ -24,7 +25,7 @@ def transcribe(audio_path, fallback_text=""):
         response = requests.post(
             "https://api.openai.com/v1/audio/transcriptions",
             headers=_headers(),
-            files={"file": (path.name, audio, "audio/wav")},
+            files={"file": (path.name, audio, mimetypes.guess_type(path.name)[0] or "application/octet-stream")},
             data={
                 "model": settings.OPENAI_TRANSCRIPTION_MODEL,
                 "response_format": "verbose_json",

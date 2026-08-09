@@ -26,6 +26,12 @@ def clean_audio(source, destination):
     run([settings.FFMPEG_BINARY,"-y","-i",str(source),"-af","highpass=f=70,lowpass=f=15000,afftdn=nf=-25,loudnorm=I=-16:TP=-1.5:LRA=11","-c:a","libmp3lame","-b:a","192k",str(destination)])
     return destination
 
+def render_audio_clip(source, start_ms, end_ms, destination):
+    """Export a social-ready MP3 from the exact same range as the video clip."""
+    Path(destination).parent.mkdir(parents=True, exist_ok=True)
+    run([settings.FFMPEG_BINARY,"-y","-ss",f"{start_ms/1000:.3f}","-to",f"{end_ms/1000:.3f}","-i",str(source),"-vn","-af","loudnorm=I=-16:TP=-1.5:LRA=11","-c:a","libmp3lame","-b:a","192k",str(destination)])
+    return destination
+
 def srt_timestamp(ms):
     h, rem=divmod(ms,3600000); m, rem=divmod(rem,60000); s, milli=divmod(rem,1000)
     return f"{h:02}:{m:02}:{s:02},{milli:03}"
@@ -44,8 +50,8 @@ def render_vertical(source, start_ms, end_ms, subtitle, destination):
     escaped=str(subtitle).replace("\\","/").replace(":","\\:").replace("'","\\'")
     vf=("scale=1080:1920:force_original_aspect_ratio=decrease,"
         "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0x101714,"
-        f"subtitles='{escaped}':force_style='FontName=Arial,FontSize=18,PrimaryColour=&H00FFFFFF,"
-        "OutlineColour=&H00000000,BorderStyle=3,Outline=2,Shadow=0,Alignment=2,MarginV=170'")
+        f"subtitles='{escaped}':force_style='FontName=Arial,FontSize={settings.SUBTITLE_FONT_SIZE},PrimaryColour=&H00FFFFFF,"
+        f"OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,Alignment=2,MarginV={settings.SUBTITLE_MARGIN_V}'")
     run([settings.FFMPEG_BINARY,"-y","-ss",f"{start_ms/1000:.3f}","-to",f"{end_ms/1000:.3f}","-i",str(source),"-vf",vf,"-c:v","libx264","-preset","medium","-crf","20","-c:a","aac","-b:a","160k","-movflags","+faststart",str(destination)])
     return destination
 

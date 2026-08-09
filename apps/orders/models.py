@@ -52,15 +52,20 @@ class ContentOrder(models.Model):
 
 class SourceAsset(models.Model):
     order = models.ForeignKey(ContentOrder, on_delete=models.CASCADE, related_name="source_assets")
-    file = models.FileField(upload_to="source/%Y/%m/", blank=True, validators=[FileExtensionValidator(["mp4", "mov", "mkv", "webm", "mp3", "wav", "m4a"])])
+    file = models.FileField(upload_to="source/%Y/%m/", blank=True, validators=[FileExtensionValidator(["mp4", "mov", "mkv", "webm", "ogv", "ogg", "mp3", "wav", "m4a"])])
     external_url = models.URLField(blank=True)
     original_filename = models.CharField(max_length=255, blank=True)
     duration_seconds = models.PositiveIntegerField(blank=True, null=True)
+    cloudinary_public_id = models.CharField(max_length=255, blank=True)
+    cloudinary_url = models.URLField(blank=True)
+    rights_confirmed = models.BooleanField(default=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     def clean(self):
         from django.core.exceptions import ValidationError
         if not self.file and not self.external_url:
             raise ValidationError("Upload a file or provide an external video URL.")
+        if self.external_url and not self.rights_confirmed:
+            raise ValidationError({"rights_confirmed": "Confirm that you own this content or have permission to repurpose it."})
     def __str__(self):
         return self.original_filename or self.external_url or str(self.pk)
 

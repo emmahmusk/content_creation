@@ -56,7 +56,13 @@ Install `requirements-nvidia.txt` instead of the base requirements only when usi
 
 ## OpenAI clip-finder proof of concept
 
-The default local configuration is an analysis-first OpenAI proof of concept for recordings up to approximately 10 minutes. Set `OPENAI_API_KEY`, leave `AI_PROVIDER=openai`, `PIPELINE_ANALYSIS_ONLY=True`, and `PIPELINE_EXECUTION_MODE=thread`, then submit a recording with a concrete definition of an important moment. Press **Analyze recording** on the order page to start the local background job and watch live progress. It produces timestamped, scored recommendations without rendering final videos. Set `PIPELINE_EXECUTION_MODE=celery` for a durable production worker and `PIPELINE_ANALYSIS_ONLY=False` when ready to exercise the full FFmpeg render path.
+The default configuration runs the OpenAI clipping workflow in two phases. Analysis produces timestamped recommendations and instant previews; the customer approves the moments they want, then **Render approved clips** creates vertical MP4 clips, matching MP3 audio cuts, movie-style SRT captions, thumbnails, and a downloadable ZIP without repeating transcription or ranking. Use `PIPELINE_EXECUTION_MODE=thread` locally or `celery` with a durable production worker. FFmpeg and FFprobe power final rendering and the local fallback path.
+
+### Cloudinary-first media pipeline
+
+Set the Cloudinary credentials and keep `MEDIA_PIPELINE_PRIMARY=cloudinary`. The source is uploaded once, Cloudinary supplies duration metadata and a compressed 16 kHz/64 kbps MP3 for timestamped STT, and AI-selected ranges receive lazy 9:16 preview URLs immediately. Approved ranges are rendered by FFmpeg for precise captions, thumbnails, audio, and downloadable files. If Cloudinary is unavailable, FFprobe and FFmpeg automatically provide ingest and audio extraction; if local media tools fail, `CLOUDINARY_FALLBACK_ENABLED=True` enables the reverse fallback. `SUBTITLE_FONT_SIZE` and `SUBTITLE_MARGIN_V` control the restrained movie-subtitle appearance.
+
+Public YouTube and other supported video-page URLs are imported with `yt-dlp`; direct media URLs continue through the lightweight HTTP downloader. Imports are limited to one video, capped at 1080p and `PUBLIC_MEDIA_MAX_BYTES`, and require the customer to confirm they own the content or have permission to download, clip, and republish it. Keep `yt-dlp` current because hosted-video extractors change regularly. The production image includes Deno and the yt-dlp EJS scripts required for current YouTube JavaScript challenges.
 
 ## Deployment checklist
 

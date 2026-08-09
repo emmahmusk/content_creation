@@ -9,6 +9,7 @@ from apps.core.views import home, health
 from apps.orders.api import ContentOrderViewSet, SourceAssetViewSet
 from apps.deliverables.api import DeliverableViewSet
 from apps.processing.api import ClipViewSet, PipelineRunViewSet, TranscriptViewSet
+from apps.accounts.api import SocialHandleViewSet
 
 router = DefaultRouter()
 router.register("orders", ContentOrderViewSet, basename="order")
@@ -17,12 +18,13 @@ router.register("deliverables", DeliverableViewSet, basename="deliverable")
 router.register("pipeline-runs", PipelineRunViewSet, basename="pipeline-run")
 router.register("clips", ClipViewSet, basename="clip")
 router.register("transcript", TranscriptViewSet, basename="transcript")
+router.register("social-handles", SocialHandleViewSet, basename="social-handle")
 
 urlpatterns = [
     path("admin/", admin.site.urls), path("", home, name="home"), path("health/", health, name="health"),
     path("accounts/login/", auth_views.LoginView.as_view(template_name="account/login.html"), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
-    path("accounts/register/", include("apps.accounts.urls")), path("orders/", include("apps.orders.urls")),
+    path("accounts/", include("apps.accounts.urls")), path("orders/", include("apps.orders.urls")),
     path("api/v1/", include((router.urls, "api"), namespace="v1")), path("api-auth/", include("rest_framework.urls")),
 ]
 if DEBUG := settings.DEBUG:
