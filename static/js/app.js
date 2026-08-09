@@ -87,3 +87,26 @@ if(socialManager){
   list.querySelectorAll('article').forEach(bind);
   form.addEventListener('submit',async event=>{event.preventDefault();errorBox.classList.add('hidden');const button=form.querySelector('button[type="submit"]');button.disabled=true;try{const data=await request(socialManager.dataset.apiUrl,'POST',{platform:form.platform.value,handle:form.handle.value});list.querySelector('.social-empty')?.remove();const row=document.createElement('article');row.dataset.id=data.id;row.dataset.platform=data.platform;row.innerHTML=`<strong>${data.platform_label}</strong><input maxlength="160" aria-label="${data.platform_label} handle"><button class="download-chip social-update" type="button">Update</button><button class="download-chip social-delete" type="button">Delete</button>`;row.querySelector('input').value=data.handle;list.appendChild(row);bind(row);form.reset();}catch(error){showError(error);}finally{button.disabled=false;}});
 }
+
+const intel=document.querySelector('.intel-shell');
+if(intel){
+  const cookie=name=>document.cookie.split('; ').find(row=>row.startsWith(`${name}=`))?.split('=')[1]||'';
+  const api=async(url,method='GET',body)=>{const response=await fetch(url,{method,headers:{Accept:'application/json','Content-Type':'application/json','X-CSRFToken':decodeURIComponent(cookie('csrftoken'))},body:body?JSON.stringify(body):undefined});const data=response.status===204?{}:await response.json();if(!response.ok)throw new Error(data.detail||data.action?.[0]||Object.values(data).flat().join(' ')||'Request failed.');return data;};
+  const poll=async()=>{try{const data=await api(intel.dataset.intelligenceUrl);if(data.status==='ready'||data.status==='failed'){location.reload();return;}setTimeout(poll,1800);}catch(error){document.querySelector('.intel-error').textContent=error.message;}};
+  const start=async()=>{const button=document.querySelector('.intel-analyze');if(button){button.disabled=true;button.textContent='Analyzing content…';}try{await api(intel.dataset.startUrl,'POST');setTimeout(poll,1000);}catch(error){if(button)button.disabled=false;document.querySelector('.intel-error').textContent=error.message;}};
+  document.querySelector('.intel-analyze')?.addEventListener('click',start);
+  if(intel.dataset.status==='queued')start();else if(intel.dataset.status==='running')poll();
+  document.querySelectorAll('.repurpose-list article').forEach(asset=>{
+    const textarea=asset.querySelector('textarea');
+    asset.querySelector('.asset-copy')?.addEventListener('click',async event=>{await navigator.clipboard.writeText(textarea.value);event.currentTarget.textContent='Copied';setTimeout(()=>event.currentTarget.textContent='Copy',1200);});
+    asset.querySelector('.asset-save')?.addEventListener('click',async event=>{event.currentTarget.disabled=true;try{await api(`/api/v1/repurpose-assets/${asset.dataset.assetId}/`,'PATCH',{content:textarea.value});event.currentTarget.textContent='Saved';}catch(error){alert(error.message);}finally{event.currentTarget.disabled=false;setTimeout(()=>event.currentTarget.textContent='Save edits',1200);}});
+    asset.querySelectorAll('footer button[data-operation]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{const data=await api(`/api/v1/repurpose-assets/${asset.dataset.assetId}/transform/`,'POST',{operation:button.dataset.operation});textarea.value=data.content;}catch(error){alert(error.message);}finally{button.disabled=false;}}));
+  });
+  document.querySelectorAll('.editor-accept').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await api(`${intel.dataset.intelligenceUrl}accept-editor-recommendation/`,'POST',{action_id:button.dataset.actionId});button.textContent='Accepted ✓';}catch(error){button.disabled=false;alert(error.message);}}));
+  const publicationForm=document.querySelector('.publication-form');
+  if(publicationForm){
+    const actionField=publicationForm.querySelector('[name="action"]'),scheduleField=publicationForm.querySelector('[name="scheduled_for"]'),titleField=publicationForm.querySelector('[name="title"]'),captionField=publicationForm.querySelector('[name="caption"]');
+    actionField.addEventListener('change',()=>publicationForm.querySelector('.schedule-field').classList.toggle('hidden',actionField.value!=='schedule'));
+    publicationForm.addEventListener('submit',async event=>{event.preventDefault();const destinations=[...publicationForm.querySelectorAll('[name="destination"]:checked')];const result=publicationForm.querySelector('.publish-result');if(!destinations.length){result.textContent='Choose at least one destination.';return;}const clipId=Number(intel.dataset.startUrl.match(/clips\/(\d+)/)[1]);try{await Promise.all(destinations.map(destination=>api(intel.dataset.publicationUrl,'POST',{clip:clipId,social_handle:Number(destination.value),action:actionField.value,scheduled_for:scheduleField.value||null,platform_payload:{title:titleField.value,caption:captionField.value}})));result.textContent=`${destinations.length} publishing job${destinations.length===1?'':'s'} created.`;result.className='publish-result success';}catch(error){result.textContent=error.message;result.className='publish-result error';}});
+  }
+}

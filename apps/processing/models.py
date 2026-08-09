@@ -53,6 +53,7 @@ class Clip(models.Model):
     score = models.DecimalField(max_digits=4, decimal_places=2, default=0)
     rationale = models.TextField(blank=True)
     preview_url = models.URLField(blank=True, max_length=1000)
+    editing_instructions = models.JSONField(default=dict, blank=True)
     video = models.FileField(upload_to="clips/%Y/%m/", blank=True)
     audio = models.FileField(upload_to="clips/%Y/%m/", blank=True)
     subtitle = models.FileField(upload_to="clips/%Y/%m/", blank=True)
@@ -72,3 +73,65 @@ class Clip(models.Model):
     def start_timecode(self): return self._timecode(self.start_ms)
     @property
     def end_timecode(self): return self._timecode(self.end_ms)
+
+
+class ContentIntelligence(models.Model):
+    class Status(models.TextChoices):
+        QUEUED="queued","Queued"; RUNNING="running","Running"; READY="ready","Ready"; FAILED="failed","Failed"
+    clip=models.OneToOneField(Clip,on_delete=models.CASCADE,related_name="intelligence")
+    status=models.CharField(max_length=20,choices=Status.choices,default=Status.QUEUED,db_index=True)
+    content_dna=models.JSONField(default=dict,blank=True)
+    selection_reasoning=models.JSONField(default=dict,blank=True)
+    platform_strategy=models.JSONField(default=dict,blank=True)
+    business_impact=models.JSONField(default=dict,blank=True)
+    audience_matching=models.JSONField(default=dict,blank=True)
+    semantic_graph=models.JSONField(default=dict,blank=True)
+    editor_recommendations=models.JSONField(default=list,blank=True)
+    confidence=models.PositiveSmallIntegerField(default=0)
+    model=models.CharField(max_length=100,blank=True)
+    error=models.TextField(blank=True)
+    version=models.PositiveIntegerField(default=1)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+
+
+class RepurposeAsset(models.Model):
+    class Kind(models.TextChoices):
+        LINKEDIN="linkedin_post","LinkedIn post"; X_THREAD="x_thread","X thread"; INSTAGRAM="instagram_caption","Instagram caption"; YOUTUBE="youtube_description","YouTube description"; NEWSLETTER="newsletter","Newsletter"; BLOG="blog_outline","Blog outline"; SEO="seo_metadata","SEO metadata"; EMAIL="email","Email"; CAROUSEL="carousel_outline","Carousel outline"; PODCAST="podcast_summary","Podcast summary"
+    clip=models.ForeignKey(Clip,on_delete=models.CASCADE,related_name="repurpose_assets")
+    kind=models.CharField(max_length=30,choices=Kind.choices)
+    title=models.CharField(max_length=200)
+    content=models.TextField(blank=True)
+    metadata=models.JSONField(default=dict,blank=True)
+    version=models.PositiveIntegerField(default=1)
+    updated_at=models.DateTimeField(auto_now=True)
+    class Meta:
+        ordering=["kind"]
+        constraints=[models.UniqueConstraint(fields=["clip","kind"],name="unique_clip_repurpose_kind")]
+
+
+class PublicationJob(models.Model):
+    class Action(models.TextChoices):
+        DRAFT="draft","Save draft"; QUEUE="queue","Queue"; SCHEDULE="schedule","Schedule"; PUBLISH="publish","Publish now"; REPUBLISH="republish","Republish"
+    class Status(models.TextChoices):
+        DRAFT="draft","Draft"; QUEUED="queued","Queued"; SCHEDULED="scheduled","Scheduled"; PUBLISHING="publishing","Publishing"; PUBLISHED="published","Published"; FAILED="failed","Failed"
+    clip=models.ForeignKey(Clip,on_delete=models.CASCADE,related_name="publication_jobs")
+    user=models.ForeignKey("auth.User",on_delete=models.CASCADE,related_name="publication_jobs")
+    social_handle=models.ForeignKey("accounts.SocialHandle",on_delete=models.PROTECT,related_name="publication_jobs")
+    action=models.CharField(max_length=20,choices=Action.choices)
+    status=models.CharField(max_length=20,choices=Status.choices,default=Status.DRAFT,db_index=True)
+    scheduled_for=models.DateTimeField(null=True,blank=True)
+    platform_payload=models.JSONField(default=dict)
+    external_id=models.CharField(max_length=255,blank=True)
+    error=models.TextField(blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    updated_at=models.DateTimeField(auto_now=True)
+
+
+class LearningSignal(models.Model):
+    clip=models.ForeignKey(Clip,on_delete=models.CASCADE,related_name="learning_signals")
+    publication=models.ForeignKey(PublicationJob,on_delete=models.SET_NULL,null=True,blank=True,related_name="learning_signals")
+    event_type=models.CharField(max_length=40)
+    value=models.FloatField(default=0)
+    metadata=models.JSONField(default=dict,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)

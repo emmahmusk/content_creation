@@ -108,6 +108,7 @@
           {% endif %}
 
           <div class="clip-actions">
+            <a class="download-chip intelligence-link" href="{% url 'processing:intelligence-review' clip.id %}">Content Intelligence Review <span>→</span></a>
             {% if clip.video %}<a class="download-chip primary" href="{{ clip.video.url }}" download>Video MP4 <span>↓</span></a>{% endif %}
             {% if clip.audio %}<a class="download-chip" href="{{ clip.audio.url }}" download>Audio MP3 <span>↓</span></a>{% endif %}
             {% if clip.subtitle %}<a class="download-chip" href="{{ clip.subtitle.url }}" download>Captions SRT <span>↓</span></a>{% endif %}

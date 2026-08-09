@@ -3,10 +3,12 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from apps.orders.models import ContentOrder
 from apps.orders.models import SourceAsset
-from .models import Clip, PipelineRun, StageRun
+from apps.accounts.models import SocialHandle
+from .models import Clip, ContentIntelligence, PipelineRun, RepurposeAsset, StageRun
 from .services import openai_poc
 from .services import cloudinary_media
 from .services import public_media
+from .services import content_intelligence
 from unittest.mock import Mock, patch
 from django.test import override_settings
 from django.core.files.base import ContentFile
@@ -105,6 +107,53 @@ class ProcessingAccessTests(TestCase):
         clip=self.order.clips.get(rank=1); clip.start_ms=65000; clip.end_ms=3723000
         self.assertEqual(clip.start_timecode,"1:05")
         self.assertEqual(clip.end_timecode,"1:02:03")
+
+    @override_settings(OPENAI_API_KEY="",STORAGES={"default":{"BACKEND":"django.core.files.storage.FileSystemStorage"},"staticfiles":{"BACKEND":"django.contrib.staticfiles.storage.StaticFilesStorage"}})
+    def test_intelligence_review_is_customer_scoped(self):
+        clip=self.order.clips.get(rank=1)
+        content_intelligence.generate_for_clip(clip.id)
+        self.client.force_login(self.owner)
+        self.assertEqual(self.client.get(f"/intelligence/clips/{clip.id}/").status_code,200)
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(f"/intelligence/clips/{clip.id}/").status_code,404)
+
+    @patch("apps.processing.api.dispatch_intelligence")
+    def test_intelligence_can_be_dispatched_from_clip_api(self,dispatch):
+        clip=self.order.clips.get(rank=1);client=APIClient();client.force_authenticate(self.owner)
+        response=client.post(f"/api/v1/clips/{clip.id}/analyze-intelligence/")
+        self.assertEqual(response.status_code,202);dispatch.assert_called_once_with(clip.id)
+
+    @override_settings(OPENAI_API_KEY="")
+    def test_intelligence_baseline_builds_full_report_and_assets(self):
+        clip=self.order.clips.get(rank=1)
+        intelligence=content_intelligence.generate_for_clip(clip.id)
+        self.assertEqual(intelligence.status,ContentIntelligence.Status.READY)
+        self.assertIn("overall_quality_score",intelligence.content_dna)
+        self.assertEqual(len(intelligence.platform_strategy),7)
+        self.assertEqual(clip.repurpose_assets.count(),10)
+
+    def test_repurpose_asset_is_editable_by_owner(self):
+        clip=self.order.clips.get(rank=1);asset=RepurposeAsset.objects.create(clip=clip,kind="linkedin_post",title="Post",content="Original")
+        client=APIClient();client.force_authenticate(self.owner)
+        response=client.patch(f"/api/v1/repurpose-assets/{asset.id}/",{"content":"Edited"},format="json")
+        self.assertEqual(response.status_code,200);self.assertEqual(response.data["content"],"Edited")
+
+    def test_publication_jobs_allow_drafts_but_not_fake_direct_publish(self):
+        clip=self.order.clips.get(rank=1);handle=SocialHandle.objects.create(user=self.owner,platform="linkedin",handle="@owner")
+        client=APIClient();client.force_authenticate(self.owner)
+        payload={"clip":clip.id,"social_handle":handle.id,"action":"draft","platform_payload":{"title":"Custom"}}
+        self.assertEqual(client.post("/api/v1/publication-jobs/",payload,format="json").status_code,201)
+        payload["action"]="publish"
+        response=client.post("/api/v1/publication-jobs/",payload,format="json")
+        self.assertEqual(response.status_code,400);self.assertIn("authenticated",str(response.data))
+
+    @override_settings(OPENAI_API_KEY="")
+    def test_accepting_trim_recommendation_updates_final_render_instructions(self):
+        clip=self.order.clips.get(rank=1);intelligence=content_intelligence.generate_for_clip(clip.id)
+        client=APIClient();client.force_authenticate(self.owner)
+        response=client.post(f"/api/v1/content-intelligence/{intelligence.id}/accept-editor-recommendation/",{"action_id":"trim-start"},format="json")
+        self.assertEqual(response.status_code,200)
+        clip.refresh_from_db();self.assertEqual(clip.editing_instructions["trim_start_ms"],3000)
 
 class OpenAIPocTests(TestCase):
     @override_settings(OPENAI_API_KEY="test-key", OPENAI_TEXT_MODEL="test-model")

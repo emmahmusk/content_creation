@@ -64,6 +64,12 @@ Set the Cloudinary credentials and keep `MEDIA_PIPELINE_PRIMARY=cloudinary`. The
 
 Public YouTube and other supported video-page URLs are imported with `yt-dlp`; direct media URLs continue through the lightweight HTTP downloader. Imports are limited to one video, capped at 1080p and `PUBLIC_MEDIA_MAX_BYTES`, and require the customer to confirm they own the content or have permission to download, clip, and republish it. Keep `yt-dlp` current because hosted-video extractors change regularly. The production image includes Deno and the yt-dlp EJS scripts required for current YouTube JavaScript challenges.
 
+## Content Intelligence
+
+Every suggestion in the Publishing Queue opens a dedicated Content Intelligence Review. The review is generated asynchronously from the timestamped transcript, AI Mission, audience definition, brand voice, and selected platforms. It stores versioned Content DNA, editorial reasoning, platform strategies, business predictions, audience matching, semantic relationships, AI editor recommendations, and ten editable repurposing assets. Without an AI key the same complete workflow uses an evidence-based deterministic baseline, which keeps local development and tests functional.
+
+Saved social handles are intentionally treated as destinations rather than authenticated accounts. Users can create drafts, queues, and schedules for those destinations. Direct publish and republish requests are rejected until a platform OAuth connector is present, avoiding a misleading “connected” state or unsafe token storage. `PublicationJob` and `LearningSignal` provide the stable adapter and feedback boundaries for authenticated connectors and performance ingestion.
+
 ## Deployment checklist
 
 Set `DEBUG=False`, use a strong `SECRET_KEY`, configure `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, PostgreSQL, durable media storage, transactional email, HTTPS, backups, and worker/queue infrastructure before automating transcription or media processing. Run `python manage.py collectstatic` and serve with `gunicorn config.wsgi:application`.

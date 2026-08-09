@@ -70,15 +70,17 @@ def _render_clip_files(order, source, work):
     clips=list(order.clips.filter(status=Clip.Status.APPROVED))
     if not clips: raise ValueError("Approve at least one suggested clip before rendering exports.")
     for clip in clips:
+        trim_start_ms=min(int(clip.editing_instructions.get("trim_start_ms",0)),max(0,clip.end_ms-clip.start_ms-1000))
+        render_start_ms=clip.start_ms+trim_start_ms
         srt=work/f"clip-{clip.rank:02}.srt"
         video=work/f"clip-{clip.rank:02}.mp4"
         audio=work/f"clip-{clip.rank:02}.mp3"
         frame=work/f"clip-{clip.rank:02}.jpg"
         thumb=work/f"clip-{clip.rank:02}-thumbnail.jpg"
-        media.write_srt(segments,clip.start_ms,clip.end_ms,srt)
-        media.render_vertical(source,clip.start_ms,clip.end_ms,srt,video)
-        media.render_audio_clip(source,clip.start_ms,clip.end_ms,audio)
-        media.extract_frame(source,clip.start_ms+min(2000,(clip.end_ms-clip.start_ms)//2),frame)
+        media.write_srt(segments,render_start_ms,clip.end_ms,srt)
+        media.render_vertical(source,render_start_ms,clip.end_ms,srt,video)
+        media.render_audio_clip(source,render_start_ms,clip.end_ms,audio)
+        media.extract_frame(source,render_start_ms+min(2000,(clip.end_ms-render_start_ms)//2),frame)
         create_thumbnail(frame,clip.title,thumb)
         with open(video,"rb") as handle: clip.video.save(video.name,File(handle),save=False)
         with open(audio,"rb") as handle: clip.audio.save(audio.name,File(handle),save=False)
