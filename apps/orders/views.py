@@ -5,7 +5,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .forms import ContentOrderForm, SourceAssetForm
 from .models import ContentOrder, OrderEvent
 from apps.processing.models import PipelineRun
-from apps.processing.tasks import process_order
 
 @login_required
 def dashboard(request):
@@ -22,11 +21,7 @@ def create_order(request):
         if asset.file: asset.original_filename = asset.file.name
         asset.full_clean(); asset.save()
         OrderEvent.objects.create(order=order, actor=request.user, event_type="submitted", message="Content submitted for production.")
-        run = PipelineRun.objects.create(order=order)
-        def enqueue():
-            try: process_order.delay(str(run.id))
-            except Exception: pass
-        transaction.on_commit(enqueue)
+        PipelineRun.objects.create(order=order)
         messages.success(request, "Your content is in. The 24-hour clock has started.")
         return redirect("orders:detail", pk=order.pk)
     return render(request, "orders/create.html", {"form": form, "asset_form": asset_form})
@@ -34,4 +29,6 @@ def create_order(request):
 @login_required
 def order_detail(request, pk):
     order = get_object_or_404(ContentOrder.objects.prefetch_related("source_assets", "deliverables", "events", "clips", "pipeline_runs__stages"), pk=pk, customer=request.user)
-    return render(request, "orders/detail.html", {"order": order, "pipeline": order.pipeline_runs.first()})
+    pipeline = order.pipeline_runs.first()
+    if pipeline is None: pipeline = PipelineRun.objects.create(order=order)
+    return render(request, "orders/detail.html", {"order": order, "pipeline": pipeline})

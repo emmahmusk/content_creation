@@ -52,6 +52,12 @@ Add the provided key to `NVIDIA_API_KEY` in `.env`. Text generation uses the Ope
 
 The default ASR is Parakeet TDT 0.6B v2, chosen for punctuation and word timestamps. The default strategist is NVIDIA Nemotron Nano 9B v2. These model names and endpoint identifiers are configuration, not hard-coded workflow assumptions, so newer free NIM endpoints can be swapped without migrations.
 
+Install `requirements-nvidia.txt` instead of the base requirements only when using the NVIDIA/Riva provider. The OpenAI proof of concept does not require the Riva gRPC packages.
+
+## OpenAI clip-finder proof of concept
+
+The default local configuration is an analysis-first OpenAI proof of concept for recordings up to approximately 10 minutes. Set `OPENAI_API_KEY`, leave `AI_PROVIDER=openai`, `PIPELINE_ANALYSIS_ONLY=True`, and `PIPELINE_EXECUTION_MODE=thread`, then submit a recording with a concrete definition of an important moment. Press **Analyze recording** on the order page to start the local background job and watch live progress. It produces timestamped, scored recommendations without rendering final videos. Set `PIPELINE_EXECUTION_MODE=celery` for a durable production worker and `PIPELINE_ANALYSIS_ONLY=False` when ready to exercise the full FFmpeg render path.
+
 ## Deployment checklist
 
 Set `DEBUG=False`, use a strong `SECRET_KEY`, configure `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, PostgreSQL, durable media storage, transactional email, HTTPS, backups, and worker/queue infrastructure before automating transcription or media processing. Run `python manage.py collectstatic` and serve with `gunicorn config.wsgi:application`.

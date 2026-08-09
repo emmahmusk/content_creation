@@ -1,0 +1,2 @@
+-r requirements.txt
+nvidia-riva-client==2.20.0

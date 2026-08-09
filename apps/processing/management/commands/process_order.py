@@ -8,5 +8,7 @@ class Command(BaseCommand):
     def add_arguments(self,parser): parser.add_argument("order_id")
     def handle(self,*args,**options):
         order=ContentOrder.objects.get(pk=options["order_id"])
-        run=PipelineRun.objects.create(order=order); execute_pipeline(run.id)
+        run=order.pipeline_runs.filter(status__in=[PipelineRun.Status.QUEUED,PipelineRun.Status.FAILED]).first()
+        if run is None: run=PipelineRun.objects.create(order=order)
+        execute_pipeline(run.id)
         self.stdout.write(self.style.SUCCESS(f"Pipeline {run.id} completed and awaits review."))

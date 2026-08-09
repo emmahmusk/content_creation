@@ -9,7 +9,7 @@ from django.utils import timezone
 from apps.deliverables.models import Deliverable
 from apps.orders.models import ContentOrder, OrderEvent
 from .models import Clip, PipelineRun, StageRun, TranscriptSegment
-from .services import media, nvidia
+from .services import media, nvidia, openai_poc
 from .services.thumbnails import create_thumbnail
 
 STAGES=[("ingest",5),("audio",12),("transcribe",30),("strategy",48),("render",88),("package",100)]
@@ -47,6 +47,9 @@ def _source(order,work):
 def _transcript_text(order):
     return "\n".join(f"[{s.start_ms}-{s.end_ms}] {s.text}" for s in order.transcript_segments.all())
 
+def _provider():
+    return openai_poc if settings.AI_PROVIDER == "openai" else nvidia
+
 def _deliver(order,kind,title,content="",file_path=None,creator=None):
     latest=Deliverable.objects.filter(order=order,kind=kind).order_by("-version").first()
     version=(latest.version+1) if latest else 1
@@ -63,28 +66,50 @@ def execute_pipeline(run_id):
         stage=_stage(run,"ingest"); source=_source(order,work); info=media.probe(source)
         duration_ms=int(float(info.get("format",{}).get("duration",0))*1000)
         if duration_ms<5000: raise ValueError("The source must be at least five seconds long.")
+        if settings.PIPELINE_ANALYSIS_ONLY and duration_ms > 11 * 60 * 1000:
+            raise ValueError("The proof of concept accepts recordings up to 11 minutes. Trim this source and try again.")
         _complete(run,stage,{"source":str(source),"duration_ms":duration_ms})
 
         stage=_stage(run,"audio"); audio=work/"audio.wav"; media.extract_audio(source,audio); _complete(run,stage,{"audio":str(audio)})
 
         stage=_stage(run,"transcribe")
-        transcript=nvidia.transcribe(audio,order.content_brief)
+        provider = _provider()
+        transcript=provider.transcribe(audio,order.content_brief)
         with transaction.atomic():
             order.transcript_segments.all().delete()
             TranscriptSegment.objects.bulk_create([TranscriptSegment(order=order,**segment) for segment in transcript])
-        _complete(run,stage,{"segments":len(transcript),"provider":"nvidia" if settings.NVIDIA_API_KEY else "development-fallback"})
+        _complete(run,stage,{"segments":len(transcript),"provider":settings.AI_PROVIDER})
 
-        stage=_stage(run,"strategy"); package=nvidia.plan_package(_transcript_text(order),f"{order.content_brief}\nVoice: {order.brand_voice}",duration_ms)
+        stage=_stage(run,"strategy")
+        preferences={"importance_definition":order.importance_definition,"moments_to_avoid":order.moments_to_avoid,"desired_clip_count":order.desired_clip_count,"min_clip_seconds":order.min_clip_seconds,"max_clip_seconds":order.max_clip_seconds}
+        if settings.AI_PROVIDER == "openai":
+            package=provider.plan_package(_transcript_text(order),f"{order.content_brief}\nVoice: {order.brand_voice}",duration_ms,preferences)
+        else:
+            package=provider.plan_package(_transcript_text(order),f"{order.content_brief}\nImportance: {order.importance_definition}\nAvoid: {order.moments_to_avoid}\nVoice: {order.brand_voice}",duration_ms)
         order.clips.all().delete()
         clips=[]
-        for idx,data in enumerate(package.get("clips",[])[:10],1):
+        for idx,data in enumerate(package.get("clips",[])[:order.desired_clip_count],1):
             start=max(0,min(int(data.get("start_ms",0)),duration_ms-1000)); end=max(start+1000,min(int(data.get("end_ms",start+30000)),duration_ms))
-            clips.append(Clip(order=order,rank=idx,title=str(data.get("title",f"Clip {idx}"))[:160],hook=str(data.get("hook",""))[:240],caption=data.get("caption",""),start_ms=start,end_ms=end,score=data.get("score",0),rationale=data.get("rationale","")))
-        while len(clips)<10:
+            rationale=data.get("rationale","")
+            if data.get("matched_preference"): rationale=f"{data['matched_preference']} — {rationale}"
+            clips.append(Clip(order=order,rank=idx,title=str(data.get("title",f"Clip {idx}"))[:160],hook=str(data.get("hook",""))[:240],caption=data.get("caption",""),start_ms=start,end_ms=end,score=data.get("score",0),rationale=rationale))
+        while len(clips)<order.desired_clip_count:
             idx=len(clips)+1; span=max(5000,duration_ms//10); start=min((idx-1)*span,duration_ms-1000); clips.append(Clip(order=order,rank=idx,title=f"Clip {idx}",hook="A key moment",caption="",start_ms=start,end_ms=min(duration_ms,start+span)))
         Clip.objects.bulk_create(clips)
         (work/"package.json").write_text(json.dumps(package,indent=2),encoding="utf-8")
-        _complete(run,stage,{"clips":len(clips),"model":settings.NVIDIA_LLM_MODEL})
+        _complete(run,stage,{"clips":len(clips),"provider":settings.AI_PROVIDER,"model":settings.OPENAI_TEXT_MODEL if settings.AI_PROVIDER == "openai" else settings.NVIDIA_LLM_MODEL,"summary":package.get("summary","")})
+
+        if settings.PIPELINE_ANALYSIS_ONLY:
+            stage,_=StageRun.objects.get_or_create(pipeline=run,name="render"); stage.status=StageRun.Status.SKIPPED; stage.metadata={"reason":"PIPELINE_ANALYSIS_ONLY enabled"}; stage.finished_at=timezone.now(); stage.save()
+            stage=_stage(run,"package")
+            clip_text="\n\n".join(f"{c.rank}. {c.title}\n{c.start_ms/1000:.1f}s–{c.end_ms/1000:.1f}s · Score {c.score}/10\nHook: {c.hook}\nWhy: {c.rationale}\nCaption: {c.caption}" for c in order.clips.all())
+            _deliver(order,Deliverable.Kind.CLIP_PLAN,f"{len(clips)} AI-ranked clip recommendations",clip_text,creator=run.order.customer)
+            _complete(run,stage,{"deliverables":1,"analysis_only":True})
+            run.status=PipelineRun.Status.REVIEW; run.current_stage="recommendations_ready"; run.progress=100; run.finished_at=timezone.now(); run.save()
+            order.status=ContentOrder.Status.QUALITY_CHECK; order.save()
+            OrderEvent.objects.create(order=order,event_type="analysis_complete",message="Your AI-ranked clip recommendations are ready.")
+            shutil.rmtree(work,ignore_errors=True)
+            return
 
         stage=_stage(run,"render"); segments=list(order.transcript_segments.all())
         for clip in order.clips.all():

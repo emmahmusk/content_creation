@@ -10,4 +10,3 @@ redis==6.2.0
 openai==1.93.0
 requests==2.32.4
 Pillow==11.3.0
-nvidia-riva-client==2.20.0

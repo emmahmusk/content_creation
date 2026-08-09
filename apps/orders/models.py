@@ -19,6 +19,11 @@ class ContentOrder(models.Model):
     title = models.CharField(max_length=200)
     content_brief = models.TextField(help_text="Audience, goals, tone, and any important context.")
     brand_voice = models.TextField(blank=True)
+    importance_definition = models.TextField(blank=True, help_text="Describe exactly what makes a moment valuable for this recording.")
+    moments_to_avoid = models.TextField(blank=True, help_text="Topics or sections the clipper should exclude.")
+    desired_clip_count = models.PositiveSmallIntegerField(default=5)
+    min_clip_seconds = models.PositiveSmallIntegerField(default=20)
+    max_clip_seconds = models.PositiveSmallIntegerField(default=60)
     target_platforms = models.JSONField(default=list, blank=True)
     include_audio_cleanup = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.SUBMITTED, db_index=True)
@@ -35,6 +40,13 @@ class ContentOrder(models.Model):
         if self.status == self.Status.DELIVERED and not self.delivered_at:
             self.delivered_at = timezone.now()
         super().save(*args, **kwargs)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if not 1 <= self.desired_clip_count <= 10:
+            raise ValidationError({"desired_clip_count": "Choose between 1 and 10 clips."})
+        if self.min_clip_seconds < 10 or self.max_clip_seconds > 120 or self.min_clip_seconds > self.max_clip_seconds:
+            raise ValidationError("Clip duration must be between 10 and 120 seconds, with minimum not exceeding maximum.")
     def __str__(self):
         return self.title
 
