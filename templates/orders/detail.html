@@ -22,7 +22,7 @@
     <div class="pipeline-heading">
       <div>
         <span>PRODUCTION ENGINE</span>
-        <h2><b class="pipeline-status">{{ pipeline.get_status_display }}</b> · <b class="pipeline-stage">{% if pipeline.current_stage == 'recommendations_ready' %}Recommendations ready{% elif pipeline.current_stage == 'quality_review' %}Quality review{% elif pipeline.current_stage == 'rendering_exports' %}Rendering exports{% else %}{{ pipeline.current_stage|default:'ready to analyze'|title }}{% endif %}</b></h2>
+        <h2><b class="pipeline-status">{{ pipeline.get_status_display }}</b> · <b class="pipeline-stage">{% if pipeline.current_stage == 'awaiting_approval' %}Awaiting clip approval{% elif pipeline.current_stage == 'recommendations_ready' %}Recommendations ready{% elif pipeline.current_stage == 'quality_review' %}Quality review{% elif pipeline.current_stage == 'rendering_exports' %}Rendering exports{% else %}{{ pipeline.current_stage|default:'ready to analyze'|title }}{% endif %}</b></h2>
       </div>
       <strong class="pipeline-percent">{{ pipeline.progress }}%</strong>
     </div>

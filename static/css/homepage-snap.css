@@ -1,0 +1,2 @@
+html:has(body.landing-page){scroll-snap-type:y proximity}.landing-page .hero,.landing-page .product-showcase,.landing-page .platform-section,.landing-page .workflow-section,.landing-page .outcomes-section{scroll-snap-align:start;scroll-snap-stop:normal}
+@media(max-width:760px){html:has(body.landing-page){scroll-snap-type:none}}
