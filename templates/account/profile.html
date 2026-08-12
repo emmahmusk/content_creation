@@ -1,1 +1,41 @@
-{% extends 'base.html' %}{% block title %}Connections — Recast{% endblock %}{% block body_class %}app-page{% endblock %}{% block content %}<section class="dashboard social-profile-page"><a class="back-link" href="{% url 'orders:dashboard' %}">← Workspace</a><header class="create-header profile-header"><div><div class="eyebrow">PUBLISHING CONNECTIONS</div><h1>Your audience lives<br>in more than one place.</h1></div><p>Save the destinations that matter to your publishing system. Add, update, or remove them whenever your strategy changes.</p></header><section class="panel social-manager" data-api-url="/api/v1/social-handles/"><div class="connection-intro"><div><span>ADD A DESTINATION</span><h2>Connect the profile behind the platform.</h2></div><p>Saved handles support drafting, queueing, and scheduling. Authenticated one-click publishing becomes available as each platform connector is authorized.</p></div><form class="social-handle-form"><div><label for="social-platform">Platform</label><select id="social-platform" name="platform" required><option value="">Choose a platform</option>{% for value,label in platforms %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div><div><label for="social-handle">Handle or profile URL</label><input id="social-handle" name="handle" maxlength="160" placeholder="@yourhandle" required></div><button class="btn btn-lime" type="submit">Add destination <span>+</span></button><p class="social-form-error hidden" role="alert"></p></form><div class="connection-list-head"><span>YOUR DESTINATIONS</span><b>{{ social_handles|length|stringformat:'02d' }}</b></div><div class="social-handle-list">{% for item in social_handles %}<article data-id="{{ item.id }}" data-platform="{{ item.platform }}"><div class="platform-avatar">{{ item.get_platform_display|first }}</div><strong>{{ item.get_platform_display }}</strong><input value="{{ item.handle }}" maxlength="160" aria-label="{{ item.get_platform_display }} handle"><button class="download-chip social-update" type="button">Save</button><button class="download-chip social-delete" type="button">Remove</button></article>{% empty %}<div class="social-empty"><div>↗</div><h3>No publishing destinations yet.</h3><p>Add the first place your content should travel.</p></div>{% endfor %}</div></section></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Connections — Recast{% endblock %}
+{% block body_class %}app-page connection-page{% endblock %}
+{% block content %}
+<main class="connections-shell">
+  <a class="connection-back" href="{% url 'orders:dashboard' %}">← Workspace</a>
+
+  <header class="connections-masthead">
+    <div class="masthead-title">
+      <span class="connection-kicker">Publishing connections</span>
+      <h1>Be everywhere.<br><em>Sound like yourself.</em></h1>
+    </div>
+    <div class="masthead-note">
+      <span class="masthead-index">00 / {{ social_handles|length|stringformat:'02d' }}</span>
+      <p>Your destinations give Recast the context to shape each idea for the audience, voice, and rhythm of every platform.</p>
+      <div class="platform-wordmark" aria-hidden="true"><span>LinkedIn</span><i></i><span>YouTube</span><i></i><span>Instagram</span><i></i><span>X</span></div>
+    </div>
+  </header>
+
+  <section class="connection-workspace" data-api-url="/api/v1/social-handles/">
+    <div class="connection-compose">
+      <div class="compose-intro"><span>01</span><div><small>ADD A DESTINATION</small><h2>Where should your<br>content travel next?</h2><p>Connect a public handle or profile URL. You can update or remove it at any time.</p></div></div>
+      <form class="social-handle-form connection-form">
+        <div><label for="social-platform">Platform</label><select id="social-platform" name="platform" required><option value="">Choose a platform</option>{% for value,label in platforms %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+        <div><label for="social-handle">Handle or profile URL</label><input id="social-handle" name="handle" maxlength="160" placeholder="@yourhandle" required></div>
+        <button class="btn btn-lime" type="submit"><span>Add destination</span><b>+</b></button>
+        <p class="social-form-error hidden" role="alert"></p>
+      </form>
+    </div>
+
+    <div class="destinations-head"><div><span>02</span><h2>Your destinations</h2></div><p>{{ social_handles|length }} connected</p></div>
+    <div class="social-handle-list destination-list">
+      {% for item in social_handles %}
+      <article data-id="{{ item.id }}" data-platform="{{ item.platform }}"><div class="platform-avatar">{{ item.get_platform_display|first }}</div><div class="destination-name"><small>PLATFORM</small><strong>{{ item.get_platform_display }}</strong></div><input value="{{ item.handle }}" maxlength="160" aria-label="{{ item.get_platform_display }} handle"><button class="download-chip social-update" type="button">Save</button><button class="download-chip social-delete" type="button">Remove</button></article>
+      {% empty %}
+      <div class="social-empty connection-empty"><span class="empty-index">00</span><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}

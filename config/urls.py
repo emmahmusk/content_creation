@@ -10,6 +10,7 @@ from apps.orders.api import ContentOrderViewSet, SourceAssetViewSet
 from apps.deliverables.api import DeliverableViewSet
 from apps.processing.api import ClipViewSet, ContentIntelligenceViewSet, LearningSignalViewSet, PipelineRunViewSet, PublicationJobViewSet, RepurposeAssetViewSet, TranscriptViewSet
 from apps.accounts.api import SocialHandleViewSet
+from apps.accounts.forms import WorkspaceAuthenticationForm
 
 router = DefaultRouter()
 router.register("orders", ContentOrderViewSet, basename="order")
@@ -26,7 +27,7 @@ router.register("learning-signals",LearningSignalViewSet,basename="learning-sign
 
 urlpatterns = [
     path("admin/", admin.site.urls), path("", home, name="home"), path("health/", health, name="health"),
-    path("accounts/login/", auth_views.LoginView.as_view(template_name="account/login.html"), name="login"),
+    path("accounts/login/", auth_views.LoginView.as_view(template_name="account/login.html", authentication_form=WorkspaceAuthenticationForm), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("accounts/", include("apps.accounts.urls")), path("orders/", include("apps.orders.urls")), path("intelligence/",include("apps.processing.urls")),
     path("api/v1/", include((router.urls, "api"), namespace="v1")), path("api-auth/", include("rest_framework.urls")),

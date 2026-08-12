@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.models import User
 from .models import CustomerProfile, SocialHandle
 
@@ -12,6 +12,9 @@ class RegistrationForm(UserCreationForm):
     class Meta:
         model = User
         fields = ("username", "email", "organization", "audience_type", "social_platform", "social_handle", "password1", "password2")
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.label_suffix = ""
     def clean(self):
         cleaned = super().clean()
         if bool(cleaned.get("social_platform")) != bool(cleaned.get("social_handle")):
@@ -29,3 +32,8 @@ class RegistrationForm(UserCreationForm):
             if self.cleaned_data.get("social_platform"):
                 SocialHandle.objects.create(user=user,platform=self.cleaned_data["social_platform"],handle=self.cleaned_data["social_handle"].strip())
         return user
+
+class WorkspaceAuthenticationForm(AuthenticationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.label_suffix = ""
