@@ -11,7 +11,7 @@
 :root[data-color-mode="dark"] .app-page{background:linear-gradient(#15131a 0 340px,var(--canvas) 340px)}:root[data-color-mode="dark"] .bento-large,:root[data-color-mode="dark"] .outcomes-section{background:#15131a}:root[data-color-mode="dark"] .bento-light{background:var(--accent);color:#15121e}:root[data-color-mode="dark"] .rights-notice{background:var(--accent-soft);color:#e8e4ef}:root[data-color-mode="dark"] .semantic-graph{background:radial-gradient(circle,#27213e,transparent 67%)}
 @media(prefers-reduced-motion:reduce){.hero-glow{animation:none}}
 
-/* User-selectable accents. Cobalt is the confident, editorial default. */
+/* User-selectable accents. Monochrome is the calm editorial default. */
 :root,:root[data-palette="cobalt"]{--accent:#315eea;--accent-soft:#e5ebff;--lime:#315eea;--lime-2:#a9bbff;--forest:#315eea;--accent-ink:#fff}
 :root[data-palette="copper"]{--accent:#b5522d;--accent-soft:#f7e8df;--lime:#b5522d;--lime-2:#efb699;--forest:#9b4325;--accent-ink:#fff}
 :root[data-palette="teal"]{--accent:#087f78;--accent-soft:#dcefeb;--lime:#087f78;--lime-2:#8ed5ce;--forest:#08716b;--accent-ink:#fff}
