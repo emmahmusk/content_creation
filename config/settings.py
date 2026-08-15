@@ -16,7 +16,7 @@ INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
     "rest_framework", "django_filters",
-    "apps.core", "apps.accounts", "apps.orders", "apps.deliverables", "apps.processing",
+    "apps.core", "apps.accounts", "apps.orders", "apps.deliverables", "apps.processing", "apps.music",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

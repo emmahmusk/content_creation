@@ -68,6 +68,14 @@ if(pipeline){
   if(pipeline.dataset.status==='running')setTimeout(refresh,500);
 }
 
+const musicFile=document.querySelector('.music-file-field input[type="file"]');
+musicFile?.addEventListener('change',()=>{const label=document.querySelector('[data-file-name]');if(label)label.textContent=musicFile.files?.[0]?.name||'Choose an audio file';});
+const studioProgress=document.querySelector('[data-studio-progress]');
+if(studioProgress){
+  const pollStudio=async()=>{try{const response=await fetch(studioProgress.dataset.url,{headers:{Accept:'application/json'}});if(!response.ok)return;const data=await response.json();studioProgress.querySelector('[data-progress-bar]').style.width=`${data.progress}%`;studioProgress.querySelector('[data-progress-label]').textContent=`${data.progress}%`;studioProgress.querySelector('[data-stage-label]').textContent=data.stage_label;if(['direction','review','failed'].includes(data.status)){window.location.reload();return;}}catch(error){}setTimeout(pollStudio,1800);};
+  setTimeout(pollStudio,1200);
+}
+
 document.querySelectorAll('.clip-decision').forEach(button=>button.addEventListener('click',async()=>{
   const cookie=name=>document.cookie.split('; ').find(row=>row.startsWith(`${name}=`))?.split('=')[1]||'';
   const card=button.closest('.clip-card');

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}AI AfroFusion Studio — Recast{% endblock %}
+{% block body_class %}app-page music-page{% endblock %}
+{% block content %}
+<section class="music-shell">
+  <header class="music-home-head"><div><span class="music-kicker">A separate creative workspace</span><h1>AI AfroFusion<br><em>Studio.</em></h1></div><p>Study what makes a recording work, then develop an entirely original song—new story, lyrics, arrangement, and production plan.</p></header>
+  <div class="music-rule"><span>01 / REFERENCE INTELLIGENCE</span><p>Analysis only. The original audio is never sampled, stemmed, copied, or used to clone a voice.</p></div>
+  <section class="music-upload-card"><div class="upload-copy"><span>START A SESSION</span><h2>Bring a reference.<br>Leave with a new direction.</h2><ul><li>MP3, WAV, FLAC, AAC or M4A</li><li>Maximum 150 MB</li><li>Rights confirmation required</li></ul></div>
+    <form method="post" enctype="multipart/form-data" class="music-upload-form">{% csrf_token %}{{ form.non_field_errors }}<div class="music-field">{{ form.title.label_tag }}{{ form.title }}{{ form.title.errors }}</div><div class="music-file-field"><span>REFERENCE AUDIO</span>{{ form.reference_audio }}<label for="{{ form.reference_audio.id_for_label }}"><i>↥</i><strong data-file-name>Choose an audio file</strong><small>Click to browse your device</small></label>{{ form.reference_audio.errors }}</div><div class="music-consent">{{ form.source_rights_confirmed }}{{ form.source_rights_confirmed.label_tag }}{{ form.source_rights_confirmed.errors }}</div><div class="music-consent">{{ form.analysis_only_confirmed }}{{ form.analysis_only_confirmed.label_tag }}{{ form.analysis_only_confirmed.errors }}</div><button class="btn music-primary" type="submit"><span>Analyze reference</span><b>→</b></button></form>
+  </section>
+  <section class="music-sessions"><header><div><span>02 / YOUR SESSIONS</span><h2>Continue creating.</h2></div><b>{{ projects|length|stringformat:'02d' }}</b></header><div class="session-list">{% for project in projects %}<a href="{% url 'music:detail' project.id %}"><span class="session-index">{{ forloop.counter|stringformat:'02d' }}</span><div><small>{{ project.get_status_display }}</small><h3>{{ project.title }}</h3><p>{{ project.original_filename }}</p></div><div class="session-progress"><i><b style="width:{{ project.progress }}%"></b></i><span>{{ project.progress }}%</span></div><em>↗</em></a>{% empty %}<div class="music-empty"><span>♪</span><h3>Your first studio session starts above.</h3><p>Upload a song you have the right to analyze.</p></div>{% endfor %}</div></section>
+</section>
+{% endblock %}

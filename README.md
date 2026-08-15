@@ -27,6 +27,7 @@ Open `http://127.0.0.1:8000/`. Staff manage orders and publish deliverables at `
 - `orders`: order intake, source files/links, 24-hour deadline, and activity history.
 - `deliverables`: versioned output packages and downloadable files.
 - `processing`: resumable pipeline runs, individual stage attempts, timestamped transcripts, clip plans, renders, captions, and thumbnails.
+- `music`: rights-safe reference analysis, original AfroFusion song direction, editable lyrics, structured production plans, and export assets.
 - `core`: public pages and service health check.
 - `config`: environment-led application configuration and API routing.
 
@@ -45,6 +46,8 @@ All customer web views and API querysets are tenant-scoped. Staff can see all or
 Session and Basic authentication are enabled initially. Endpoints include `/api/v1/orders/`, `/api/v1/assets/`, and `/api/v1/deliverables/`. Add token/JWT authentication at the REST framework boundary when a mobile client or external integration needs it.
 
 Processing endpoints are `/api/v1/pipeline-runs/`, `/api/v1/clips/`, and `/api/v1/transcript/`. A failed or queued run can be dispatched with `POST /api/v1/pipeline-runs/{id}/retry/`.
+
+Music Studio endpoints begin at `/api/v1/music-projects/`. Projects expose owner-scoped status and assets; the `direction`, `lyrics`, `progress`, and `retry` actions support the studio workflow without exposing another customer’s sessions.
 
 ## NVIDIA configuration
 
@@ -69,6 +72,12 @@ Public YouTube and other supported video-page URLs are imported with `yt-dlp`; d
 Every suggestion in the Publishing Queue opens a dedicated Content Intelligence Review. The review is generated asynchronously from the timestamped transcript, AI Mission, audience definition, brand voice, and selected platforms. It stores versioned Content DNA, editorial reasoning, platform strategies, business predictions, audience matching, semantic relationships, AI editor recommendations, and ten editable repurposing assets. Without an AI key the same complete workflow uses an evidence-based deterministic baseline, which keeps local development and tests functional.
 
 Saved social handles are intentionally treated as destinations rather than authenticated accounts. Users can create drafts, queues, and schedules for those destinations. Direct publish and republish requests are rejected until a platform OAuth connector is present, avoiding a misleading “connected” state or unsafe token storage. `PublicationJob` and `LearningSignal` provide the stable adapter and feedback boundaries for authenticated connectors and performance ingestion.
+
+## AI AfroFusion Studio
+
+Authenticated creators can open `/music/` as a separate workspace from clipping. The upload gate accepts MP3, WAV, FLAC, AAC, and M4A up to 150 MB and requires both rights and analysis-only confirmations. FFprobe and FFmpeg extract technical metadata and a lightweight energy/tempo profile; OpenAI turns those high-level measurements into a producer report and, after the creator supplies direction, generates an original concept, lyrics, arrangement, chord map, and melody plan.
+
+The reference is never transcribed for lyrics, separated into stems, sampled, or used for artist/voice imitation. The current feature exports editable lyrics and structured project JSON. Melody audio, beat generation, licensed vocal synthesis, and mix/master rendering are intentionally presented as provider adapter slots rather than simulated completed outputs. With no OpenAI key, `PIPELINE_ALLOW_MOCK_AI=True` keeps the workflow testable using deterministic original development content; disable that fallback in production.
 
 ## Deployment checklist
 
