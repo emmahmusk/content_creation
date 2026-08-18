@@ -3,15 +3,17 @@ from django.db import models
 
 class CustomerProfile(models.Model):
     class Audience(models.TextChoices):
-        PODCASTER = "podcaster", "Podcaster"
-        COACH = "coach", "Coach"
-        CHURCH = "church", "Church"
-        CONSULTANT = "consultant", "Consultant"
-        YOUTUBE = "youtube", "YouTube creator"
+        CLIPPING_AGENCY = "clipping_agency", "Clipping agency"
+        HIGH_VOLUME_CLIPPER = "high_volume_clipper", "High-volume clipper"
+        PODCAST_AGENCY = "podcast_agency", "Podcast clipping agency"
+        SOCIAL_AGENCY = "social_agency", "Social media agency"
+        CREATOR_LIBRARY = "creator_library", "Creator with a content library"
+        COURSE_COMMUNITY = "course_community", "Clipping course or community"
+        BEGINNER_CLIPPER = "beginner_clipper", "Individual beginner clipper"
         OTHER = "other", "Other"
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="customer_profile")
     organization = models.CharField(max_length=160, blank=True)
-    audience_type = models.CharField(max_length=20, choices=Audience.choices, default=Audience.OTHER)
+    audience_type = models.CharField(max_length=32, choices=Audience.choices, default=Audience.OTHER)
     website = models.URLField(blank=True)
     timezone = models.CharField(max_length=64, default="Africa/Lagos")
     created_at = models.DateTimeField(auto_now_add=True)

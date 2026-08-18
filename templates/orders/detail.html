@@ -1,48 +1,69 @@
 {% extends 'base.html' %}
-{% block title %}{{ order.title }} — Recast Studio{% endblock %}
+{% block title %}{{ order.title }} — Reeckast Studio{% endblock %}
+{% block body_class %}app-page review-page{% endblock %}
 {% block content %}
-<main class="studio-shell">
-  <a class="back" href="{% url 'orders:dashboard' %}">← All projects</a>
+<main class="studio-shell review-studio">
+  <a class="back" href="{% url 'orders:dashboard' %}">← Projects</a>
 
   <header class="studio-head">
     <div>
-      <div class="eyebrow">CLIP STUDIO · {{ order.id|stringformat:'s'|slice:':8'|upper }}</div>
+      <div class="eyebrow">REVIEW WORKSPACE · {{ order.id|stringformat:'s'|slice:':8'|upper }}</div>
       <h1>{{ order.title }}</h1>
-      <p>AI-selected moments, rendered and packaged for every publishing workflow.</p>
+      <p>Review the suggestions, choose the strongest moments, and edit only the clips you plan to use.</p>
+      <div class="studio-context-line"><span>{{ clip_count|stringformat:'02d' }} moments found</span><i></i><span>{{ approved_count|stringformat:'02d' }} selected</span><i></i><span>{{ order.target_platforms|length|stringformat:'02d' }} destinations</span></div>
     </div>
-    <span class="status status-{{ order.status }}">{{ order.get_status_display }}</span>
+    <div class="studio-head-actions">
+      <span class="status status-{{ order.status }}">{{ order.get_status_display }}</span>
+      <a class="studio-edit-link" href="{% url 'orders:edit' order.pk %}">{% if pipeline.status == 'running' %}Stop or change settings{% else %}Change settings{% endif %} <span>↗</span></a>
+    </div>
   </header>
 
   {% if pipeline %}
-  <section class="pipeline-card studio-pipeline"
+  <section class="pipeline-card studio-pipeline" aria-live="polite"
     data-pipeline-url="/api/v1/pipeline-runs/{{ pipeline.id }}/"
     data-start-url="/api/v1/pipeline-runs/{{ pipeline.id }}/start/"
     data-render-url="/api/v1/pipeline-runs/{{ pipeline.id }}/render-exports/"
-    data-status="{{ pipeline.status }}">
+    data-status="{{ pipeline.status }}"
+    data-stage="{{ pipeline.current_stage|default:'starting' }}">
     <div class="pipeline-heading">
       <div>
-        <span>PRODUCTION ENGINE</span>
-        <h2><b class="pipeline-status">{{ pipeline.get_status_display }}</b> · <b class="pipeline-stage">{% if pipeline.current_stage == 'awaiting_approval' %}Awaiting clip approval{% elif pipeline.current_stage == 'recommendations_ready' %}Recommendations ready{% elif pipeline.current_stage == 'quality_review' %}Quality review{% elif pipeline.current_stage == 'rendering_exports' %}Rendering exports{% else %}{{ pipeline.current_stage|default:'ready to analyze'|title }}{% endif %}</b></h2>
+        <div class="engine-kicker"><span>PRODUCTION ENGINE</span><em><i></i>{% if pipeline.status == 'review' %}HUMAN DECISION REQUIRED{% else %}LIVE PROCESSING{% endif %}</em></div>
+        <h2><b class="pipeline-status">{{ pipeline.get_status_display }}</b> · <b class="pipeline-stage">{% if pipeline.current_stage == 'awaiting_approval' %}Waiting for clip selection{% elif pipeline.current_stage == 'recommendations_ready' %}Clip suggestions ready{% elif pipeline.current_stage == 'broll' %}Adding B-roll to selected clips{% elif pipeline.current_stage == 'quality_review' %}Final quality check{% elif pipeline.current_stage == 'rendering_exports' %}Finishing selected clips{% else %}{{ pipeline.current_stage|default:'ready to analyze'|title }}{% endif %}</b></h2>
       </div>
       <strong class="pipeline-percent">{{ pipeline.progress }}%</strong>
     </div>
     <div class="progress-track"><i style="width:{{ pipeline.progress }}%"></i></div>
     <ol class="stage-track" aria-label="Production stages">
-      <li class="is-complete"><b>01</b><span>Ingest</span></li>
-      <li class="{% if clip_count %}is-complete{% endif %}"><b>02</b><span>Transcribe</span></li>
-      <li class="{% if clip_count %}is-complete{% endif %}"><b>03</b><span>Select</span></li>
-      <li class="{% if exports_ready %}is-complete{% elif pipeline.status == 'running' and pipeline.current_stage == 'rendering_exports' %}is-active{% endif %}"><b>04</b><span>Render</span></li>
-      <li class="{% if exports_ready %}is-complete{% endif %}"><b>05</b><span>Export</span></li>
+      <li class="{% if clip_count %}is-complete{% endif %}"><b>01</b><span>Source</span></li>
+      <li class="{% if clip_count %}is-complete{% endif %}"><b>02</b><span>Discover</span></li>
+      <li class="{% if approved_count or exports_ready %}is-complete{% endif %}"><b>03</b><span>Select</span></li>
+      <li class="{% if exports_ready %}is-complete{% elif pipeline.status == 'running' and pipeline.current_stage == 'broll' %}is-active{% endif %}"><b>04</b><span>B-roll</span></li>
+      <li class="{% if exports_ready %}is-complete{% elif pipeline.status == 'running' and pipeline.current_stage == 'render' %}is-active{% endif %}"><b>05</b><span>Finish</span></li>
+      <li class="{% if exports_ready %}is-complete{% endif %}"><b>06</b><span>Export</span></li>
     </ol>
-    <p class="pipeline-error{% if not pipeline.error %} hidden{% endif %}" role="alert">{{ pipeline.error }}</p>
+    <aside class="pipeline-companion{% if pipeline.status != 'running' %} hidden{% endif %}" data-pipeline-companion>
+      <div class="companion-orbit" aria-hidden="true"><i></i><i></i><b>R</b></div>
+      <div class="companion-copy">
+        <span data-companion-kicker>{% if pipeline.current_stage == 'broll' %}VISUAL STORYBOARD: ACTIVE{% elif pipeline.current_stage == 'rendering_exports' or pipeline.current_stage == 'render' %}THE EDIT SUITE IS MOVING{% else %}WORKING IN THE BACKGROUND{% endif %}</span>
+        <strong data-pipeline-message>{% if pipeline.current_stage == 'broll' %}Approved clips are getting visual context.{% elif pipeline.current_stage == 'rendering_exports' or pipeline.current_stage == 'render' %}Your exports are cooking.{% else %}We’re finding the moments people will replay.{% endif %}</strong>
+        <p data-pipeline-detail>You can leave this page, close the tab, or get back to your day. Your progress is saved and Reeckast will keep working.</p>
+      </div>
+      <a href="{% url 'orders:dashboard' %}">Back to workspace <span>↗</span></a>
+    </aside>
+    <div class="pipeline-error{% if not pipeline.error %} hidden{% endif %}" role="alert"><strong>We hit a snag, but your source and decisions are safe.</strong><span>{{ pipeline.error }}</span></div>
+    <p class="pipeline-connection hidden" role="status"><i></i><span>Live updates paused. Reconnecting automatically…</span></p>
     <div class="pipeline-actions">
       {% if not clip_count %}
-        <button class="btn pipeline-start" type="button" {% if pipeline.status == 'running' %}disabled{% endif %}>{% if pipeline.status == 'failed' %}Retry analysis{% else %}Analyze recording{% endif %}</button>
+        {% if pipeline.status == 'cancelled' %}
+          <a class="btn pipeline-resume-edit" href="{% url 'orders:edit' order.pk %}">Review changes and restart <span>→</span></a>
+        {% else %}
+          <button class="btn pipeline-start" type="button" {% if pipeline.status == 'running' %}disabled{% endif %}>{% if pipeline.status == 'failed' %}Try again{% else %}Find the best moments{% endif %}</button>
+        {% endif %}
       {% elif not exports_ready %}
-        <button class="btn pipeline-render" type="button" data-approved-count="{{ approved_count }}" {% if pipeline.status == 'running' or not approved_count %}disabled{% endif %}>Render {{ approved_count }} approved clip{{ approved_count|pluralize }}</button>
-        <span class="pipeline-help">Approve previews first. Rendering creates MP4, MP3, subtitles and thumbnails only for your choices.</span>
+        <button class="btn pipeline-render" type="button" data-approved-count="{{ approved_count }}" {% if pipeline.status == 'running' or not approved_count %}disabled{% endif %}>Create {{ approved_count }} selected clip{{ approved_count|pluralize }}</button>
+        <span class="pipeline-help">{% if pipeline.status == 'running' %}Your choices are locked in. We’re applying {% if order.broll_mode != 'none' %}AI-planned B-roll, {% endif %}captions, hooks, reframing and export polish now.{% else %}Select the clips you want first. Editing{% if order.broll_mode != 'none' %} and B-roll generation{% endif %} runs only for your selections.{% endif %}</span>
       {% else %}
-        <a class="btn export-all" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/">Download all exports <span>↓</span></a>
+        <a class="btn export-all" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/">Download all files <span>↓</span></a>
         <span class="pipeline-help">{{ rendered_count }} of {{ clip_count }} clips ready to publish.</span>
       {% endif %}
     </div>
@@ -53,7 +74,7 @@
   <section class="studio-summary" aria-label="Project export summary">
     <div><strong>{{ clip_count }}</strong><span>AI moments</span></div>
     <div><strong>{{ rendered_count }}/{{ clip_count }}</strong><span>Rendered</span></div>
-    <div><strong class="approved-count">{{ approved_count }}</strong><span>Approved</span></div>
+    <div><strong class="approved-count">{{ approved_count }}</strong><span>Selected</span></div>
     <div><strong>9:16</strong><span>Social video</span></div>
     <div><strong>4</strong><span>Export formats</span></div>
   </section>
@@ -62,10 +83,10 @@
     <div class="section-title-row">
       <div>
         <div class="eyebrow">AI-RANKED MOMENTS</div>
-        <h2>Your publishing queue</h2>
-        <p>Preview each cut, review why it was selected, then download exactly what you need.</p>
+        <h2>Your clip choices</h2>
+        <p>Select the moments you want to turn into clips. Skip anything you do not need before editing begins.</p>
       </div>
-      {% if exports_ready %}<a class="btn btn-small" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/">Download ZIP</a>{% endif %}
+      {% if exports_ready %}<a class="btn btn-small" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/">Download all files</a>{% endif %}
     </div>
 
     <div class="clip-list">
@@ -91,13 +112,19 @@
           <div class="clip-meta">
             <span>CLIP {{ clip.rank|stringformat:'02d' }}</span>
             <span>{{ clip.start_timecode }} → {{ clip.end_timecode }}</span>
-            <span class="score">{{ clip.score }}/10 match</span>
+            <span class="clip-state-meta">{{ clip.get_status_display }}</span>
+          </div>
+          <div class="clip-intelligence-bar">
+            <div class="clip-potential"><strong>{{ clip.score }}</strong><span>/10</span><b>{% if clip.score >= 9 %}Exceptional potential{% elif clip.score >= 8 %}High potential{% elif clip.score >= 7 %}Promising{% else %}Useful moment{% endif %}</b></div>
+            <div class="clip-signal"><span>Hook</span><strong>{% if clip.score >= 9 %}Exceptional{% elif clip.score >= 8 %}Strong{% else %}Clear{% endif %}</strong></div>
+            <div class="clip-signal"><span>Duration</span><strong>{{ clip.duration_seconds }}s</strong></div>
+            <div class="clip-signal"><span>Format</span><strong>9:16 social</strong></div>
           </div>
           <h3>{{ clip.title }}</h3>
           <p class="clip-hook">“{{ clip.hook }}”</p>
-          <details>
-            <summary>Why the AI chose this moment</summary>
-            <p>{{ clip.rationale }}</p>
+          <details class="clip-reasoning">
+            <summary><span>Why this could perform</span><b>View AI reasoning</b></summary>
+            <div><span>WHAT THE ENGINE NOTICED</span><p>{{ clip.rationale }}</p></div>
           </details>
 
           {% if clip.audio %}
@@ -108,23 +135,35 @@
           {% endif %}
 
           <div class="clip-actions">
-            <a class="download-chip intelligence-link" href="{% url 'processing:intelligence-review' clip.id %}">Content Intelligence Review <span>→</span></a>
-            {% if clip.video %}<a class="download-chip primary" href="{{ clip.video.url }}" download>Video MP4 <span>↓</span></a>{% endif %}
-            {% if clip.audio %}<a class="download-chip" href="{{ clip.audio.url }}" download>Audio MP3 <span>↓</span></a>{% endif %}
-            {% if clip.subtitle %}<a class="download-chip" href="{{ clip.subtitle.url }}" download>Captions SRT <span>↓</span></a>{% endif %}
+            <a class="download-chip intelligence-link" href="{% url 'processing:intelligence-review' clip.id %}">Why this clip? <span>→</span></a>
+            {% if clip.video %}<a class="download-chip primary" href="{{ clip.video.url }}" download>Download video <span>↓</span></a>{% endif %}
+            {% if clip.audio %}<a class="download-chip" href="{{ clip.audio.url }}" download>Download audio <span>↓</span></a>{% endif %}
+            {% if clip.subtitle %}<a class="download-chip" href="{{ clip.subtitle.url }}" download>Download captions <span>↓</span></a>{% endif %}
             {% if not clip.video %}
-              <button class="download-chip clip-decision{% if clip.status == 'approved' %} primary{% endif %}" type="button" data-url="/api/v1/clips/{{ clip.id }}/approve/" data-state="approved">Approve</button>
-              <button class="download-chip clip-decision{% if clip.status == 'rejected' %} primary{% endif %}" type="button" data-url="/api/v1/clips/{{ clip.id }}/reject/" data-state="rejected">Reject</button>
+              <button class="download-chip clip-decision{% if clip.status == 'approved' %} primary{% endif %}" type="button" aria-pressed="{% if clip.status == 'approved' %}true{% else %}false{% endif %}" data-url="/api/v1/clips/{{ clip.id }}/approve/" data-state="approved">{% if clip.status == 'approved' %}Selected{% else %}Select clip{% endif %}</button>
+              <button class="download-chip clip-decision{% if clip.status == 'rejected' %} primary{% endif %}" type="button" aria-pressed="{% if clip.status == 'rejected' %}true{% else %}false{% endif %}" data-url="/api/v1/clips/{{ clip.id }}/reject/" data-state="rejected">Skip clip</button>
               <span class="awaiting-export clip-state">{{ clip.get_status_display }}</span>
             {% endif %}
           </div>
+          {% if clip.broll_plan %}<p class="clip-broll-state"><span>B-ROLL</span>{{ clip.broll_plan.get_status_display }} · {{ clip.broll_plan.scenes|length }} planned visual{{ clip.broll_plan.scenes|length|pluralize }}</p>{% endif %}
         </div>
       </article>
       {% endfor %}
     </div>
   </section>
   {% else %}
-  <section class="empty studio-empty"><div>✦</div><h2>Your clip workspace is ready.</h2><p>Start the analysis to find the strongest moments in this recording.</p></section>
+    {% if pipeline.status == 'running' %}
+      <section class="empty studio-empty studio-empty-processing">
+        <div class="workspace-loader" aria-hidden="true"><i></i><i></i><i></i></div>
+        <span>BUILDING YOUR CLIP WORKSPACE</span>
+        <h2>The strongest moments are taking shape.</h2>
+        <p>Reeckast is reading the recording and your creative brief. Recommendations will appear here as soon as selection is complete.</p>
+      </section>
+    {% elif pipeline.status == 'cancelled' %}
+      <section class="empty studio-empty studio-empty-paused"><div>Ⅱ</div><h2>Analysis stopped safely.</h2><p>Edit the project settings, then return here to start a clean analysis.</p><a class="btn btn-small" href="{% url 'orders:edit' order.pk %}">Change project settings</a></section>
+    {% else %}
+      <section class="empty studio-empty"><div>✦</div><h2>Your clip workspace is ready.</h2><p>Start the analysis to find the strongest moments in this recording.</p></section>
+    {% endif %}
   {% endif %}
 
   <div class="studio-lower-grid">
@@ -133,13 +172,13 @@
       {% if order.deliverables.all %}
       <div class="deliverables">
         {% for item in order.deliverables.all %}
-        <article><div><span>{{ item.get_kind_display }}</span><h3>{{ item.title }}</h3><p>Version {{ item.version }} · {{ item.get_status_display }}</p></div>{% if item.file %}<a class="btn btn-small" href="{{ item.file.url }}" download>Download</a>{% elif item.content %}<button class="btn btn-small copy-button" data-copy="{{ item.content|escapejs }}">Copy</button>{% endif %}</article>
+        <article><div><span>{{ item.get_kind_display }}</span><h3>{{ item.title }}</h3><p>Version {{ item.version }} · {{ item.get_status_display }}</p></div>{% if item.file %}<a class="btn btn-small" href="{{ item.file.url }}" download>Download file</a>{% elif item.content %}<button class="btn btn-small copy-button" data-copy="{{ item.content|escapejs }}">Copy text</button>{% endif %}</article>
         {% endfor %}
       </div>
       {% else %}<div class="pending"><div class="pulse"></div><h3>Your package is being prepared.</h3><p>Publishing assets appear here after processing.</p></div>{% endif %}
     </section>
     <aside>
-      <section class="panel"><h3>Project details</h3><dl><dt>Submitted</dt><dd>{{ order.created_at|date:"M j, g:i A" }}</dd><dt>Audio cleanup</dt><dd>{{ order.include_audio_cleanup|yesno:"Included,Not included" }}</dd><dt>Platforms</dt><dd>{{ order.target_platforms|join:", "|title }}</dd></dl></section>
+      <section class="panel"><h3>Production settings</h3><dl><dt>Submitted</dt><dd>{{ order.created_at|date:"M j, g:i A" }}</dd><dt>B-roll</dt><dd>{{ order.get_broll_mode_display }}{% if order.broll_mode != 'none' %} · {{ order.get_broll_intensity_display }}{% endif %}</dd><dt>Audio cleanup</dt><dd>{{ order.include_audio_cleanup|yesno:"Included,Not included" }}</dd><dt>Destinations</dt><dd>{{ order.target_platforms|join:", "|title }}</dd></dl>{% if order.broll_mode == 'hybrid' or order.broll_mode == 'ai_selected' %}<p class="stock-credit"><a href="https://www.pexels.com" target="_blank" rel="noopener">Stock footage provided by Pexels</a></p>{% endif %}</section>
       <section class="panel"><h3>Activity</h3><div class="timeline">{% for event in order.events.all %}<div><i></i><p>{{ event.message }}<small>{{ event.created_at|timesince }} ago</small></p></div>{% endfor %}</div></section>
     </aside>
   </div>

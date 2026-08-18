@@ -1,0 +1,86 @@
+<div class="mission-form">
+  <div class="mission-field mission-field-wide">
+    {{ form.title.label_tag }}
+    {{ form.title }}
+    {{ form.title.errors }}
+  </div>
+  <div class="mission-field mission-field-wide">
+    {{ form.content_brief.label_tag }}
+    {{ form.content_brief }}
+    {% if form.content_brief.help_text %}<small class="field-note">{{ form.content_brief.help_text }}</small>{% endif %}
+    {{ form.content_brief.errors }}
+  </div>
+  <div class="mission-field">
+    {{ form.importance_definition.label_tag }}
+    {{ form.importance_definition }}
+    {% if form.importance_definition.help_text %}<small class="field-note">{{ form.importance_definition.help_text }}</small>{% endif %}
+    {{ form.importance_definition.errors }}
+  </div>
+  <div class="mission-field">
+    {{ form.moments_to_avoid.label_tag }}
+    {{ form.moments_to_avoid }}
+    {% if form.moments_to_avoid.help_text %}<small class="field-note">{{ form.moments_to_avoid.help_text }}</small>{% endif %}
+    {{ form.moments_to_avoid.errors }}
+  </div>
+  <div class="clip-plan mission-field-wide" aria-label="Clip plan">
+    <div class="clip-plan-intro"><span>CLIP PLAN</span><p>Set the output volume and ideal duration.</p></div>
+    <div class="mission-field mission-field-compact">
+      {{ form.desired_clip_count.label_tag }}
+      <div class="number-control">{{ form.desired_clip_count }}<span>clips</span></div>
+      {{ form.desired_clip_count.errors }}
+    </div>
+    <div class="mission-field mission-field-compact">
+      {{ form.min_clip_seconds.label_tag }}
+      <div class="number-control">{{ form.min_clip_seconds }}<span>sec</span></div>
+      {{ form.min_clip_seconds.errors }}
+    </div>
+    <div class="mission-field mission-field-compact">
+      {{ form.max_clip_seconds.label_tag }}
+      <div class="number-control">{{ form.max_clip_seconds }}<span>sec</span></div>
+      {{ form.max_clip_seconds.errors }}
+    </div>
+  </div>
+  <div class="mission-field mission-field-wide">
+    {{ form.brand_voice.label_tag }}
+    {{ form.brand_voice }}
+    {{ form.brand_voice.errors }}
+  </div>
+  <fieldset class="platform-picker mission-field-wide">
+    <legend>{{ form.target_platforms.label }}</legend>
+    <div class="option-group-head"><p>{{ form.target_platforms.help_text }}</p><span>SELECT ALL THAT APPLY</span></div>
+    <div class="platform-choice-grid">
+      {% for option in form.target_platforms %}
+        <label class="platform-choice" data-platform="{{ option.data.value }}">
+          {{ option.tag }}
+          <span class="platform-choice-ui">
+            <span class="platform-glyph" aria-hidden="true">{% include 'shared/_platform_icon.html' with platform=option.data.value %}</span>
+            <span class="platform-choice-copy">
+              <strong>{{ option.choice_label }}</strong>
+              {% if option.data.value == 'linkedin' %}<small>Thought leadership</small>{% endif %}
+              {% if option.data.value == 'x' %}<small>Sharp social threads</small>{% endif %}
+              {% if option.data.value == 'instagram' %}<small>Visual-first stories</small>{% endif %}
+              {% if option.data.value == 'youtube' %}<small>Search-ready packaging</small>{% endif %}
+              {% if option.data.value == 'newsletter' %}<small>Long-form narrative</small>{% endif %}
+            </span>
+            <span class="platform-check" aria-hidden="true">&#10003;</span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+    {{ form.target_platforms.errors }}
+  </fieldset>
+  {% include 'orders/_broll_fields.html' %}
+  <fieldset class="enhancement-picker mission-field-wide">
+    <legend>Finishing touches</legend>
+    <div class="option-group-head"><p>Optional production polish for a cleaner final package.</p><span>OPTIONAL</span></div>
+    <label class="enhancement-choice" for="{{ form.include_audio_cleanup.id_for_label }}">
+      {{ form.include_audio_cleanup }}
+      <span class="enhancement-choice-ui">
+        <span class="enhancement-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="enhancement-copy"><strong>Professional audio cleanup</strong><small>Reduce background noise, balance loudness, and improve speech clarity.</small></span>
+        <span class="enhancement-toggle" aria-hidden="true"><i></i></span>
+      </span>
+    </label>
+    {{ form.include_audio_cleanup.errors }}
+  </fieldset>
+</div>

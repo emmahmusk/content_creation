@@ -6,6 +6,17 @@ from django.db import models
 from django.utils import timezone
 
 class ContentOrder(models.Model):
+    class BrollMode(models.TextChoices):
+        NONE = "none", "No B-roll"
+        AI_SELECTED = "ai_selected", "AI-selected B-roll"
+        AI_GENERATED = "ai_generated", "AI-generated B-roll"
+        HYBRID = "hybrid", "Stock + AI-generated B-roll"
+
+    class BrollIntensity(models.TextChoices):
+        MINIMAL = "minimal", "Minimal"
+        MODERATE = "moderate", "Moderate"
+        AGGRESSIVE = "aggressive", "Aggressive"
+
     class Status(models.TextChoices):
         SUBMITTED = "submitted", "Submitted"
         REVIEWING = "reviewing", "Reviewing source"
@@ -26,6 +37,16 @@ class ContentOrder(models.Model):
     max_clip_seconds = models.PositiveSmallIntegerField(default=60)
     target_platforms = models.JSONField(default=list, blank=True)
     include_audio_cleanup = models.BooleanField(default=False)
+    broll_mode = models.CharField(
+        max_length=20,
+        choices=BrollMode.choices,
+        default=BrollMode.NONE,
+    )
+    broll_intensity = models.CharField(
+        max_length=20,
+        choices=BrollIntensity.choices,
+        default=BrollIntensity.MODERATE,
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.SUBMITTED, db_index=True)
     due_at = models.DateTimeField(blank=True, null=True)
     delivered_at = models.DateTimeField(blank=True, null=True)

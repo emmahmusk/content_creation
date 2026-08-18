@@ -1,18 +1,42 @@
 {% extends 'base.html' %}
-{% block title %}Create your workspace — Recast{% endblock %}
+{% block title %}Create your workspace — Reeckast{% endblock %}
 {% block body_class %}auth-page{% endblock %}
 {% block content %}
 <section class="auth-shell register-shell">
-  <div class="auth-story"><div class="auth-story-inner"><div class="auth-kicker">Built for ideas with consequence</div><h1>Turn every<br>recording into<br><em>a content system.</em></h1><p>Understand what matters. Shape it for every audience. Publish with conviction. Learn from every outcome.</p><ul class="auth-benefits"><li><i>✦</i><div><strong>Content intelligence</strong><span>Know why an idea works before publishing.</span></div></li><li><i>⌁</i><div><strong>Platform-native strategy</strong><span>Different thinking for every destination.</span></div></li><li><i>↗</i><div><strong>Compounding insight</strong><span>Every edit improves the next recommendation.</span></div></li></ul></div></div>
-  <div class="auth-form-wrap"><div class="form-card form-card-wide"><a class="brand auth-brand" href="/"><span class="brand-mark">R</span><span>recast</span></a><div class="eyebrow">CREATE YOUR WORKSPACE</div><h2>Start building your content engine</h2><p>A few details now. Serious creative leverage next.</p>
+  <div class="auth-story"><div class="auth-story-inner"><div class="auth-kicker">Built for high-volume content teams</div><h1 class="calm-display"><span>One source.</span><em>A finished clip batch.</em></h1><p>Find strong moments, choose what matters, and finish clips without wasting production budget.</p><ul class="auth-benefits"><li><i>✦</i><div><strong>Explainable clip discovery</strong><span>Know why each moment deserves your editors’ time.</span></div></li><li><i>⌁</i><div><strong>Approval before production</strong><span>Spend rendering and generation only on clips you keep.</span></div></li><li><i>↗</i><div><strong>Automated finishing</strong><span>B-roll, captions, hooks, reframing, and batch exports in one flow.</span></div></li></ul></div></div>
+  <div class="auth-form-wrap"><div class="form-card form-card-wide"><a class="brand auth-brand" href="/"><span class="brand-mark">R</span><span>reeckast</span></a><div class="eyebrow">CREATE YOUR ACCOUNT</div><h2>Start creating clips</h2><p>Tell us a little about your work so Reeckast can tailor clip suggestions and exports to you.</p>
     <form method="post" class="register-form" novalidate>{% csrf_token %}{{ form.non_field_errors }}
       <div class="registration-grid">
         <div class="form-field">{{ form.username.label_tag }}{{ form.username }}{{ form.username.errors }}</div><div class="form-field">{{ form.email.label_tag }}{{ form.email }}{{ form.email.errors }}</div>
         <div class="form-field">{{ form.organization.label_tag }}{{ form.organization }}{{ form.organization.errors }}</div><div class="form-field">{{ form.audience_type.label_tag }}{{ form.audience_type }}{{ form.audience_type.errors }}</div>
-        <div class="form-field">{{ form.social_platform.label_tag }}{{ form.social_platform }}{{ form.social_platform.errors }}</div><div class="form-field">{{ form.social_handle.label_tag }}{{ form.social_handle }}{{ form.social_handle.errors }}</div>
       </div>
+      <section class="registration-socials" data-social-registration data-max-profiles="{{ social_platform_limit }}" data-prefix="social">
+        {{ social_formset.management_form }}
+        <header class="social-registration-header"><div><span>SOCIAL PROFILES</span><p>Optional now. Add every platform where you create or publish.</p></div><button class="social-profile-add" type="button" data-social-add aria-controls="social-profile-list"><span>Add social profile</span><b aria-hidden="true">+</b></button></header>
+        {{ social_formset.non_form_errors }}
+        <div class="social-profile-list" id="social-profile-list" data-social-list>
+          {% for social_form in social_formset %}
+          <div class="social-profile-row{% if social_form.DELETE.value %} is-deleted{% endif %}" data-social-row>
+            {{ social_form.DELETE.as_hidden }}
+            <div class="form-field social-platform-field">{{ social_form.platform.label_tag }}{{ social_form.platform }}{{ social_form.platform.errors }}</div>
+            <div class="form-field social-handle-field">{{ social_form.handle.label_tag }}{{ social_form.handle }}{{ social_form.handle.errors }}</div>
+            <button class="social-profile-remove" type="button" data-social-remove aria-label="Remove social profile"><span aria-hidden="true">&times;</span></button>
+            {{ social_form.non_field_errors }}
+          </div>
+          {% endfor %}
+        </div>
+        <p class="social-profile-count"><span data-social-count>1 of {{ social_platform_limit }}</span> platform slots used</p>
+        <template data-social-template>
+          <div class="social-profile-row" data-social-row>
+            {{ social_formset.empty_form.DELETE.as_hidden }}
+            <div class="form-field social-platform-field">{{ social_formset.empty_form.platform.label_tag }}{{ social_formset.empty_form.platform }}{{ social_formset.empty_form.platform.errors }}</div>
+            <div class="form-field social-handle-field">{{ social_formset.empty_form.handle.label_tag }}{{ social_formset.empty_form.handle }}{{ social_formset.empty_form.handle.errors }}</div>
+            <button class="social-profile-remove" type="button" data-social-remove aria-label="Remove social profile"><span aria-hidden="true">&times;</span></button>
+          </div>
+        </template>
+      </section>
       <section class="security-fields"><header><span>SECURITY</span><p>Use eight or more characters that are difficult to guess.</p></header><div class="security-grid"><div class="form-field">{{ form.password1.label_tag }}{{ form.password1 }}{{ form.password1.errors }}</div><div class="form-field">{{ form.password2.label_tag }}{{ form.password2 }}{{ form.password2.errors }}</div></div>{% if form.password1.help_text %}<div class="password-guidance">{{ form.password1.help_text|safe }}</div>{% endif %}</section>
-      <button class="btn btn-block register-submit" type="submit"><span>Create workspace</span><b>→</b></button>
+      <button class="btn btn-block register-submit" type="submit"><span>Create account</span><b>→</b></button>
     </form><p class="form-foot">Already have a workspace? <a href="{% url 'login' %}">Log in</a></p>
   </div></div>
 </section>

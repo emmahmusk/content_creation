@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit {{ order.title }} — Reeckast{% endblock %}
+{% block body_class %}app-page project-edit-page{% endblock %}
+
+{% block content %}
+<main class="project-edit-shell">
+  <a class="back" href="{% url 'orders:detail' order.pk %}">← Back to clip studio</a>
+  <header class="project-edit-head">
+    <div><span>BATCH SETTINGS · {{ order.id|stringformat:'s'|slice:':8'|upper }}</span><h1 class="calm-display"><span>Update your</span><em>clip brief.</em></h1></div>
+    <p>Change the direction, destinations, or finishing options without replacing the original source.</p>
+  </header>
+
+  {% if analysis_active %}
+    <section class="analysis-interlock">
+      <div class="interlock-signal" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div>
+        <span>ANALYSIS IN PROGRESS</span>
+        <h2>Stop this run before changing its direction.</h2>
+        <p>The current worker will exit at its next safe checkpoint. Your uploaded source remains untouched, and you can prepare a clean restart after editing.</p>
+        <div class="interlock-progress"><i><b style="width:{{ pipeline.progress }}%"></b></i><span>{{ pipeline.progress }}% · {{ pipeline.current_stage|default:'starting'|title }}</span></div>
+      </div>
+      <form method="post" action="{% url 'orders:stop-analysis' order.pk %}">
+        {% csrf_token %}
+        <button class="btn stop-edit-action" type="submit">Stop analysis and edit</button>
+        <a href="{% url 'orders:detail' order.pk %}">Keep analysis running</a>
+      </form>
+    </section>
+  {% else %}
+    <section class="edit-source-strip">
+      <div class="source-lock-icon" aria-hidden="true">↗</div>
+      <div><span>SOURCE PRESERVED</span><strong>{% if source_asset.file %}{{ source_asset.original_filename|default:source_asset.file.name }}{% else %}{{ source_asset.external_url|default:'Original source' }}{% endif %}</strong></div>
+      <small>Editing the brief never replaces your uploaded recording.</small>
+    </section>
+    {% if has_generated_analysis or pipeline.status == 'cancelled' %}
+      <aside class="restart-impact" role="note"><span>SMART RESTART</span><p>Discovery changes replace recommendations. B-roll and audio changes preserve approved moments and restart only final production. Title-only changes keep every existing result.</p></aside>
+    {% endif %}
+    <form method="post" class="order-edit-form">
+      {% csrf_token %}
+      {% include 'orders/_mission_fields.html' %}
+      <footer class="edit-form-actions">
+        <div><span>NEXT</span><p>If analysis inputs changed, a fresh run will be prepared for you.</p></div>
+        <a class="btn edit-cancel" href="{% url 'orders:detail' order.pk %}">Cancel</a>
+        <button class="btn btn-lime" type="submit">Save changes <span>→</span></button>
+      </footer>
+    </form>
+  {% endif %}
+</main>
+{% endblock %}

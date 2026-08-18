@@ -1,4 +1,6 @@
-import json, re, wave
+import base64, json, re, wave
+from pathlib import Path
+import requests
 from django.conf import settings
 
 class NvidiaConfigurationError(RuntimeError): pass
@@ -59,3 +61,85 @@ def plan_package(transcript, brief, duration_ms):
     system="You are a senior content strategist. Return valid JSON only. Never invent timestamps beyond the supplied transcript."
     prompt=f'''Create a complete repurposing package. Select exactly 10 self-contained clips, each 20-60 seconds where possible. Use milliseconds. Each clip requires rank,title,hook,caption,start_ms,end_ms,score (0-10),rationale. Also return social_posts with linkedin,x,instagram; youtube with titles (3),description,chapters; newsletter with title,body. Brief: {brief}\nDuration ms: {duration_ms}\nTranscript:\n{transcript[:60000]}'''
     return generate_json(system,prompt,fallback)
+
+
+def plan_broll(clip_context, intensity, clip_duration_ms):
+    scene_limit = {"minimal": 1, "moderate": 2, "aggressive": 3}.get(intensity, 2)
+    safe_start = min(2500, max(0, clip_duration_ms // 5))
+    usable = max(1000, clip_duration_ms - safe_start)
+    fallback = {
+        "scenes": [
+            {
+                "start_ms": safe_start + int((usable * index) / max(1, scene_limit)),
+                "duration_ms": min(4000, max(1800, usable // max(1, scene_limit + 1))),
+                "visual_prompt": "A cinematic, text-free visual metaphor supporting the spoken idea",
+                "stock_query": "creative team working cinematic",
+                "reason": "Adds visual context without covering the opening hook.",
+            }
+            for index in range(scene_limit)
+        ]
+    }
+    system = (
+        "You are a senior short-form video editor. Return valid JSON only. "
+        "Plan concise B-roll that supports the approved clip without changing its meaning."
+    )
+    prompt = f"""Plan {scene_limit} B-roll insert(s) for this approved short-form clip.
+The clip is {clip_duration_ms}ms long. Do not place B-roll in the first 2000ms. Each insert must be 1800-4000ms, must not overlap another insert, and total coverage must stay restrained. Avoid faces of identifiable people, logos, text, copyrighted characters, and claims not supported by the transcript.
+Return: {{"scenes":[{{"start_ms":integer relative to clip,"duration_ms":integer,"visual_prompt":"cinematic generation prompt","stock_query":"short literal stock search","reason":"why this visual helps retention"}}]}}.
+
+Approved clip context:
+{clip_context[:18000]}"""
+    return generate_json(system, prompt, fallback)
+
+
+def _generated_bytes(payload):
+    data = payload.get("data")
+    if isinstance(data, list) and data:
+        data = data[0]
+    if isinstance(data, dict) and data.get("b64_json"):
+        return base64.b64decode(data["b64_json"])
+    artifacts = payload.get("artifacts") or []
+    if artifacts:
+        encoded = artifacts[0].get("base64") or artifacts[0].get("b64_json")
+        if encoded:
+            return base64.b64decode(encoded)
+    raise RuntimeError("The NVIDIA visual API returned no generated media.")
+
+
+def generate_broll_image(prompt, destination):
+    if not settings.NVIDIA_IMAGE_API_URL:
+        raise NvidiaConfigurationError("NVIDIA_IMAGE_API_URL is not configured.")
+    response = requests.post(
+        settings.NVIDIA_IMAGE_API_URL,
+        headers={"Authorization": f"Bearer {_key()}", "Accept": "application/json"},
+        json={
+            "model": settings.NVIDIA_IMAGE_MODEL,
+            "prompt": prompt,
+            "n": 1,
+            "size": "1024x1024",
+            "response_format": "b64_json",
+        },
+        timeout=(20, 240),
+    )
+    response.raise_for_status()
+    Path(destination).write_bytes(_generated_bytes(response.json()))
+    return destination
+
+
+def generate_broll_video(prompt, destination, seconds=4):
+    if not settings.NVIDIA_VIDEO_API_URL:
+        raise NvidiaConfigurationError("NVIDIA_VIDEO_API_URL is not configured.")
+    response = requests.post(
+        settings.NVIDIA_VIDEO_API_URL,
+        headers={"Authorization": f"Bearer {_key()}", "Accept": "application/json"},
+        json={
+            "model": settings.NVIDIA_VIDEO_MODEL,
+            "prompt": prompt,
+            "size": "832x480",
+            "seconds": max(2, min(int(seconds), 5)),
+        },
+        timeout=(20, 420),
+    )
+    response.raise_for_status()
+    Path(destination).write_bytes(_generated_bytes(response.json()))
+    return destination

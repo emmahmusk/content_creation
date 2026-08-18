@@ -1,1 +1,183 @@
-{% extends 'base.html' %}{% block title %}New intelligence project — Recast{% endblock %}{% block body_class %}app-page create-page{% endblock %}{% block content %}<section class="dashboard project-create"><a class="back-link" href="{% url 'orders:dashboard' %}">← Workspace</a><header class="create-header"><div><div class="eyebrow">NEW INTELLIGENCE PROJECT</div><h1>Give your best idea<br>a bigger life.</h1></div><p>Bring the source. Define the mission. Recast handles the intelligence, production, and publishing system.</p></header><form method="post" enctype="multipart/form-data" class="order-form">{% csrf_token %}<section class="creation-step"><div class="step-aside"><span>01</span><i></i><b>SOURCE</b></div><div class="step-content"><h2>Where does the idea live?</h2><p>Upload a recording or paste a public YouTube or supported video link.</p><div class="source-choice"><div class="upload-zone"><div class="upload-icon">↑</div>{{ asset_form.file.label_tag }}{{ asset_form.file }}<span>MP4, MOV, WebM, MP3, WAV or M4A</span>{{ asset_form.file.errors }}</div><div class="url-zone"><span>OR PASTE A PUBLIC LINK</span>{{ asset_form.external_url }}{{ asset_form.external_url.errors }}<small>YouTube and supported public video pages work here.</small></div></div><div class="rights-notice">{{ asset_form.rights_confirmed }}<label for="{{ asset_form.rights_confirmed.id_for_label }}"><strong>Authorized content only.</strong> I own this content or have permission to download, clip, and republish it.</label>{{ asset_form.rights_confirmed.errors }}</div></div></section><section class="creation-step"><div class="step-aside"><span>02</span><i></i><b>AI MISSION</b></div><div class="step-content"><h2>What should the strategist understand?</h2><p>The sharper the mission, the stronger every selection and recommendation.</p><div class="mission-form">{{ form.as_p }}</div></div></section><footer class="submit-bar"><div><span>WHAT HAPPENS NEXT</span><p>Timestamped STT → AI ranking → instant previews → intelligence review</p></div><button class="btn btn-lime" type="submit">Start production <span>→</span></button></footer></form></section>{% endblock %}
+{% extends 'base.html' %}
+
+{% block title %}New clip batch — Reeckast{% endblock %}
+{% block body_class %}app-page create-page{% endblock %}
+
+{% block content %}
+<section class="dashboard project-create">
+  <a class="back-link" href="{% url 'orders:dashboard' %}">← Projects</a>
+
+  <header class="create-header">
+    <div>
+      <div class="eyebrow">NEW CLIP PRODUCTION BATCH</div>
+      <h1 class="calm-display"><span>Start a new</span><span>clip batch.</span></h1>
+    </div>
+    <p>Add the source and tell Reeckast what matters. You choose the moments that move into production.</p>
+  </header>
+
+  <form method="post" enctype="multipart/form-data" class="order-form">
+    {% csrf_token %}
+
+    {% if form.non_field_errors or asset_form.non_field_errors %}
+      <div class="project-form-alert" role="alert">
+        {{ form.non_field_errors }}
+        {{ asset_form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <section class="creation-step">
+      <div class="step-aside"><span>01</span><i></i><b>SOURCE</b></div>
+      <div class="step-content">
+        <h2>Bring in the long-form source.</h2>
+        <p>Upload a podcast, interview, creator video, or audio recording—or paste an authorized public link.</p>
+        <div class="source-choice">
+          <div class="upload-zone">
+            <div class="upload-icon">↑</div>
+            <label for="{{ asset_form.file.id_for_label }}">Choose a recording</label>
+            {{ asset_form.file }}
+            <span>MP4, MOV, WebM, MP3, WAV or M4A</span>
+            {{ asset_form.file.errors }}
+          </div>
+          <div class="url-zone">
+            <span>OR PASTE A PUBLIC LINK</span>
+            {{ asset_form.external_url }}
+            {{ asset_form.external_url.errors }}
+            <small>YouTube and supported public video pages work here.</small>
+          </div>
+        </div>
+        <div class="rights-notice">
+          {{ asset_form.rights_confirmed }}
+          <label for="{{ asset_form.rights_confirmed.id_for_label }}"><strong>Authorized content only.</strong> I own this content or have permission to download, clip, and republish it.</label>
+          {{ asset_form.rights_confirmed.errors }}
+        </div>
+      </div>
+    </section>
+
+    <section class="creation-step">
+      <div class="step-aside"><span>02</span><i></i><b>CLIPPING BRIEF</b></div>
+      <div class="step-content">
+        <h2>What should count as a strong clip?</h2>
+        <p>Give the AI the same direction you would give a senior clipper: audience, outcome, tone, priorities, and exclusions.</p>
+
+        <div class="mission-form">
+          <div class="mission-field mission-field-wide">
+            {{ form.title.label_tag }}
+            {{ form.title }}
+            {{ form.title.errors }}
+          </div>
+
+          <div class="mission-field mission-field-wide">
+            {{ form.content_brief.label_tag }}
+            {{ form.content_brief }}
+            {% if form.content_brief.help_text %}<small class="field-note">{{ form.content_brief.help_text }}</small>{% endif %}
+            {{ form.content_brief.errors }}
+          </div>
+
+          <div class="mission-field">
+            {{ form.importance_definition.label_tag }}
+            {{ form.importance_definition }}
+            {% if form.importance_definition.help_text %}<small class="field-note">{{ form.importance_definition.help_text }}</small>{% endif %}
+            {{ form.importance_definition.errors }}
+          </div>
+
+          <div class="mission-field">
+            {{ form.moments_to_avoid.label_tag }}
+            {{ form.moments_to_avoid }}
+            {% if form.moments_to_avoid.help_text %}<small class="field-note">{{ form.moments_to_avoid.help_text }}</small>{% endif %}
+            {{ form.moments_to_avoid.errors }}
+          </div>
+
+          <div class="clip-plan mission-field-wide" aria-label="Clip plan">
+            <div class="clip-plan-intro">
+              <span>CLIP PLAN</span>
+              <p>Set the output volume and ideal duration.</p>
+            </div>
+            <div class="mission-field mission-field-compact">
+              {{ form.desired_clip_count.label_tag }}
+              <div class="number-control">{{ form.desired_clip_count }}<span>clips</span></div>
+              {{ form.desired_clip_count.errors }}
+            </div>
+            <div class="mission-field mission-field-compact">
+              {{ form.min_clip_seconds.label_tag }}
+              <div class="number-control">{{ form.min_clip_seconds }}<span>sec</span></div>
+              {{ form.min_clip_seconds.errors }}
+            </div>
+            <div class="mission-field mission-field-compact">
+              {{ form.max_clip_seconds.label_tag }}
+              <div class="number-control">{{ form.max_clip_seconds }}<span>sec</span></div>
+              {{ form.max_clip_seconds.errors }}
+            </div>
+          </div>
+
+          <div class="mission-field mission-field-wide">
+            {{ form.brand_voice.label_tag }}
+            {{ form.brand_voice }}
+            {{ form.brand_voice.errors }}
+          </div>
+
+          <fieldset class="platform-picker mission-field-wide">
+            <legend>{{ form.target_platforms.label }}</legend>
+            <div class="option-group-head">
+              <p>{{ form.target_platforms.help_text }}</p>
+              <span>SELECT ALL THAT APPLY</span>
+            </div>
+
+            <div class="platform-choice-grid">
+              {% for option in form.target_platforms %}
+                  <label class="platform-choice" data-platform="{{ option.data.value }}">
+                  {{ option.tag }}
+                  <span class="platform-choice-ui">
+                    <span class="platform-glyph" aria-hidden="true">{% include 'shared/_platform_icon.html' with platform=option.data.value %}</span>
+                    <span class="platform-choice-copy">
+                      <strong>{{ option.choice_label }}</strong>
+                      {% if option.data.value == 'linkedin' %}<small>Thought leadership</small>{% endif %}
+                      {% if option.data.value == 'x' %}<small>Sharp social threads</small>{% endif %}
+                      {% if option.data.value == 'instagram' %}<small>Visual-first stories</small>{% endif %}
+                      {% if option.data.value == 'youtube' %}<small>Search-ready packaging</small>{% endif %}
+                      {% if option.data.value == 'newsletter' %}<small>Long-form narrative</small>{% endif %}
+                    </span>
+                    <span class="platform-check" aria-hidden="true">✓</span>
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+            {{ form.target_platforms.errors }}
+          </fieldset>
+
+          {% include 'orders/_broll_fields.html' %}
+
+          <fieldset class="enhancement-picker mission-field-wide">
+            <legend>Finishing touches</legend>
+            <div class="option-group-head">
+              <p>Optional production polish for a cleaner final package.</p>
+              <span>OPTIONAL</span>
+            </div>
+            <label class="enhancement-choice" for="{{ form.include_audio_cleanup.id_for_label }}">
+              {{ form.include_audio_cleanup }}
+              <span class="enhancement-choice-ui">
+                <span class="enhancement-glyph" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </span>
+                <span class="enhancement-copy">
+                  <strong>Professional audio cleanup</strong>
+                  <small>Reduce background noise, balance loudness, and improve speech clarity.</small>
+                </span>
+                <span class="enhancement-toggle" aria-hidden="true"><i></i></span>
+              </span>
+            </label>
+            {{ form.include_audio_cleanup.errors }}
+          </fieldset>
+        </div>
+      </div>
+    </section>
+
+    <footer class="submit-bar">
+      <div>
+        <span>WHAT HAPPENS NEXT</span>
+        <p>Transcribe → discover → explain → approve → B-roll &amp; finishing → batch export</p>
+      </div>
+      <button class="btn btn-lime" type="submit">Start finding clips <span>→</span></button>
+    </footer>
+  </form>
+</section>
+{% endblock %}

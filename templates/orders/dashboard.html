@@ -1,4 +1,91 @@
-{% extends 'base.html' %}{% block title %}Workspace — Recast{% endblock %}{% block body_class %}app-page{% endblock %}{% block content %}<section class="dashboard workspace-dashboard"><div class="workspace-hero"><div><div class="eyebrow">CONTENT OPERATING SYSTEM</div><h1>Good {% now "A" as current_period %}{% if current_period == 'AM' %}morning{% else %}afternoon{% endif %}, {{ user.first_name|default:user.username }}.</h1><p>Turn the next important idea into a system that compounds.</p></div><a class="btn btn-lime" href="{% url 'orders:create' %}">New intelligence project <span>+</span></a></div>
-<div class="workspace-stats"><div><span>Active projects</span><strong>{{ orders|length|stringformat:'02d' }}</strong><small>Across your workspace</small></div><div><span>Content engine</span><strong>Ready</strong><small>All systems operational</small></div><div><span>Next move</span><strong>Upload</strong><small>Bring your latest idea</small></div></div>
-<div class="workspace-section-head"><div><span>PROJECTS</span><h2>Your content intelligence</h2></div><div class="view-switch"><button class="active" aria-label="List view">☷</button><button aria-label="Grid view">⊞</button></div></div>
-{% if orders %}<div class="order-list">{% for order in orders %}<a class="order-row" href="{% url 'orders:detail' order.pk %}"><div class="order-icon"><span>{{ order.title|first|upper }}</span><i></i></div><div class="order-name"><span>PROJECT {{ forloop.counter|stringformat:'02d' }}</span><h3>{{ order.title }}</h3><p>{{ order.created_at|date:"M j, Y · g:i A" }} · {{ order.deliverables.count }} asset{{ order.deliverables.count|pluralize }}</p></div><div class="order-progress"><i><b style="width:{% if order.status == 'delivered' %}100{% elif order.status == 'quality_check' %}85{% elif order.status == 'in_progress' %}55{% else %}18{% endif %}%"></b></i><span>{{ order.get_status_display }}</span></div><span class="order-arrow">↗</span></a>{% endfor %}</div>{% else %}<div class="empty premium-empty"><div class="empty-orbit"><i>✦</i></div><span>YOUR FIRST SIGNAL STARTS HERE</span><h2>Bring us an idea worth multiplying.</h2><p>Upload a recording or paste a public video URL. Recast will find the moments, intelligence, and publishing potential inside it.</p><a class="btn btn-lime" href="{% url 'orders:create' %}">Create your first project <span>→</span></a></div>{% endif %}</section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Command center — Reeckast{% endblock %}
+{% block body_class %}app-page command-center-page{% endblock %}
+{% block content %}
+<section class="dashboard workspace-dashboard command-dashboard">
+  <header class="command-header">
+    <div>
+      <div class="command-kicker"><span>CLIPPING COMMAND CENTER</span><i></i><b>Production online</b></div>
+      <h1>Good {% now "A" as current_period %}{% if current_period == 'AM' %}morning{% else %}afternoon{% endif %}.</h1>
+      <p><strong>Welcome back, {{ user.first_name|default:user.username }}.</strong> Track every source, review queue, production run, and export batch from one place.</p>
+    </div>
+    <a class="btn btn-lime command-new" href="{% url 'orders:create' %}">New project <span>+</span></a>
+  </header>
+
+  <section class="command-brief" aria-labelledby="priority-title">
+    <div class="command-brief-label">
+      <span>01</span>
+      <div><small>NEXT BEST ACTION</small><b>{% if priority_kind == 'review' %}Human review{% elif priority_kind == 'processing' %}Engine active{% else %}Workspace ready{% endif %}</b></div>
+    </div>
+    <div class="command-brief-copy">
+      {% if priority_kind == 'review' and priority_order %}
+        <span class="state-chip state-recommended"><i></i>Recommended</span>
+        <h2 id="priority-title">Review {{ priority_order.clip_total }} ranked moment{{ priority_order.clip_total|pluralize }}.</h2>
+        <p>The engine found {{ priority_order.high_potential_total }} high-potential signal{{ priority_order.high_potential_total|pluralize }} in <strong>{{ priority_order.title }}</strong>. Approve only what deserves production spend.</p>
+        <a href="{% url 'orders:detail' priority_order.pk %}">Open review queue <span>→</span></a>
+      {% elif priority_kind == 'processing' and priority_order %}
+        <span class="state-chip state-processing"><i></i>Processing</span>
+        <h2 id="priority-title">The engine is reading your latest source.</h2>
+        <p><strong>{{ priority_order.title }}</strong> is moving through transcription, clip discovery, and ranking. Your team can keep working elsewhere.</p>
+        <a href="{% url 'orders:detail' priority_order.pk %}">View live progress <span>→</span></a>
+      {% else %}
+        <span class="state-chip state-ready"><i></i>Ready</span>
+        <h2 id="priority-title">Start the next production batch.</h2>
+        <p>Define the clipping brief once. Reeckast will find the moments, explain the signals, and wait for approval before expensive editing.</p>
+        <a href="{% url 'orders:create' %}">Add a long-form source <span>→</span></a>
+      {% endif %}
+    </div>
+    <div class="command-brief-signal" aria-label="Workspace signal">
+      <span>OPPORTUNITY SIGNAL</span>
+      <strong>{{ high_potential_moments|stringformat:'02d' }}</strong>
+      <p>moments scoring 8.0 or higher</p>
+      <i><b style="width:{% if high_potential_moments %}82{% else %}4{% endif %}%"></b></i>
+    </div>
+  </section>
+
+  <section class="command-metrics" aria-label="Workspace intelligence summary">
+    <div><span>Active projects</span><strong>{{ active_projects|stringformat:'02d' }}</strong><small>In the production system</small></div>
+    <div><span>Discovered moments</span><strong>{{ total_moments|stringformat:'02d' }}</strong><small>Ranked by audience potential</small></div>
+    <div><span>High potential</span><strong>{{ high_potential_moments|stringformat:'02d' }}</strong><small>Score of 8.0 or higher</small></div>
+    <div><span>Completed systems</span><strong>{{ completed_projects|stringformat:'02d' }}</strong><small>Ready or already delivered</small></div>
+  </section>
+
+  <div class="command-workspace">
+    <section class="command-projects" aria-labelledby="projects-heading">
+      <header class="command-section-head">
+        <div><span>02 / BATCHES</span><h2 id="projects-heading">Production in motion</h2></div>
+        <a href="{% url 'orders:create' %}">Add source <span>+</span></a>
+      </header>
+      {% if orders %}
+      <div class="command-project-table" role="list">
+        <div class="command-table-head" aria-hidden="true"><span>Production batch</span><span>Moments</span><span>Stage</span><span></span></div>
+        {% for order in orders %}
+        <a class="command-project-row" role="listitem" href="{% url 'orders:detail' order.pk %}">
+          <div class="command-project-name"><i>{{ order.title|first|upper }}</i><div><small>PROJECT {{ order.project_number|stringformat:'02d' }}</small><h3>{{ order.title }}</h3><p>{{ order.created_at|date:"M j · g:i A" }} · {{ order.target_platforms|length }} destination{{ order.target_platforms|length|pluralize }}</p></div></div>
+          <div class="command-project-intel"><strong>{{ order.clip_total|stringformat:'02d' }}</strong><span>moments</span>{% if order.high_potential_total %}<b>{{ order.high_potential_total }} high potential</b>{% endif %}</div>
+          <div class="command-project-stage"><span class="state-chip state-{{ order.status }}"><i></i>{{ order.get_status_display }}</span><div><b style="width:{% if order.status == 'delivered' %}100{% elif order.status == 'quality_check' %}88{% elif order.status == 'in_progress' %}72{% elif order.status == 'reviewing' %}32{% else %}12{% endif %}%"></b></div></div>
+          <span class="command-row-arrow">↗</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="command-empty"><span>NO ACTIVE SIGNALS</span><h3>Your command center starts with one source.</h3><p>Upload a recording or paste an authorized public video URL to begin.</p><a class="btn" href="{% url 'orders:create' %}">Create your first project</a></div>
+      {% endif %}
+    </section>
+
+    <aside class="command-activity" aria-labelledby="activity-heading">
+      <header><div><span>03 / LIVE LOG</span><h2 id="activity-heading">Engine activity</h2></div><i aria-hidden="true"></i></header>
+      {% if recent_events %}
+      <ol>
+        {% for event in recent_events %}
+        <li><i></i><div><p>{{ event.message }}</p><a href="{% url 'orders:detail' event.order.pk %}">{{ event.order.title }}</a><time>{{ event.created_at|timesince }} ago</time></div></li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <div class="command-activity-empty"><p>Activity will appear as the engine discovers, explains, approves, finishes, and exports clips.</p></div>
+      {% endif %}
+      <footer><span>Reeckast preserves every decision and stage change.</span></footer>
+    </aside>
+  </div>
+</section>
+{% endblock %}

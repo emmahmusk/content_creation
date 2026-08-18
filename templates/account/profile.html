@@ -1,29 +1,30 @@
 {% extends 'base.html' %}
-{% block title %}Connections — Recast{% endblock %}
+{% load static %}
+{% block title %}Publishing destinations — Reeckast{% endblock %}
 {% block body_class %}app-page connection-page{% endblock %}
 {% block content %}
 <main class="connections-shell">
-  <a class="connection-back" href="{% url 'orders:dashboard' %}">← Workspace</a>
+  <a class="connection-back" href="{% url 'orders:dashboard' %}">← Projects</a>
 
   <header class="connections-masthead">
     <div class="masthead-title">
-      <span class="connection-kicker">Publishing connections</span>
-      <h1>Be everywhere.<br><em>Sound like yourself.</em></h1>
+      <span class="connection-kicker">TEAM PUBLISHING DESTINATIONS</span>
+      <h1 class="calm-display"><span>Client channels.</span><em>One calm workspace.</em></h1>
     </div>
     <div class="masthead-note">
       <span class="masthead-index">00 / {{ social_handles|length|stringformat:'02d' }}</span>
-      <p>Your destinations give Recast the context to shape each idea for the audience, voice, and rhythm of every platform.</p>
-      <div class="platform-wordmark" aria-hidden="true"><span>LinkedIn</span><i></i><span>YouTube</span><i></i><span>Instagram</span><i></i><span>X</span></div>
+      <p>Save each client’s publishing channels once. Reeckast uses them to shape captions, hooks, packaging, and release drafts.</p>
+      <div class="platform-wordmark" aria-hidden="true"><span>{% include 'shared/_platform_icon.html' with platform='linkedin' %}LinkedIn</span><i></i><span>{% include 'shared/_platform_icon.html' with platform='youtube' %}YouTube</span><i></i><span>{% include 'shared/_platform_icon.html' with platform='instagram' %}Instagram</span><i></i><span>{% include 'shared/_platform_icon.html' with platform='x' %}X</span></div>
     </div>
   </header>
 
-  <section class="connection-workspace" data-api-url="/api/v1/social-handles/">
+  <section class="connection-workspace" data-api-url="/api/v1/social-handles/" data-icon-sprite="{% static 'images/social-platforms.svg' %}">
     <div class="connection-compose">
       <div class="compose-intro"><span>01</span><div><small>ADD A DESTINATION</small><h2>Where should your<br>content travel next?</h2><p>Connect a public handle or profile URL. You can update or remove it at any time.</p></div></div>
       <form class="social-handle-form connection-form">
         <div><label for="social-platform">Platform</label><select id="social-platform" name="platform" required><option value="">Choose a platform</option>{% for value,label in platforms %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
         <div><label for="social-handle">Handle or profile URL</label><input id="social-handle" name="handle" maxlength="160" placeholder="@yourhandle" required></div>
-        <button class="btn btn-lime" type="submit"><span>Add destination</span><b>+</b></button>
+        <button class="btn btn-lime" type="submit"><span>Add social profile</span><b>+</b></button>
         <p class="social-form-error hidden" role="alert"></p>
       </form>
     </div>
@@ -31,7 +32,7 @@
     <div class="destinations-head"><div><span>02</span><h2>Your destinations</h2></div><p>{{ social_handles|length }} connected</p></div>
     <div class="social-handle-list destination-list">
       {% for item in social_handles %}
-      <article data-id="{{ item.id }}" data-platform="{{ item.platform }}"><div class="platform-avatar">{{ item.get_platform_display|first }}</div><div class="destination-name"><small>PLATFORM</small><strong>{{ item.get_platform_display }}</strong></div><input value="{{ item.handle }}" maxlength="160" aria-label="{{ item.get_platform_display }} handle"><button class="download-chip social-update" type="button">Save</button><button class="download-chip social-delete" type="button">Remove</button></article>
+      <article data-id="{{ item.id }}" data-platform="{{ item.platform }}"><div class="platform-avatar">{% include 'shared/_platform_icon.html' with platform=item.platform %}</div><div class="destination-name"><small>PLATFORM</small><strong>{{ item.get_platform_display }}</strong></div><input value="{{ item.handle }}" maxlength="160" aria-label="{{ item.get_platform_display }} handle"><button class="download-chip social-update" type="button">Save changes</button><button class="download-chip social-delete" type="button">Remove</button></article>
       {% empty %}
       <div class="social-empty connection-empty"><span class="empty-index">00</span><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>
       {% endfor %}

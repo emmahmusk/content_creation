@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Clip, ContentIntelligence, LearningSignal, PipelineRun, PublicationJob, RepurposeAsset, StageRun, TranscriptSegment
+from .models import BrollPlan, Clip, ContentIntelligence, LearningSignal, PipelineRun, PublicationJob, RepurposeAsset, StageRun, TranscriptSegment
 class StageInline(admin.TabularInline):
     model=StageRun; extra=0; readonly_fields=("name","status","attempts","error","started_at","finished_at")
 @admin.register(PipelineRun)
@@ -13,3 +13,4 @@ admin.site.register(ContentIntelligence)
 admin.site.register(RepurposeAsset)
 admin.site.register(PublicationJob)
 admin.site.register(LearningSignal)
+admin.site.register(BrollPlan)

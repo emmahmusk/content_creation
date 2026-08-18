@@ -1,8 +1,8 @@
-# Recast
+# Reeckast
 
-A production-ready Django/DRF foundation for a 24-hour content repurposing service. Customers submit a long-form recording and receive clip ideas, hooks and captions, social posts, a YouTube package, long-form writing, and optionally cleaned audio.
+A production-ready Django/DRF foundation for an AI-powered clipping production pipeline built for high-volume content teams. Agencies, professional clippers, creator teams, and growing operators submit one long-form recording, review AI-ranked moments with reasoning, and selectively produce publication-ready clip batches without spending render or generation budget on rejected ideas.
 
-The content engine now runs an end-to-end, resumable pipeline: media validation, 16 kHz audio extraction, NVIDIA speech recognition with word timestamps, NVIDIA NIM content strategy, ten vertical H.264 renders with burned-in captions, SRT files, source-derived thumbnails, social/YouTube/newsletter copy, optional cleaned audio, and quality-review handoff.
+The content engine runs an end-to-end, resumable pipeline: media validation, 16 kHz audio extraction, NVIDIA speech recognition with word timestamps, NVIDIA NIM clip discovery and reasoning, human approval/rejection, optional AI-planned B-roll, vertical H.264 renders with restrained captions, hooks, reframing, SRT files, source-derived thumbnails, social/YouTube/newsletter copy, optional cleaned audio, batch export, and quality-review handoff.
 
 ## Local setup
 
@@ -15,7 +15,9 @@ Use Python 3.13. Python 3.14 is not currently supported by the NVIDIA Riva clien
 5. Create staff access with `python manage.py createsuperuser`.
 6. Start the service with `python manage.py runserver`.
 
-For background processing, install FFmpeg (both `ffmpeg` and `ffprobe` must be on `PATH`), start Redis, then run `celery -A config worker -l info` in a separate terminal. For development without Redis, process an order synchronously with `python manage.py process_order ORDER_UUID`.
+The default local configuration uses `PIPELINE_EXECUTION_MODE=thread`, so processing buttons run jobs in a background thread inside the Django process. Redis and a Celery worker are not required locally; start only `python manage.py runserver`. FFmpeg and Deno are still required for media and YouTube imports. Set `YTDLP_JS_RUNTIME` to the full Deno executable path when it is not available on `PATH`.
+
+For production, set `PIPELINE_EXECUTION_MODE=celery`, configure `CELERY_BROKER_URL` with a durable Redis-compatible broker, and run `celery -A config worker -l info`. Do not enable Celery mode without a running broker.
 
 Alternatively, after filling in `.env`, run `docker compose up --build`; the included stack supplies PostgreSQL, Redis, FFmpeg, the Django web process, and a Celery media worker.
 
@@ -33,13 +35,16 @@ Open `http://127.0.0.1:8000/`. Staff manage orders and publish deliverables at `
 
 All customer web views and API querysets are tenant-scoped. Staff can see all orders, update production statuses through the API/admin, and create deliverables. SQLite is the local default; set a PostgreSQL `DATABASE_URL` for deployment. Uploaded media uses local storage by default; the `STORAGES` setting is the extension point for S3-compatible storage. The app is WSGI/ASGI ready, serves compressed static assets with WhiteNoise, and exposes `/health/` for platform probes.
 
-## Typical production workflow
+## Approval-first production workflow
 
-1. Customer creates an order and attaches a file or private URL.
-2. Staff reviews the source and advances its status.
-3. Staff adds each output as a `Deliverable`, using text or a file.
-4. Staff marks deliverables ready and the order delivered.
-5. Customer sees and downloads/copies completed assets from their dashboard.
+1. A team creates a production batch and uploads a file or provides an authorized public URL.
+2. Reeckast transcribes the source, discovers the strongest moments, and explains each recommendation.
+3. A human approves or rejects moments before costly generation and rendering begins.
+4. Approved clips optionally receive AI-selected stock, AI-generated, or hybrid B-roll at minimal, moderate, or aggressive frequency.
+5. The finishing pipeline applies B-roll, captions, hooks, reframing, audio, and export polish.
+6. The team reviews and downloads a complete publication-ready clip batch.
+
+`No B-roll` is the default and preserves the established rendering path. B-roll planning runs only after approval and is fail-soft: if a stock or generation provider is unavailable, the approved clip still renders from its source footage. `AI-selected` uses licensed Pexels video when configured and can fall back to NVIDIA-generated visuals; `AI-generated` uses NVIDIA visual generation; `Stock + AI-generated` combines both.
 
 ## API
 
@@ -51,7 +56,7 @@ Music Studio endpoints begin at `/api/v1/music-projects/`. Projects expose owner
 
 ## NVIDIA configuration
 
-Add the provided key to `NVIDIA_API_KEY` in `.env`. Text generation uses the OpenAI-compatible NVIDIA NIM endpoint and its model is configurable with `NVIDIA_LLM_MODEL`. Transcription uses NVIDIA Riva gRPC; its server, function ID, and language are all environment settings. With no key, `PIPELINE_ALLOW_MOCK_AI=True` permits deterministic development output while still exercising the database workflow. Set it to `False` in production so missing credentials fail loudly. Never commit `.env`.
+Add the provided key to `NVIDIA_API_KEY` in `.env`. Text generation uses the OpenAI-compatible NVIDIA NIM endpoint and its model is configurable with `NVIDIA_LLM_MODEL`. Transcription uses NVIDIA Riva gRPC; its server, function ID, and language are all environment settings. Optional generated B-roll uses `NVIDIA_IMAGE_API_URL`, `NVIDIA_IMAGE_MODEL`, `NVIDIA_VIDEO_API_URL`, and `NVIDIA_VIDEO_MODEL`; licensed stock discovery uses `PEXELS_API_KEY`. With no key, `PIPELINE_ALLOW_MOCK_AI=True` permits deterministic development output while still exercising the database workflow. Set it to `False` in production so missing credentials fail loudly. Never commit `.env`.
 
 The default ASR is Parakeet TDT 0.6B v2, chosen for punctuation and word timestamps. The default strategist is NVIDIA Nemotron Nano 9B v2. These model names and endpoint identifiers are configuration, not hard-coded workflow assumptions, so newer free NIM endpoints can be swapped without migrations.
 
@@ -59,7 +64,7 @@ Install `requirements-nvidia.txt` instead of the base requirements only when usi
 
 ## OpenAI clip-finder proof of concept
 
-The default configuration runs the OpenAI clipping workflow in two phases. Analysis produces timestamped recommendations and instant previews; the customer approves the moments they want, then **Render approved clips** creates vertical MP4 clips, matching MP3 audio cuts, movie-style SRT captions, thumbnails, and a downloadable ZIP without repeating transcription or ranking. Use `PIPELINE_EXECUTION_MODE=thread` locally or `celery` with a durable production worker. FFmpeg and FFprobe power final rendering and the local fallback path.
+The default configuration runs the OpenAI clipping workflow in two phases. Analysis produces timestamped recommendations and instant previews; the customer approves the moments they want, then **Produce approved clips** creates vertical MP4 clips, matching MP3 audio cuts, movie-style SRT captions, thumbnails, and a downloadable ZIP without repeating transcription or ranking. Use `PIPELINE_EXECUTION_MODE=thread` locally or `celery` with a durable production worker. FFmpeg and FFprobe power final rendering and the local fallback path.
 
 ### Cloudinary-first media pipeline
 

@@ -26,7 +26,7 @@ class ContentOrderSerializer(serializers.ModelSerializer):
     deliverables_count = serializers.IntegerField(source="deliverables.count", read_only=True)
     class Meta:
         model = ContentOrder
-        fields = ["id", "customer", "title", "content_brief", "importance_definition", "moments_to_avoid", "desired_clip_count", "min_clip_seconds", "max_clip_seconds", "brand_voice", "target_platforms", "include_audio_cleanup", "status", "due_at", "delivered_at", "created_at", "updated_at", "source_assets", "events", "deliverables_count"]
+        fields = ["id", "customer", "title", "content_brief", "importance_definition", "moments_to_avoid", "desired_clip_count", "min_clip_seconds", "max_clip_seconds", "brand_voice", "target_platforms", "broll_mode", "broll_intensity", "include_audio_cleanup", "status", "due_at", "delivered_at", "created_at", "updated_at", "source_assets", "events", "deliverables_count"]
         read_only_fields = ["status", "due_at", "delivered_at", "created_at", "updated_at"]
 
 class StaffContentOrderSerializer(ContentOrderSerializer):

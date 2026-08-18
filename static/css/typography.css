@@ -1,0 +1,34 @@
+/* Reeckast typography resilience layer.
+   Loaded last so every legacy `font` shorthand keeps a sans-serif fallback
+   while the primary web fonts are downloading or unavailable. */
+:root{
+  --font-body:"DM Sans",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  --font-display:"Manrope","DM Sans",Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+}
+
+body,button,input,select,textarea{font-family:var(--font-body)}
+h1,h2,h3,h4,h5,h6,.brand{font-family:var(--font-display)}
+
+/* Display and data treatments that use `font` shorthand in older surfaces. */
+.mock-captions,.signal-strip,.workflow-line>article>span,
+.outcome-quote blockquote,.outcome-grid strong,.workspace-stats strong,
+.studio-summary strong,.clip-placeholder span,.dna-core strong,
+.mini-score strong,.mock-metrics b,.mock-score>strong,.order-icon,
+.pipeline-percent,.proof-avatars i,.step-aside span,
+.masthead-index,.empty-index,.compose-intro>span,.destinations-head>div>span,
+.hero-badge strong,.hero-badge:after,.intel-header-score strong,
+.timeline-ruler,.intel-transcript time,.quote-block blockquote,
+.dna-grid strong,.platform-strategy summary,.score-ring strong,
+.music-metrics strong,.music-processing header strong,
+.music-project-state strong,.production-plan blockquote,.session-index,
+.companion-copy strong,.companion-orbit b,.platform-glyph,.social-profile-add{
+  font-family:var(--font-display);
+}
+
+/* Controls and editorial text that use body-font shorthands. */
+.btn,.link-button,.hero-badge span,.publish-customization input,
+.publish-customization textarea,.publish-customization select,
+.repurpose-list footer button,.text-button,.repurpose-list textarea,
+.lyrics-editor textarea,.theme-trigger{
+  font-family:var(--font-body);
+}

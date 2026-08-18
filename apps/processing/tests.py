@@ -4,11 +4,13 @@ from rest_framework.test import APIClient
 from apps.orders.models import ContentOrder
 from apps.orders.models import SourceAsset
 from apps.accounts.models import SocialHandle
-from .models import Clip, ContentIntelligence, PipelineRun, RepurposeAsset, StageRun
+from .models import BrollPlan, Clip, ContentIntelligence, PipelineRun, RepurposeAsset, StageRun, TranscriptSegment
 from .services import openai_poc
+from .services import media
 from .services import cloudinary_media
 from .services import public_media
 from .services import content_intelligence
+from .services import broll
 from unittest.mock import Mock, patch
 from django.test import override_settings
 from django.core.files.base import ContentFile
@@ -46,6 +48,7 @@ class ProcessingAccessTests(TestCase):
         client=APIClient(); client.force_authenticate(self.owner)
         response=client.post(f"/api/v1/pipeline-runs/{self.run.id}/start/")
         self.assertEqual(response.status_code,202)
+        self.order.refresh_from_db();self.assertEqual(self.order.status,ContentOrder.Status.IN_PROGRESS)
         dispatch.assert_called_once_with(self.run.id)
 
     @patch("apps.processing.api.dispatch_pipeline")
@@ -55,18 +58,43 @@ class ProcessingAccessTests(TestCase):
         self.assertEqual(response.status_code,404)
         dispatch.assert_not_called()
 
+    def test_owner_can_cancel_running_pipeline_from_api(self):
+        self.run.status=PipelineRun.Status.RUNNING; self.run.current_stage="ingest"; self.run.progress=5; self.run.save()
+        stage=self.run.stages.get(name="ingest");stage.status=StageRun.Status.RUNNING;stage.save()
+        client=APIClient();client.force_authenticate(self.owner)
+
+        response=client.post(f"/api/v1/pipeline-runs/{self.run.id}/cancel/")
+
+        self.assertEqual(response.status_code,200)
+        self.assertEqual(response.data["status"],PipelineRun.Status.CANCELLED)
+        self.run.refresh_from_db();stage.refresh_from_db();self.order.refresh_from_db()
+        self.assertEqual(self.run.current_stage,"cancelled_for_edit")
+        self.assertEqual(stage.status,StageRun.Status.SKIPPED)
+        self.assertEqual(self.order.status,ContentOrder.Status.REVISION)
+
+    def test_cancelled_worker_exits_without_reactivating_run(self):
+        from .pipeline import execute_pipeline
+        self.run.status=PipelineRun.Status.CANCELLED;self.run.current_stage="cancelled_for_edit";self.run.save()
+        with TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=folder):
+            execute_pipeline(self.run.id)
+        self.run.refresh_from_db()
+        self.assertEqual(self.run.status,PipelineRun.Status.CANCELLED)
+        self.assertFalse(self.run.stages.filter(status=StageRun.Status.RUNNING).exists())
+
     @patch("apps.processing.api.dispatch_render")
     @patch("apps.processing.api.shutil.which",return_value="C:/tools/ffmpeg.exe")
+    @override_settings(FFMPEG_BINARY="ffmpeg",FFPROBE_BINARY="ffprobe")
     def test_owner_can_render_existing_recommendations(self, which, dispatch):
         self.run.status=PipelineRun.Status.REVIEW; self.run.current_stage="recommendations_ready"; self.run.save()
         self.order.clips.update(status=Clip.Status.APPROVED)
         client=APIClient(); client.force_authenticate(self.owner)
         response=client.post(f"/api/v1/pipeline-runs/{self.run.id}/render-exports/")
         self.assertEqual(response.status_code,202)
-        self.assertEqual(response.data["current_stage"],"rendering_exports")
+        self.assertEqual(response.data["current_stage"],"broll")
         dispatch.assert_called_once_with(self.run.id)
 
     @patch("apps.processing.api.shutil.which",return_value=None)
+    @override_settings(FFMPEG_BINARY="missing-ffmpeg",FFPROBE_BINARY="missing-ffprobe")
     def test_render_explains_when_ffmpeg_is_missing(self, which):
         self.run.status=PipelineRun.Status.REVIEW; self.run.save()
         self.order.clips.update(status=Clip.Status.APPROVED)
@@ -155,6 +183,61 @@ class ProcessingAccessTests(TestCase):
         self.assertEqual(response.status_code,200)
         clip.refresh_from_db();self.assertEqual(clip.editing_instructions["trim_start_ms"],3000)
 
+    @patch("apps.processing.services.broll.media.normalize_broll_asset")
+    @patch("apps.processing.services.broll.nvidia.generate_broll_video")
+    @patch("apps.processing.services.broll.nvidia.plan_broll")
+    def test_broll_is_planned_and_generated_only_for_approved_clips(self, plan, generate, normalize):
+        self.order.broll_mode=ContentOrder.BrollMode.AI_GENERATED
+        self.order.broll_intensity=ContentOrder.BrollIntensity.MINIMAL
+        self.order.save(update_fields=["broll_mode","broll_intensity"])
+        clip=self.order.clips.get(rank=1);clip.status=Clip.Status.APPROVED;clip.save(update_fields=["status"])
+        TranscriptSegment.objects.create(order=self.order,start_ms=0,end_ms=30000,text="A practical lesson for content teams.")
+        plan.return_value={"scenes":[{"start_ms":3000,"duration_ms":2500,"visual_prompt":"Editorial team reviewing clips","stock_query":"video editing team","reason":"Shows the workflow."}]}
+        generate.side_effect=lambda prompt,destination,seconds=4: Path(destination).write_bytes(b"video")
+        normalize.side_effect=lambda source,destination,duration: Path(destination).write_bytes(b"normalized")
+
+        with TemporaryDirectory() as folder:
+            assets,report=broll.prepare_order_broll(self.order,[clip],Path(folder))
+
+        self.assertEqual(report["scenes"],1)
+        self.assertEqual(len(assets[clip.pk]),1)
+        saved=BrollPlan.objects.get(clip=clip)
+        self.assertEqual(saved.status,BrollPlan.Status.READY)
+        self.assertEqual(saved.scenes[0]["source_type"],"generated_video")
+        plan.assert_called_once()
+        generate.assert_called_once()
+
+    @patch("apps.processing.services.broll.nvidia.plan_broll")
+    def test_no_broll_keeps_existing_render_path_and_spends_no_ai(self, plan):
+        clip=self.order.clips.get(rank=1);clip.status=Clip.Status.APPROVED;clip.save(update_fields=["status"])
+        with TemporaryDirectory() as folder:
+            assets,report=broll.prepare_order_broll(self.order,[clip],Path(folder))
+        self.assertEqual(assets,{})
+        self.assertFalse(report["enabled"])
+        self.assertFalse(BrollPlan.objects.exists())
+        plan.assert_not_called()
+
+    @patch("apps.processing.services.broll.media.normalize_broll_asset")
+    @patch("apps.processing.services.broll.nvidia.generate_broll_image")
+    @patch("apps.processing.services.broll.nvidia.generate_broll_video")
+    @patch("apps.processing.services.broll.nvidia.plan_broll")
+    def test_broll_provider_failure_is_fail_soft(self, plan, video, image, normalize):
+        self.order.broll_mode=ContentOrder.BrollMode.AI_GENERATED
+        self.order.save(update_fields=["broll_mode"])
+        clip=self.order.clips.get(rank=1);clip.status=Clip.Status.APPROVED;clip.save(update_fields=["status"])
+        plan.return_value={"scenes":[{"start_ms":3000,"duration_ms":2500,"visual_prompt":"A supporting visual","stock_query":"team editing","reason":"Adds visual context."}]}
+        video.side_effect=RuntimeError("Video provider unavailable")
+        image.side_effect=RuntimeError("Image provider unavailable")
+
+        with TemporaryDirectory() as folder:
+            assets,report=broll.prepare_order_broll(self.order,[clip],Path(folder))
+
+        saved=BrollPlan.objects.get(clip=clip)
+        self.assertEqual(saved.status,BrollPlan.Status.FAILED)
+        self.assertEqual(assets[clip.pk],[])
+        self.assertTrue(report["warnings"])
+        normalize.assert_not_called()
+
 class OpenAIPocTests(TestCase):
     @override_settings(OPENAI_API_KEY="test-key", OPENAI_TEXT_MODEL="test-model")
     @patch("apps.processing.services.openai_poc.requests.post")
@@ -179,6 +262,34 @@ class OpenAIPocTests(TestCase):
             result=openai_poc.transcribe(audio)
         self.assertEqual(result[0]["start_ms"],1250)
         self.assertEqual(result[0]["words"][1]["end_ms"],2500)
+
+    @patch("apps.processing.services.openai_poc.OPENAI_UPLOAD_LIMIT_BYTES",4)
+    @patch("apps.processing.services.openai_poc._transcribe_file")
+    @patch("apps.processing.services.openai_poc.media.split_audio")
+    def test_large_audio_is_chunked_and_timestamps_are_merged(self, split_audio, transcribe_file):
+        with TemporaryDirectory() as folder:
+            source=Path(folder)/"large.mp3";source.write_bytes(b"large")
+            first=Path(folder)/"chunk-000.mp3";first.write_bytes(b"one")
+            second=Path(folder)/"chunk-001.mp3";second.write_bytes(b"two")
+            split_audio.return_value=[first,second]
+            transcribe_file.side_effect=[
+                [{"start_ms":100,"end_ms":500,"text":"First","words":[{"word":"First","start_ms":100,"end_ms":500}]}],
+                [{"start_ms":200,"end_ms":600,"text":"Second","words":[{"word":"Second","start_ms":200,"end_ms":600}]}],
+            ]
+            result=openai_poc.transcribe(source)
+        self.assertEqual(result[1]["start_ms"],900200)
+        self.assertEqual(result[1]["words"][0]["end_ms"],900600)
+        split_audio.assert_called_once()
+
+    @patch("apps.processing.services.media.run")
+    def test_audio_extraction_is_compressed_for_transcription(self, run):
+        with TemporaryDirectory() as folder:
+            destination=Path(folder)/"audio.mp3"
+            media.extract_audio("source.mp4",destination)
+        command=run.call_args.args[0]
+        self.assertIn("libmp3lame",command)
+        self.assertIn("64k",command)
+        self.assertIn("16000",command)
 
 class CloudinaryFallbackTests(TestCase):
     @override_settings(CLOUDINARY_CLOUD_NAME="demo",CLOUDINARY_API_KEY="key",CLOUDINARY_API_SECRET="secret")
@@ -208,9 +319,11 @@ class PublicMediaTests(TestCase):
         self.assertFalse(public_media.is_direct_media_url("https://www.youtube.com/watch?v=abc"))
 
     @override_settings(PUBLIC_MEDIA_MAX_BYTES=1000000,FFMPEG_BINARY="ffmpeg")
+    @override_settings(YTDLP_JS_RUNTIME="deno")
+    @patch("apps.processing.services.public_media.shutil.which",side_effect=lambda name: {"ffmpeg":"C:/tools/ffmpeg.exe","deno":"C:/tools/deno.exe"}.get(name))
     @patch("apps.processing.services.public_media.socket.getaddrinfo",return_value=[(2,1,6,"",("8.8.8.8",443))])
     @patch("yt_dlp.YoutubeDL")
-    def test_hosted_video_download_is_single_video_and_size_limited(self,downloader_class,getaddrinfo):
+    def test_hosted_video_download_is_single_video_and_size_limited(self,downloader_class,getaddrinfo,which):
         with TemporaryDirectory() as folder:
             output=Path(folder)/"public-source-test.mp4";output.write_bytes(b"video")
             downloader=downloader_class.return_value.__enter__.return_value
@@ -220,3 +333,23 @@ class PublicMediaTests(TestCase):
         self.assertEqual(result,output)
         options=downloader_class.call_args.args[0]
         self.assertTrue(options["noplaylist"]);self.assertEqual(options["max_filesize"],1000000)
+        self.assertEqual(options["ffmpeg_location"],str(Path("C:/tools/ffmpeg.exe").resolve()))
+        self.assertEqual(options["js_runtimes"]["deno"]["path"],str(Path("C:/tools/deno.exe").resolve()))
+        self.assertIn("bestvideo",options["format"])
+
+    @override_settings(PUBLIC_MEDIA_MAX_BYTES=1000000,FFMPEG_BINARY="missing-ffmpeg")
+    @override_settings(YTDLP_JS_RUNTIME="missing-deno")
+    @patch("apps.processing.services.public_media.shutil.which",return_value=None)
+    @patch("apps.processing.services.public_media.socket.getaddrinfo",return_value=[(2,1,6,"",("8.8.8.8",443))])
+    @patch("yt_dlp.YoutubeDL")
+    def test_hosted_video_uses_progressive_format_when_ffmpeg_is_unavailable(self,downloader_class,getaddrinfo,which):
+        with TemporaryDirectory() as folder:
+            output=Path(folder)/"public-source-test.mp4";output.write_bytes(b"video")
+            downloader=downloader_class.return_value.__enter__.return_value
+            downloader.extract_info.return_value={"id":"test","filepath":str(output)}
+            downloader.prepare_filename.return_value=str(output)
+            public_media.download_with_ytdlp("https://www.youtube.com/watch?v=test",folder)
+        options=downloader_class.call_args.args[0]
+        self.assertNotIn("ffmpeg_location",options)
+        self.assertNotIn("merge_output_format",options)
+        self.assertIn("acodec!=none",options["format"])

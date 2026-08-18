@@ -4,12 +4,14 @@ import zipfile
 from pathlib import Path
 from django.conf import settings
 from django.http import FileResponse
+from apps.orders.models import ContentOrder
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Clip, ContentIntelligence, LearningSignal, PipelineRun, PublicationJob, RepurposeAsset, TranscriptSegment
 from .serializers import ClipSerializer, ContentIntelligenceSerializer, LearningSignalSerializer, PipelineRunSerializer, PublicationJobSerializer, RepurposeAssetSerializer, TranscriptSegmentSerializer
 from .tasks import dispatch_intelligence, dispatch_pipeline, dispatch_render
+from .services.run_control import cancel_pipeline_run
 
 class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class=PipelineRunSerializer
@@ -21,16 +23,26 @@ class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
         run=self.get_object()
         if run.status not in [PipelineRun.Status.FAILED,PipelineRun.Status.QUEUED]: return Response({"detail":"Only queued or failed runs can be started."},status=409)
         run.status=PipelineRun.Status.RUNNING; run.error=""; run.progress=0; run.current_stage="starting"; run.finished_at=None; run.save()
+        run.order.status=ContentOrder.Status.IN_PROGRESS;run.order.save(update_fields=["status","updated_at"])
         try:
             dispatch_pipeline(run.id)
         except Exception as exc:
             run.status=PipelineRun.Status.FAILED; run.error=f"Could not dispatch job: {exc}"; run.save()
+            run.order.status=ContentOrder.Status.REVISION;run.order.save(update_fields=["status","updated_at"])
             return Response({"detail":run.error},status=503)
         return Response(self.get_serializer(run).data,status=202)
 
     @action(detail=True,methods=["post"])
     def retry(self,request,pk=None):
         return self.start(request,pk)
+
+    @action(detail=True,methods=["post"])
+    def cancel(self,request,pk=None):
+        run=self.get_object()
+        run,stopped=cancel_pipeline_run(run,actor=request.user,reason="Analysis stopped through the API.")
+        payload=self.get_serializer(run).data
+        payload["detail"]="Analysis stopped safely." if stopped else "This analysis is already inactive."
+        return Response(payload,status=200)
 
     @action(detail=True,methods=["post"],url_path="render-exports")
     def render_exports(self,request,pk=None):
@@ -42,11 +54,13 @@ class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
         missing=[binary for binary in (settings.FFMPEG_BINARY,settings.FFPROBE_BINARY) if not (Path(binary).exists() or shutil.which(binary))]
         if missing:
             return Response({"detail":f"Media rendering is unavailable because {', '.join(missing)} is not installed. Install FFmpeg and FFprobe or run the Docker stack."},status=424)
-        run.status=PipelineRun.Status.RUNNING; run.error=""; run.progress=50; run.current_stage="rendering_exports"; run.finished_at=None; run.save()
+        run.status=PipelineRun.Status.RUNNING; run.error=""; run.progress=50; run.current_stage="broll"; run.finished_at=None; run.save()
+        run.order.status=ContentOrder.Status.IN_PROGRESS;run.order.save(update_fields=["status","updated_at"])
         try:
             dispatch_render(run.id)
         except Exception as exc:
             run.status=PipelineRun.Status.FAILED; run.error=f"Could not dispatch export job: {exc}"; run.save()
+            run.order.status=ContentOrder.Status.QUALITY_CHECK;run.order.save(update_fields=["status","updated_at"])
             return Response({"detail":run.error},status=503)
         return Response(self.get_serializer(run).data,status=202)
 
@@ -64,7 +78,7 @@ class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
                     with field.open("rb") as source:
                         bundle.writestr(f"clip-{clip.rank:02}-{label}{suffix}",source.read())
         archive.seek(0)
-        filename=f"{run.order.title[:60].strip().replace(' ','-') or 'recast'}-clips.zip"
+        filename=f"{run.order.title[:60].strip().replace(' ','-') or 'reeckast'}-clips.zip"
         return FileResponse(archive,as_attachment=True,filename=filename,content_type="application/zip")
 
 class ClipViewSet(viewsets.ReadOnlyModelViewSet):

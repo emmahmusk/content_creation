@@ -1,13 +1,20 @@
 import json
 import mimetypes
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import requests
 from django.conf import settings
 
+from . import media
+
 
 class OpenAIConfigurationError(RuntimeError):
     pass
+
+
+OPENAI_UPLOAD_LIMIT_BYTES = 24 * 1024 * 1024
+TRANSCRIPTION_CHUNK_SECONDS = 15 * 60
 
 
 def _headers():
@@ -16,11 +23,9 @@ def _headers():
     return {"Authorization": f"Bearer {settings.OPENAI_API_KEY}"}
 
 
-def transcribe(audio_path, fallback_text=""):
-    """Return timestamped segments using the Audio Transcriptions API."""
-    path = Path(audio_path)
-    if path.stat().st_size > 24 * 1024 * 1024:
-        raise ValueError("Extracted audio exceeds the 24 MB POC safety limit. Use a shorter or more compressed source.")
+def _transcribe_file(path):
+    """Transcribe one upload-safe file and normalize its timestamps."""
+    path = Path(path)
     with path.open("rb") as audio:
         response = requests.post(
             "https://api.openai.com/v1/audio/transcriptions",
@@ -53,6 +58,33 @@ def transcribe(audio_path, fallback_text=""):
         })
     if not result and payload.get("text"):
         result.append({"start_ms": 0, "end_ms": 1000, "text": payload["text"], "words": []})
+    return result
+
+
+def _offset_segments(segments, offset_ms):
+    for segment in segments:
+        segment["start_ms"] += offset_ms
+        segment["end_ms"] += offset_ms
+        for word in segment.get("words", []):
+            word["start_ms"] += offset_ms
+            word["end_ms"] += offset_ms
+    return segments
+
+
+def transcribe(audio_path, fallback_text=""):
+    """Return one timestamped transcript, chunking large audio automatically."""
+    path = Path(audio_path)
+    if path.stat().st_size <= OPENAI_UPLOAD_LIMIT_BYTES:
+        return _transcribe_file(path)
+
+    with TemporaryDirectory(prefix="recast-transcription-") as folder:
+        chunks = media.split_audio(path, folder, TRANSCRIPTION_CHUNK_SECONDS)
+        result = []
+        for index, chunk in enumerate(chunks):
+            if chunk.stat().st_size > OPENAI_UPLOAD_LIMIT_BYTES:
+                raise ValueError("A compressed transcription chunk still exceeds OpenAI's upload limit.")
+            offset_ms = index * TRANSCRIPTION_CHUNK_SECONDS * 1000
+            result.extend(_offset_segments(_transcribe_file(chunk), offset_ms))
     return result
 
 

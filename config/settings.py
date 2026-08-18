@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -61,8 +62,13 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_BACKEND = (
+    "django.contrib.staticfiles.storage.StaticFilesStorage"
+    if "test" in sys.argv
+    else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+)
 STORAGES = {"default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-            "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"}}
+            "staticfiles": {"BACKEND": STATICFILES_BACKEND}}
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -88,9 +94,13 @@ NVIDIA_ASR_SERVER = os.getenv("NVIDIA_ASR_SERVER", "grpc.nvcf.nvidia.com:443")
 NVIDIA_ASR_FUNCTION_ID = os.getenv("NVIDIA_ASR_FUNCTION_ID", "d3fe9151-442b-4204-a70d-5fcc597fd610")
 NVIDIA_ASR_LANGUAGE = os.getenv("NVIDIA_ASR_LANGUAGE", "en-US")
 NVIDIA_IMAGE_API_URL = os.getenv("NVIDIA_IMAGE_API_URL", "")
-NVIDIA_IMAGE_MODEL = os.getenv("NVIDIA_IMAGE_MODEL", "")
+NVIDIA_IMAGE_MODEL = os.getenv("NVIDIA_IMAGE_MODEL", "stable-diffusion-3.5-large")
+NVIDIA_VIDEO_API_URL = os.getenv("NVIDIA_VIDEO_API_URL", "")
+NVIDIA_VIDEO_MODEL = os.getenv("NVIDIA_VIDEO_MODEL", "wan-ai/wan2.2")
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 FFMPEG_BINARY = os.getenv("FFMPEG_BINARY", "ffmpeg")
 FFPROBE_BINARY = os.getenv("FFPROBE_BINARY", "ffprobe")
+YTDLP_JS_RUNTIME = os.getenv("YTDLP_JS_RUNTIME", "deno")
 PIPELINE_ALLOW_MOCK_AI = os.getenv("PIPELINE_ALLOW_MOCK_AI", "True").lower() in {"1", "true", "yes"}
 AI_PROVIDER = os.getenv("AI_PROVIDER", "openai").lower()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

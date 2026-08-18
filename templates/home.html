@@ -1,12 +1,64 @@
-{% extends 'base.html' %}{% block body_class %}landing-page{% endblock %}{% block content %}
-<section class="hero"><div class="hero-glow"></div><div class="hero-orb orb-one"></div><div class="hero-orb orb-two"></div><div class="hero-inner"><div class="hero-badge"><span>Content intelligence</span><strong>One signal → every format</strong></div><h1>One idea.<br><span>Every possibility.</span></h1><p class="hero-copy">Recast understands your long-form content, finds what matters, shapes it for every platform, and turns insight into momentum.</p><div class="hero-actions"><a class="btn btn-lime" href="{% url 'register' %}">Build your content engine <span>→</span></a><a class="btn btn-ghost" href="#product-showcase"><i class="play-icon">▶</i> Explore the platform</a></div><div class="hero-proof"><div><span>Built for ambitious</span><strong>Creators · Teams · Brands</strong></div><div class="proof-avatars"><i>C</i><i>P</i><i>B</i><i>+</i><span>Ideas become systems here</span></div></div></div><a class="hero-scroll" href="#product-showcase"><span>See the intelligence layer</span><i>↓</i></a></section>
-<section class="product-showcase" id="product-showcase"><div class="showcase-intro"><span>THE PRODUCT, IN FOCUS</span><p>One calm surface for understanding, shaping, and multiplying every important idea.</p></div><div class="product-stage"><div class="stage-halo"></div><div class="product-window"><header><div class="window-dots"><i></i><i></i><i></i></div><span>Content Intelligence Review</span><b>Live analysis</b></header><div class="window-body"><aside><div class="mock-video"><span>9:16</span><div class="mock-person"></div><div class="mock-captions">Build around the idea<br>your audience remembers.</div></div><div class="mock-wave">{% for i in '1234567890123456789012345678901234567890' %}<i></i>{% endfor %}</div></aside><section><div class="mock-kicker">CONTENT DNA</div><div class="mock-score"><strong>92</strong><div><h3>Exceptional audience fit</h3><p>A clear, memorable insight with strong authority and conversation potential.</p></div></div><div class="mock-metrics"><div><span>Retention</span><b>87%</b></div><div><span>Originality</span><b>91%</b></div><div><span>Authority</span><b>89%</b></div></div><div class="mock-platform"><span>Platform strategist</span><div><i>in</i><i>◎</i><i>▶</i><i>𝕏</i></div></div></section></div></div></div></section>
+{% extends 'base.html' %}
+{% block body_class %}landing-page{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-glow"></div><div class="hero-orb orb-one"></div><div class="hero-orb orb-two"></div>
+  <div class="hero-inner">
+    <div class="hero-badge"><span>AI clipping production</span><strong>Discovery → approval → finished batch</strong></div>
+    <h1 class="calm-display"><span>One long-form source.</span><span>A complete clip batch.</span></h1>
+    <p class="hero-copy">Find the strongest moments. Choose what gets produced. Export finished clips with optional B-roll.</p>
+    <div class="hero-actions"><a class="btn btn-lime" href="{% url 'register' %}">Start creating clips <span>→</span></a><a class="btn btn-ghost" href="#workflow"><i class="play-icon">▶</i> See how it works</a></div>
+    <div class="hero-proof"><div><span>Built for high-volume</span><strong>Clipping agencies · Content teams · Creators</strong></div><div class="proof-avatars"><i>A</i><i>P</i><i>C</i><i>+</i><span>More clips. Less production waste.</span></div></div>
+  </div>
+  <a class="hero-scroll" href="#workflow"><span>See the five-step workflow</span><i>↓</i></a>
+</section>
 
-<section class="signal-strip"><span>UNDERSTAND</span><i></i><span>OPTIMIZE</span><i></i><span>REPURPOSE</span><i></i><span>PUBLISH</span><i></i><span>LEARN</span></section>
+<section class="pipeline-overview" id="workflow">
+  <span class="workflow-anchor" id="platform" aria-hidden="true"></span>
+  <header class="pipeline-overview-head">
+    <div><span>HOW REECKAST WORKS</span><h2>One source. Five clear steps.</h2></div>
+    <p>AI finds. Your team chooses. Reeckast finishes.</p>
+  </header>
 
-<section class="platform-section" id="platform"><div class="section-intro"><div><span class="section-index">01 / INTELLIGENCE</span><h2>Your content has a DNA.<br><em>Now you can see it.</em></h2></div><p>Beyond clipping. Recast reads narrative, emotion, authority, audience fit, and business potential—then makes every recommendation explainable.</p></div><div class="feature-bento"><article class="bento-large"><div class="bento-copy"><span>CONTENT DNA</span><h3>Know why an idea will resonate before you publish it.</h3><p>Quality, retention, virality, authority, emotional arc and audience alignment—measured in one living intelligence report.</p></div><div class="dna-visual"><div class="dna-core"><strong>94</strong><span>content score</span></div><i class="ring-a"></i><i class="ring-b"></i><span class="dna-label label-one">Authority 91</span><span class="dna-label label-two">Retention 88</span><span class="dna-label label-three">Originality 96</span></div></article><article class="bento-dark"><span>PLATFORM STRATEGIST</span><h3>Native everywhere.<br>Generic nowhere.</h3><div class="platform-stack"><div><i>in</i><span>LinkedIn</span><b>96</b></div><div><i>◎</i><span>Instagram</span><b>89</b></div><div><i>▶</i><span>YouTube</span><b>92</b></div></div></article><article class="bento-light"><span>BUSINESS IMPACT</span><h3>Ideas connected to outcomes.</h3><div class="impact-bars"><div><span>Discussion</span><i><b style="width:88%"></b></i></div><div><span>Leads</span><i><b style="width:72%"></b></i></div><div><span>Shares</span><i><b style="width:81%"></b></i></div></div></article></div></section>
+  <div class="pipeline-map" aria-label="Long-form source moves through AI discovery, human selection, finishing, and export">
+    <article class="pipeline-node node-source">
+      <header><span>01</span><b>Source</b></header>
+      <div class="source-pulse" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <strong>Long-form in</strong><small>Upload or link</small>
+    </article>
+    <span class="pipeline-arrow" aria-hidden="true">→</span>
+    <article class="pipeline-node node-discover">
+      <header><span>02</span><b>Discover</b></header>
+      <div class="moment-stack" aria-hidden="true"><i><b>92</b></i><i><b>88</b></i><i><b>84</b></i></div>
+      <strong>Moments ranked</strong><small>With reasons</small>
+    </article>
+    <span class="pipeline-arrow" aria-hidden="true">→</span>
+    <article class="pipeline-node node-select">
+      <header><span>03</span><b>Choose</b></header>
+      <div class="choice-board" aria-hidden="true"><i class="is-kept">✓</i><i>×</i><i class="is-kept">✓</i><i>×</i></div>
+      <strong>Human decision</strong><small>Keep only the best</small>
+    </article>
+    <div class="approval-gate" aria-label="Production begins after approval"><span>APPROVAL</span><i></i><small>Spend starts here</small></div>
+    <article class="pipeline-node node-finish">
+      <header><span>04</span><b>Finish</b></header>
+      <div class="finish-grid" aria-hidden="true"><i>B-roll</i><i>CC</i><i>Hook</i><i>9:16</i></div>
+      <strong>Selected clips</strong><small>Edited automatically</small>
+    </article>
+    <span class="pipeline-arrow" aria-hidden="true">→</span>
+    <article class="pipeline-node node-export">
+      <header><span>05</span><b>Export</b></header>
+      <div class="export-stack" aria-hidden="true"><i>MP4</i><i>SRT</i><i>ZIP</i></div>
+      <strong>Batch ready</strong><small>Publish anywhere</small>
+    </article>
+  </div>
 
-<section class="workflow-section" id="workflow"><div class="section-intro inverse"><div><span class="section-index">02 / OPERATING SYSTEM</span><h2>From raw thought<br>to published system.</h2></div><p>One calm workflow replaces the tabs, tools, documents, and handoffs that slow great content down.</p></div><div class="workflow-line"><article><span>01</span><div class="workflow-icon">↑</div><h3>Bring the source</h3><p>Upload a recording or paste a public video link.</p></article><article><span>02</span><div class="workflow-icon">✦</div><h3>Define the mission</h3><p>Tell the strategist what matters, who it serves, and what to avoid.</p></article><article><span>03</span><div class="workflow-icon">⌁</div><h3>Review intelligence</h3><p>Understand every moment, prediction, and editorial decision.</p></article><article><span>04</span><div class="workflow-icon">↗</div><h3>Publish with intent</h3><p>Shape, schedule, and learn across every destination.</p></article></div></section>
+  <footer class="pipeline-key" aria-label="Pipeline legend"><span><i></i>AI discovery</span><span><i></i>Human choice</span><span><i></i>Selective production</span></footer>
+</section>
 
-<section class="outcomes-section"><div class="outcome-quote"><span>THE NEW CREATIVE LEVERAGE</span><blockquote>“Your best ideas should compound—not disappear into a feed.”</blockquote><a class="btn btn-lime" href="{% url 'register' %}">Start with your next idea <b>→</b></a></div><div class="outcome-grid"><div><strong>10×</strong><span>more useful outputs from every recording</span></div><div><strong>1</strong><span>intelligent workspace from source to signal</span></div><div><strong>24h</strong><span>from long-form idea to publishing system</span></div><div><strong>∞</strong><span>learning from every edit and outcome</span></div></div></section>
+<section class="product-showcase" id="product-showcase">
+  <div class="showcase-intro"><span>SEE WHY A MOMENT WORKS</span><p>One score. One explanation. One clear decision.</p></div>
+  <div class="product-stage"><div class="stage-halo"></div><div class="product-window"><header><div class="window-dots"><i></i><i></i><i></i></div><span>Clip Decision Report</span><b>Live analysis</b></header><div class="window-body"><aside><div class="mock-video"><span>9:16</span><div class="mock-person"></div><div class="mock-captions">Approve the idea<br>your audience remembers.</div></div><div class="mock-wave">{% for i in '1234567890123456789012345678901234567890' %}<i></i>{% endfor %}</div></aside><section><div class="mock-kicker">CLIP POTENTIAL</div><div class="mock-score"><strong>92</strong><div><h3>Exceptional audience fit</h3><p>A clear, memorable insight with a strong opening and conversation potential.</p></div></div><div class="mock-metrics"><div><span>Retention</span><b>87%</b></div><div><span>Originality</span><b>91%</b></div><div><span>Authority</span><b>89%</b></div></div><div class="mock-platform"><span>Ready for team approval</span><div><i>in</i><i>◎</i><i>▶</i><i>𝕏</i></div></div></section></div></div></div>
+</section>
+
+<section class="outcomes-section"><div class="outcome-quote"><span>THE HIGH-VOLUME ADVANTAGE</span><h2 class="calm-display"><span>More publishable clips.</span><em>Less production waste.</em></h2><p>Find the strongest moments, choose what matters, and spend production only on clips your team will use.</p><a class="btn btn-lime" href="{% url 'register' %}">Create your first project <b>→</b></a></div><div class="outcome-grid"><div><strong>10×</strong><span>more candidate moments from every source</span></div><div><strong>1</strong><span>approval-first pipeline for the whole content team</span></div><div><strong>24h</strong><span>from long-form source to finished short-form batch</span></div><div><strong>↓</strong><span>less AI spend on clips your team would reject</span></div></div></section>
 {% endblock %}

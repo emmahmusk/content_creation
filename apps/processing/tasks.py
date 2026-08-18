@@ -14,7 +14,7 @@ def dispatch_pipeline(run_id):
     """Dispatch locally for the POC or through Celery in a production worker setup."""
     if settings.PIPELINE_EXECUTION_MODE == "thread":
         return _local_executor.submit(execute_pipeline, str(run_id))
-    return process_order.delay(str(run_id))
+    return process_order.apply_async(args=[str(run_id)], task_id=str(run_id))
 
 @shared_task(bind=True,autoretry_for=(ConnectionError,TimeoutError),retry_backoff=True,retry_kwargs={"max_retries":3})
 def render_order_exports(self,run_id):

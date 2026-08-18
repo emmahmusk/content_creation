@@ -8,7 +8,7 @@ class OrderEventInline(admin.TabularInline):
 @admin.register(ContentOrder)
 class ContentOrderAdmin(admin.ModelAdmin):
     list_display = ("title", "customer", "status", "due_at", "created_at")
-    list_filter = ("status", "include_audio_cleanup")
+    list_filter = ("status", "include_audio_cleanup", "broll_mode", "broll_intensity")
     search_fields = ("title", "customer__username", "customer__email")
     inlines = [SourceAssetInline, OrderEventInline]
 admin.site.register(SourceAsset)

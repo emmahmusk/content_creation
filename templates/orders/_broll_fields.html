@@ -1,0 +1,36 @@
+<fieldset class="broll-picker mission-field-wide">
+  <legend>{{ form.broll_mode.label }}</legend>
+  <div class="option-group-head">
+    <p>Optional. Reeckast plans visual cutaways from each approved clip, then sources or generates them only when rendering begins.</p>
+    <span>AFTER APPROVAL</span>
+  </div>
+  <div class="broll-choice-grid">
+    {% for option in form.broll_mode %}
+      <label class="broll-choice" data-broll-mode="{{ option.data.value }}">
+        {{ option.tag }}
+        <span class="broll-choice-ui">
+          <span class="broll-glyph" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>
+            <strong>{{ option.choice_label }}</strong>
+            {% if option.data.value == 'none' %}<small>Keep the current clip edit untouched.</small>{% endif %}
+            {% if option.data.value == 'ai_selected' %}<small>AI chooses licensed stock; NVIDIA visuals fill gaps.</small>{% endif %}
+            {% if option.data.value == 'ai_generated' %}<small>NVIDIA creates original motion cutaways from the clip context.</small>{% endif %}
+            {% if option.data.value == 'hybrid' %}<small>Mix licensed stock with original NVIDIA-generated visuals.</small>{% endif %}
+          </span>
+          <b aria-hidden="true"></b>
+        </span>
+      </label>
+    {% endfor %}
+  </div>
+  {{ form.broll_mode.errors }}
+  <div class="broll-intensity">
+    <div><strong>{{ form.broll_intensity.label }}</strong><small>Controls how often B-roll replaces the main camera—not the quality of the clip.</small></div>
+    <div class="broll-intensity-options">
+      {% for option in form.broll_intensity %}
+        <label>{{ option.tag }}<span>{{ option.choice_label }}</span></label>
+      {% endfor %}
+    </div>
+    {{ form.broll_intensity.errors }}
+  </div>
+  <p class="broll-cost-note"><strong>Cost guard:</strong> discovery and previews stay lightweight. B-roll generation starts only for moments your team approves.</p>
+</fieldset>

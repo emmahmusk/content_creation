@@ -75,6 +75,29 @@ class Clip(models.Model):
     def end_timecode(self): return self._timecode(self.end_ms)
 
 
+class BrollPlan(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PLANNING = "planning", "Planning"
+        READY = "ready", "Ready"
+        PARTIAL = "partial", "Partially generated"
+        SKIPPED = "skipped", "Skipped"
+        FAILED = "failed", "Failed"
+
+    clip = models.OneToOneField(Clip, on_delete=models.CASCADE, related_name="broll_plan")
+    mode = models.CharField(max_length=20)
+    intensity = models.CharField(max_length=20)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    scenes = models.JSONField(default=list, blank=True)
+    provider = models.CharField(max_length=80, default="NVIDIA NIM")
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["clip__rank"]
+
+
 class ContentIntelligence(models.Model):
     class Status(models.TextChoices):
         QUEUED="queued","Queued"; RUNNING="running","Running"; READY="ready","Ready"; FAILED="failed","Failed"

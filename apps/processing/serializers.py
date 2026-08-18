@@ -1,13 +1,16 @@
 from rest_framework import serializers
-from .models import Clip, ContentIntelligence, LearningSignal, PipelineRun, PublicationJob, RepurposeAsset, StageRun, TranscriptSegment
+from .models import BrollPlan, Clip, ContentIntelligence, LearningSignal, PipelineRun, PublicationJob, RepurposeAsset, StageRun, TranscriptSegment
 class StageRunSerializer(serializers.ModelSerializer):
     class Meta: model=StageRun; fields=["name","status","attempts","metadata","error","started_at","finished_at"]
 class PipelineRunSerializer(serializers.ModelSerializer):
     stages=StageRunSerializer(many=True,read_only=True)
     class Meta: model=PipelineRun; fields=["id","order","status","current_stage","progress","error","started_at","finished_at","created_at","stages"]
+class BrollPlanSerializer(serializers.ModelSerializer):
+    class Meta: model=BrollPlan; fields=["mode","intensity","status","scenes","provider","error","updated_at"]
 class ClipSerializer(serializers.ModelSerializer):
     duration_seconds=serializers.FloatField(read_only=True)
-    class Meta: model=Clip; fields=["id","order","rank","title","hook","caption","start_ms","end_ms","duration_seconds","score","rationale","preview_url","editing_instructions","video","audio","subtitle","thumbnail","status"]
+    broll_plan=BrollPlanSerializer(read_only=True)
+    class Meta: model=Clip; fields=["id","order","rank","title","hook","caption","start_ms","end_ms","duration_seconds","score","rationale","preview_url","editing_instructions","broll_plan","video","audio","subtitle","thumbnail","status"]
 class TranscriptSegmentSerializer(serializers.ModelSerializer):
     class Meta: model=TranscriptSegment; fields=["id","order","start_ms","end_ms","text","words","speaker"]
 
