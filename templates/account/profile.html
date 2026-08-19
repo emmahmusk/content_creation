@@ -24,7 +24,7 @@
       <form class="social-handle-form connection-form">
         <div><label for="social-platform">Platform</label><select id="social-platform" name="platform" required><option value="">Choose a platform</option>{% for value,label in platforms %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
         <div><label for="social-handle">Handle or profile URL</label><input id="social-handle" name="handle" maxlength="160" placeholder="@yourhandle" required></div>
-        <button class="btn btn-lime" type="submit"><span>Add social profile</span><b>+</b></button>
+        <button class="btn btn-lime" type="submit" data-loading-text="Adding social profile…"><span>Add social profile</span><b>+</b></button>
         <p class="social-form-error hidden" role="alert"></p>
       </form>
     </div>

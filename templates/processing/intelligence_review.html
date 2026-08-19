@@ -1,39 +1,90 @@
 {% extends 'base.html' %}{% load static %}
-{% block title %}Content Intelligence — {{ clip.title }}{% endblock %}
+{% block title %}Clip review — {{ clip.title }}{% endblock %}
 {% block body_class %}app-page intelligence-page{% endblock %}
 {% block content %}
-<main class="intel-shell" data-status="{{ intelligence.status }}" data-start-url="/api/v1/clips/{{ clip.id }}/analyze-intelligence/" data-intelligence-url="/api/v1/content-intelligence/{{ intelligence.id }}/" data-publication-url="/api/v1/publication-jobs/" data-learning-url="/api/v1/learning-signals/">
-  <header class="intel-header"><div><a href="{% url 'orders:detail' clip.order.id %}">← Approval queue</a><div class="eyebrow">CLIP DECISION REPORT · CLIP {{ clip.rank|stringformat:'02d' }}</div><h1>{{ clip.title }}</h1><p>{{ clip.start_timecode }}–{{ clip.end_timecode }} · {{ clip.duration_seconds }} seconds · {{ clip.order.title }}</p></div><div class="intel-header-score"><strong>{% if intelligence.status == 'ready' %}{{ intelligence.content_dna.overall_quality_score }}{% else %}—{% endif %}</strong><span>Clip potential</span></div></header>
+<main class="intel-shell clipper-intel" data-status="{{ intelligence.status }}" data-start-url="/api/v1/clips/{{ clip.id }}/analyze-intelligence/" data-intelligence-url="/api/v1/content-intelligence/{{ intelligence.id }}/" data-publication-url="/api/v1/publication-jobs/" data-learning-url="/api/v1/learning-signals/">
+  <header class="intel-header clipper-intel-head">
+    <a class="clipper-back" href="{% url 'orders:detail' clip.order.id %}">← Back to clip selection</a>
+    <div class="clipper-masthead">
+      <div class="clipper-masthead-copy">
+        <div class="clipper-title-meta"><span>Clip {{ clip.rank|stringformat:'02d' }}</span><span>Quick decision</span></div>
+        <h1>{{ clip.title }}</h1>
+        <div class="clipper-time-row">
+          <span><small>Moment</small>{{ clip.start_timecode }} <i>→</i> {{ clip.end_timecode }}</span>
+          <span><small>Length</small>{{ clip.duration_seconds }} sec</span>
+        </div>
+      </div>
+      <aside class="intel-header-score" aria-label="Performance score">
+        <div class="clipper-score-top"><span>Clip potential</span><strong>{% if intelligence.status == 'ready' %}{{ intelligence.content_dna.overall_quality_score }}{% else %}—{% endif %}</strong></div>
+        <div class="clipper-score-track" aria-hidden="true"><i style="--score:{% if intelligence.status == 'ready' %}{{ intelligence.content_dna.overall_quality_score }}{% else %}0{% endif %}%"></i></div>
+        <p>AI estimate for a faster first review.</p>
+      </aside>
+    </div>
+  </header>
 
   {% if intelligence.status != 'ready' %}
-  <section class="intel-loading"><div class="intel-orbit"></div><div><div class="eyebrow">CLIP STRATEGIST AT WORK</div><h2 class="intel-loading-title">{% if intelligence.status == 'failed' %}The review needs another pass{% else %}Explaining this clip choice{% endif %}</h2><p class="intel-loading-copy">The engine is checking the transcript, clipping brief, audience fit, hook strength, platform value, and production opportunity.</p><button class="btn intel-analyze" type="button">{% if intelligence.status == 'failed' %}Try again{% else %}Review this clip{% endif %}</button><p class="intel-error">{{ intelligence.error }}</p></div></section>
+  <section class="intel-loading"><div class="intel-orbit"></div><div><div class="eyebrow">CHECKING CLIP POTENTIAL</div><h2 class="intel-loading-title">{% if intelligence.status == 'failed' %}The review needs another pass{% else %}Finding what could make this perform{% endif %}</h2><p class="intel-loading-copy">Reeckast is checking the opening, watchability, audience relevance, engagement potential, and best publishing channels.</p><button class="btn intel-analyze" type="button">{% if intelligence.status == 'failed' %}Try again{% else %}Review this clip{% endif %}</button><p class="intel-error">{{ intelligence.error }}</p></div></section>
   {% else %}
-  <div class="intel-layout">
-    <aside class="intel-source">
+  <div class="intel-layout clipper-intel-layout">
+    <aside class="intel-source clipper-source">
       <div class="intel-video">{% if clip.video %}<video controls preload="metadata" poster="{% if clip.thumbnail %}{{ clip.thumbnail.url }}{% endif %}"><source src="{{ clip.video.url }}"></video>{% elif clip.preview_url %}<video controls preload="metadata"><source src="{{ clip.preview_url }}"></video>{% else %}<div class="intel-video-placeholder">Preview becomes available after rendering</div>{% endif %}</div>
       <div class="waveform" aria-label="Audio waveform">{% for segment in segments %}<i style="--h:{% cycle '32' '62' '44' '78' '52' '88' '40' '70' %}%"></i>{% empty %}{% for i in '123456789012345678901234567890' %}<i style="--h:{% cycle '38' '72' '48' '82' '58' %}%"></i>{% endfor %}{% endfor %}</div>
       <div class="timeline-ruler"><span>{{ clip.start_timecode }}</span><b></b><span>{{ clip.end_timecode }}</span></div>
-      <section class="intel-transcript"><div class="intel-section-label"><span>Transcript</span><button type="button" class="text-button">Search</button></div>{% for segment in segments %}<p><time>{{ segment.start_ms }}</time>{{ segment.text }}</p>{% empty %}<p>No timestamped transcript is available for this range.</p>{% endfor %}</section>
-      <section class="quote-block"><span>Most memorable quote</span><blockquote>“{{ intelligence.content_dna.most_memorable_quote }}”</blockquote></section>
+      <details class="clipper-transcript"><summary>View clip transcript <span>+</span></summary><div>{% for segment in segments %}<p><time>{{ segment.start_ms }}</time>{{ segment.text }}</p>{% empty %}<p>No timestamped transcript is available for this range.</p>{% endfor %}</div></details>
     </aside>
 
-    <div class="intel-report">
-      <nav class="intel-jump"><a href="#dna">Content DNA</a><a href="#reasoning">Reasoning</a><a href="#platforms">Platforms</a><a href="#repurpose">Repurpose</a><a href="#publish">Publish</a></nav>
-      <section id="dna" class="editorial-section"><div class="section-kicker">01 · CONTENT DNA</div><div class="dna-lead"><div class="score-ring" style="--score:{{ intelligence.content_dna.overall_quality_score }}"><strong>{{ intelligence.content_dna.overall_quality_score }}</strong><span>overall</span></div><div><h2>{{ intelligence.content_dna.overall_recommendation }}</h2><p>{{ intelligence.content_dna.primary_takeaway }}</p><div class="confidence-meter"><i style="width:{{ intelligence.confidence }}%"></i></div><small>{{ intelligence.confidence }}% AI confidence</small></div></div><div class="dna-grid">{% for key,value in intelligence.content_dna.items %}{% if key != 'overall_quality_score' and key != 'overall_recommendation' and key != 'primary_takeaway' and key != 'most_memorable_quote' %}<div><span>{{ key|cut:'_'|title }}</span><strong>{{ value|default:'—' }}</strong></div>{% endif %}{% endfor %}</div></section>
+    <div class="intel-report clipper-report">
+      <nav class="intel-jump clipper-jump" aria-label="Clip review sections"><a href="#decision">Decision</a><a href="#why">Why it works</a><a href="#channels">Best channels</a><a href="#improve">Improve it</a></nav>
 
-      <section id="reasoning" class="editorial-section"><div class="section-kicker">02 · WHY THE AI CHOSE THIS CLIP</div><h2>Editorial reasoning, not a black box.</h2><div class="reasoning-grid"><article><span>Strengths</span><ul>{% for item in intelligence.selection_reasoning.strengths %}<li>{{ item }}</li>{% endfor %}</ul></article><article><span>Weaknesses</span><ul>{% for item in intelligence.selection_reasoning.weaknesses %}<li>{{ item }}</li>{% endfor %}</ul></article><article><span>Opportunities</span><ul>{% for item in intelligence.selection_reasoning.opportunities %}<li>{{ item }}</li>{% endfor %}</ul></article><article><span>Suggested improvements</span><ul>{% for item in intelligence.selection_reasoning.suggested_improvements %}<li>{{ item }}</li>{% endfor %}</ul></article><article><span>Alternative start</span><p>{{ intelligence.selection_reasoning.alternative_start }}</p></article><article><span>Alternative end</span><p>{{ intelligence.selection_reasoning.alternative_end }}</p></article><article><span>Recommended hook</span><p>{{ intelligence.selection_reasoning.recommended_hook }}</p></article><article><span>Thumbnail text</span><p>{{ intelligence.selection_reasoning.recommended_thumbnail_text }}</p></article><article><span>Recommended CTA</span><p>{{ intelligence.selection_reasoning.recommended_cta }}</p></article><article><span>Audience relevance</span><p>{{ intelligence.selection_reasoning.audience_relevance }}</p></article></div></section>
+      <section id="decision" class="editorial-section clipper-section">
+        <div class="section-kicker">THE QUICK READ</div>
+        <h2>{{ intelligence.content_dna.overall_recommendation }}</h2>
+        <p class="clipper-lead">{{ intelligence.content_dna.primary_takeaway }}</p>
+        <div class="clipper-metrics" aria-label="Performance snapshot">
+          <article><strong>{{ intelligence.content_dna.virality_potential|default:'—' }}</strong><span>Viral potential</span></article>
+          <article><strong>{{ intelligence.content_dna.estimated_completion_rate|default:'—' }}</strong><span>Watch-through</span></article>
+          <article><strong>{{ intelligence.business_impact.comment_potential.score|default:'—' }}</strong><span>Comments</span></article>
+          <article><strong>{{ intelligence.business_impact.share_potential.score|default:'—' }}</strong><span>Shares</span></article>
+        </div>
+        <div class="clipper-decision-bar">
+          <div><span>Your decision</span><strong class="intel-decision-state">{% if clip.status == 'approved' %}Selected{% elif clip.status == 'rejected' %}Skipped{% elif clip.status == 'rendered' %}Produced{% else %}Planned{% endif %}</strong></div>
+          <button class="intel-decision keep{% if clip.status == 'approved' %} is-active{% endif %}" type="button" data-state="approved" data-url="/api/v1/clips/{{ clip.id }}/approve/" {% if clip.status == 'rendered' %}disabled{% endif %}>Keep this clip</button>
+          <button class="intel-decision skip{% if clip.status == 'rejected' %} is-active{% endif %}" type="button" data-state="rejected" data-url="/api/v1/clips/{{ clip.id }}/reject/" {% if clip.status == 'rendered' %}disabled{% endif %}>Skip</button>
+        </div>
+      </section>
 
-      <section id="platforms" class="editorial-section"><div class="section-kicker">03 · PLATFORM STRATEGIST</div><h2>One idea, shaped for every context.</h2><div class="platform-strategy">{% for platform,data in intelligence.platform_strategy.items %}<details {% if forloop.first %}open{% endif %}><summary><span>{{ platform }}</span><b>{{ data.score }}/100</b></summary><div class="platform-detail">{% for key,value in data.items %}{% if key != 'score' %}<div><span>{{ key|cut:'_'|title }}</span><p>{{ value }}</p></div>{% endif %}{% endfor %}</div></details>{% endfor %}</div></section>
+      <section id="why" class="editorial-section clipper-section">
+        <div class="section-kicker">WHY PEOPLE MAY STOP AND WATCH</div>
+        <div class="clipper-evidence">
+          <article class="evidence-hook"><span>Opening hook</span><blockquote>“{{ intelligence.selection_reasoning.recommended_hook|default:clip.hook }}”</blockquote></article>
+          <article><span>Why it lands</span><p>{{ intelligence.selection_reasoning.strengths|first|default:clip.rationale }}</p></article>
+          <article><span>Who will care</span><p>{{ intelligence.selection_reasoning.audience_relevance|default:intelligence.content_dna.audience }}</p></article>
+          <article class="evidence-watchout"><span>Watch-out</span><p>{{ intelligence.selection_reasoning.weaknesses|first|default:'No major weakness detected.' }}</p></article>
+        </div>
+      </section>
 
-      <section class="editorial-section split-intelligence"><div><div class="section-kicker">04 · BUSINESS IMPACT</div><h2>Predicted outcomes.</h2>{% for key,data in intelligence.business_impact.items %}<div class="prediction-row"><span>{{ key|cut:'_'|title }}</span><i><b style="width:{{ data.score }}%"></b></i><strong>{{ data.score }}</strong><small>{{ data.confidence }}% confidence</small></div>{% endfor %}</div><div><div class="section-kicker">05 · AUDIENCE MATCH</div><h2>Who this resonates with.</h2><div class="audience-cloud">{% for audience,score in intelligence.audience_matching.items %}<span style="--match:{{ score }}%">{{ audience }} <b>{{ score }}%</b></span>{% endfor %}</div></div></section>
+      <section id="channels" class="editorial-section clipper-section">
+        <div class="section-kicker">WHERE THIS CLIP FITS BEST</div>
+        <h2>Start with the channels where the idea feels native.</h2>
+        <div class="clipper-channels">{% for platform,data in intelligence.platform_strategy.items %}{% if forloop.counter <= 4 %}<article><header><strong>{{ platform }}</strong><b class="clipper-channel-score" aria-label="Channel fit score {{ data.score }}">{{ data.score }}</b></header><p>{{ data.hook|default:data.title }}</p><small>{{ data.aspect_ratio }} · {{ data.clip_length }}</small></article>{% endif %}{% endfor %}</div>
+      </section>
 
-      <section class="editorial-section"><div class="section-kicker">06 · AI EDITOR</div><h2>Precise improvements, individually controlled.</h2><div class="editor-actions">{% for item in intelligence.editor_recommendations %}<article><div><span>{{ item.impact }} · {{ item.confidence }}% confidence</span><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div><button class="download-chip editor-accept" data-action-id="{{ item.id }}" type="button">Use this suggestion</button></article>{% endfor %}</div></section>
+      <section id="improve" class="editorial-section clipper-section">
+        <div class="section-kicker">MAKE IT HIT HARDER</div>
+        <h2>Three practical changes before posting.</h2>
+        <div class="clipper-improvements">
+          {% for item in intelligence.editor_recommendations %}{% if forloop.counter <= 3 %}<article><div><span>{{ item.impact }}</span><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div><button class="editor-accept" data-action-id="{{ item.id }}" type="button">Use suggestion</button></article>{% endif %}{% endfor %}
+        </div>
+        <div class="clipper-ready-copy"><div><span>Thumbnail text</span><strong>{{ intelligence.selection_reasoning.recommended_thumbnail_text }}</strong></div><div><span>Engagement prompt</span><strong>{{ intelligence.selection_reasoning.recommended_cta }}</strong></div></div>
+      </section>
 
-      <section class="editorial-section"><div class="section-kicker">07 · SEMANTIC CONTENT GRAPH</div><h2>The ideas underneath the clip.</h2><div class="semantic-graph">{% for topic in intelligence.semantic_graph.topics %}<span class="node node-topic">{{ topic }}</span>{% endfor %}{% for concept in intelligence.semantic_graph.concepts %}<span class="node">{{ concept }}</span>{% endfor %}{% for entity in intelligence.semantic_graph.entities %}<span class="node node-entity">{{ entity }}</span>{% endfor %}</div><div class="semantic-lists">{% for key,value in intelligence.semantic_graph.items %}{% if key != 'topics' and key != 'concepts' and key != 'entities' and key != 'relationships' %}<div><span>{{ key|title }}</span><p>{{ value|default:'None detected' }}</p></div>{% endif %}{% endfor %}</div></section>
-
-      <section id="repurpose" class="editorial-section"><div class="section-kicker">08 · CONTENT REPURPOSING</div><h2>A publishing system from one moment.</h2><div class="repurpose-list">{% for asset in clip.repurpose_assets.all %}<article data-asset-id="{{ asset.id }}"><header><div><span>{{ asset.get_kind_display }}</span><h3>{{ asset.title }}</h3></div><button class="text-button asset-copy" type="button">Copy</button></header><textarea>{{ asset.content }}</textarea><footer><button data-operation="regenerate">Regenerate</button><button data-operation="improve">Improve</button><button data-operation="shorten">Shorten</button><button data-operation="expand">Expand</button><button data-operation="change_tone">Change tone</button><button class="asset-save">Save edits</button></footer></article>{% endfor %}</div></section>
-
-      <section id="publish" class="editorial-section publishing-panel"><div class="section-kicker">09 · PUBLISHING</div><h2>Choose destinations and prepare the release.</h2><p>Saved handles are publishing destinations, not authenticated connections. Drafting, queueing, and scheduling work now; direct publishing unlocks after each platform’s OAuth connection is completed.</p><form class="publication-form"><div class="destination-list">{% for handle in social_handles %}<label data-platform="{{ handle.platform }}"><input type="checkbox" name="destination" value="{{ handle.id }}"><span class="publishing-destination-logo">{% include 'shared/_platform_icon.html' with platform=handle.platform %}</span><span>{{ handle.get_platform_display }}</span><b>{{ handle.handle }}</b></label>{% empty %}<a href="{% url 'profile' %}">Add your first social profile →</a>{% endfor %}</div><div class="publish-customization"><label>Platform title<input name="title" value="{{ clip.title }}"></label><label>Caption<textarea name="caption">{{ clip.caption }}</textarea></label><label>Action<select name="action"><option value="draft">Save as draft</option><option value="queue">Add to queue</option><option value="schedule">Schedule for later</option><option value="publish">Publish now — connect account first</option></select></label><label class="schedule-field hidden">Publish time<input type="datetime-local" name="scheduled_for"></label></div><button class="btn" type="submit">Save publishing plans</button><p class="publish-result"></p></form></section>
+      <details class="intel-advanced">
+        <summary><div><span>OPTIONAL</span><strong>Open captions and publishing tools</strong></div><b>+</b></summary>
+        <div class="intel-advanced-body">
+          <section id="repurpose" class="clipper-tools-section"><h2>Ready-to-edit copy</h2><div class="repurpose-list">{% for asset in clip.repurpose_assets.all %}<article data-asset-id="{{ asset.id }}"><header><div><span>{{ asset.get_kind_display }}</span><h3>{{ asset.title }}</h3></div><button class="text-button asset-copy" type="button">Copy</button></header><textarea>{{ asset.content }}</textarea><footer><button data-operation="regenerate">Regenerate</button><button data-operation="improve">Improve</button><button data-operation="shorten">Shorten</button><button class="asset-save">Save edits</button></footer></article>{% endfor %}</div></section>
+          <section id="publish" class="clipper-tools-section publishing-panel"><h2>Save a publishing plan</h2><form class="publication-form"><div class="destination-list">{% for handle in social_handles %}<label data-platform="{{ handle.platform }}"><input type="checkbox" name="destination" value="{{ handle.id }}"><span class="publishing-destination-logo">{% include 'shared/_platform_icon.html' with platform=handle.platform %}</span><span>{{ handle.get_platform_display }}</span><b>{{ handle.handle }}</b></label>{% empty %}<a href="{% url 'profile' %}">Add your first social profile →</a>{% endfor %}</div><div class="publish-customization"><label>Title<input name="title" value="{{ clip.title }}"></label><label>Caption<textarea name="caption">{{ clip.caption }}</textarea></label><label>Action<select name="action"><option value="draft">Save as draft</option><option value="queue">Add to queue</option><option value="schedule">Schedule for later</option><option value="publish">Publish now — connect account first</option></select></label><label class="schedule-field hidden">Publish time<input type="datetime-local" name="scheduled_for"></label></div><button class="btn" type="submit">Save publishing plan</button><p class="publish-result"></p></form></section>
+        </div>
+      </details>
     </div>
   </div>
   {% endif %}

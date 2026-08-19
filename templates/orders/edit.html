@@ -22,7 +22,7 @@
       </div>
       <form method="post" action="{% url 'orders:stop-analysis' order.pk %}">
         {% csrf_token %}
-        <button class="btn stop-edit-action" type="submit">Stop analysis and edit</button>
+        <button class="btn stop-edit-action" type="submit" data-loading-text="Stopping analysis safely…">Stop analysis and edit</button>
         <a href="{% url 'orders:detail' order.pk %}">Keep analysis running</a>
       </form>
     </section>
@@ -41,7 +41,7 @@
       <footer class="edit-form-actions">
         <div><span>NEXT</span><p>If analysis inputs changed, a fresh run will be prepared for you.</p></div>
         <a class="btn edit-cancel" href="{% url 'orders:detail' order.pk %}">Cancel</a>
-        <button class="btn btn-lime" type="submit">Save changes <span>→</span></button>
+        <button class="btn btn-lime" type="submit" data-loading-text="Saving project changes…">Save changes <span>→</span></button>
       </footer>
     </form>
   {% endif %}

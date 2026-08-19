@@ -141,7 +141,10 @@ class ProcessingAccessTests(TestCase):
         clip=self.order.clips.get(rank=1)
         content_intelligence.generate_for_clip(clip.id)
         self.client.force_login(self.owner)
-        self.assertEqual(self.client.get(f"/intelligence/clips/{clip.id}/").status_code,200)
+        response=self.client.get(f"/intelligence/clips/{clip.id}/")
+        self.assertEqual(response.status_code,200)
+        self.assertContains(response,'class="clipper-channel-score"')
+        self.assertContains(response,'aria-label="Channel fit score')
         self.client.force_login(self.other)
         self.assertEqual(self.client.get(f"/intelligence/clips/{clip.id}/").status_code,404)
 

@@ -1,3 +1,11 @@
+const routeStatus=document.querySelector('.route-status');
+const beginRouteTransition=(label='Opening next view…')=>{if(routeStatus){routeStatus.querySelector('b').textContent=label;routeStatus.setAttribute('aria-hidden','false');}document.body.classList.add('is-navigating');};
+const endRouteTransition=()=>{document.body.classList.remove('is-navigating');routeStatus?.setAttribute('aria-hidden','true');};
+const setButtonBusy=(button,busy,label='Working…')=>{if(!button)return;if(busy){button.style.setProperty('--busy-color',getComputedStyle(button).color);button.dataset.loadingText=label;button.classList.add('is-loading');button.disabled=true;button.setAttribute('aria-busy','true');}else{button.classList.remove('is-loading');button.style.removeProperty('--busy-color');button.removeAttribute('aria-busy');}};
+window.addEventListener('pageshow',endRouteTransition);
+document.addEventListener('click',event=>{const link=event.target.closest('a[href]');if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.target==='_blank'||link.hasAttribute('download')||link.dataset.noTransition!==undefined)return;let target;try{target=new URL(link.href,location.href);}catch(error){return;}if(target.origin!==location.origin)return;const sameDocument=target.pathname===location.pathname&&target.search===location.search;if(sameDocument&&(!target.hash||target.hash===location.hash||document.querySelector(target.hash)))return;beginRouteTransition(link.dataset.loadingText||'Opening next view…');});
+document.addEventListener('submit',event=>{if(event.defaultPrevented)return;const form=event.target;if(!(form instanceof HTMLFormElement)||form.dataset.noTransition!==undefined)return;const button=form.querySelector('button:not([type]),button[type="submit"],input[type="submit"]');const label=button?.dataset.loadingText||'Saving and opening the next step…';setButtonBusy(button,true,label);beginRouteTransition(label);});
+
 document.querySelectorAll('.copy-button').forEach(button=>button.addEventListener('click',async()=>{await navigator.clipboard.writeText(button.dataset.copy);const old=button.textContent;button.textContent='Copied';setTimeout(()=>button.textContent=old,1600)}));
 const navToggle=document.querySelector('.nav-toggle');navToggle?.addEventListener('click',()=>{const open=document.body.classList.toggle('nav-open');navToggle.setAttribute('aria-expanded',String(open));navToggle.setAttribute('aria-label',open?'Close menu':'Open menu');});
 document.querySelectorAll('.nav-links a').forEach(link=>link.addEventListener('click',()=>{document.body.classList.remove('nav-open');navToggle?.setAttribute('aria-expanded','false');}));
@@ -180,7 +188,7 @@ if(pipeline){
       if(['queued','running'].includes(data.status)){setTimeout(refresh,2000);return;}
       if(data.status==='failed'){
         const activeButton=renderButton||analyzeButton;
-        if(activeButton){activeButton.disabled=false;activeButton.textContent='Try again';}
+        if(activeButton){setButtonBusy(activeButton,false);activeButton.disabled=false;activeButton.textContent='Try again';}
         return;
       }
       location.reload();
@@ -191,13 +199,13 @@ if(pipeline){
     }
   };
   const start=async(button,url,busyLabel)=>{
-    button.disabled=true;button.textContent=busyLabel;errorBox.classList.add('hidden');
+    setButtonBusy(button,true,busyLabel);errorBox.classList.add('hidden');
     try{
       const response=await fetch(url,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
       const data=await response.json();
       if(!response.ok)throw new Error(data.detail||'Could not start this job.');
       render(data);setTimeout(refresh,1000);
-    }catch(error){errorBox.textContent=error.message;errorBox.classList.remove('hidden');button.disabled=false;button.textContent='Try again';}
+    }catch(error){errorBox.textContent=error.message;errorBox.classList.remove('hidden');setButtonBusy(button,false);button.disabled=false;button.textContent='Try again';}
   };
   analyzeButton?.addEventListener('click',()=>start(analyzeButton,pipeline.dataset.startUrl,'Finding the best moments…'));
   renderButton?.addEventListener('click',()=>start(renderButton,pipeline.dataset.renderUrl,'Creating selected clips…'));
@@ -219,6 +227,7 @@ document.querySelectorAll('.clip-decision').forEach(button=>button.addEventListe
   const cookie=name=>document.cookie.split('; ').find(row=>row.startsWith(`${name}=`))?.split('=')[1]||'';
   const card=button.closest('.clip-card');
   card.querySelectorAll('.clip-decision').forEach(item=>item.disabled=true);
+  setButtonBusy(button,true,'Saving choice…');
   try{
     const response=await fetch(button.dataset.url,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
     const data=await response.json();if(!response.ok)throw new Error(data.detail||'Could not update this clip.');
@@ -231,7 +240,7 @@ document.querySelectorAll('.clip-decision').forEach(button=>button.addEventListe
     const renderButton=document.querySelector('.pipeline-render');
     if(renderButton){renderButton.disabled=approved===0;renderButton.dataset.approvedCount=approved;renderButton.textContent=`Create ${approved} selected clip${approved===1?'':'s'}`;}
   }catch(error){alert(error.message);}
-  finally{card.querySelectorAll('.clip-decision').forEach(item=>item.disabled=false);}
+  finally{setButtonBusy(button,false);card.querySelectorAll('.clip-decision').forEach(item=>item.disabled=false);}
 }));
 
 const socialManager=document.querySelector('.connection-workspace[data-api-url],.social-manager[data-api-url]');
@@ -243,11 +252,11 @@ if(socialManager){
   const request=async(url,method,body)=>{const response=await fetch(url,{method,headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json','Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const data=response.status===204?{}:await response.json();if(!response.ok)throw new Error(data.detail||data.platform?.[0]||data.handle?.[0]||Object.values(data).flat().join(' ')||'Could not save this profile.');return data;};
   const showError=error=>{errorBox.textContent=error.message;errorBox.classList.remove('hidden');};
   const bind=row=>{
-    row.querySelector('.social-update').addEventListener('click',async()=>{const button=row.querySelector('.social-update');button.disabled=true;try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'PATCH',{handle:row.querySelector('input').value});button.textContent='Saved';setTimeout(()=>button.textContent='Save changes',1200);}catch(error){showError(error);}finally{button.disabled=false;}});
-    row.querySelector('.social-delete').addEventListener('click',async()=>{if(!confirm('Remove this social profile?'))return;try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'DELETE');row.remove();syncConnectedCount();if(!list.querySelector('article'))list.innerHTML='<div class="social-empty connection-empty"><span class="empty-index">00</span><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>';}catch(error){showError(error);}});
+    row.querySelector('.social-update').addEventListener('click',async()=>{const button=row.querySelector('.social-update');setButtonBusy(button,true,'Saving…');try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'PATCH',{handle:row.querySelector('input').value});button.textContent='Saved';setTimeout(()=>button.textContent='Save changes',1200);}catch(error){showError(error);}finally{setButtonBusy(button,false);button.disabled=false;}});
+    row.querySelector('.social-delete').addEventListener('click',async()=>{if(!confirm('Remove this social profile?'))return;const button=row.querySelector('.social-delete');setButtonBusy(button,true,'Removing…');try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'DELETE');row.remove();syncConnectedCount();if(!list.querySelector('article'))list.innerHTML='<div class="social-empty connection-empty"><span class="empty-index">00</span><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>';}catch(error){showError(error);setButtonBusy(button,false);button.disabled=false;}});
   };
   list.querySelectorAll('article').forEach(bind);
-  form.addEventListener('submit',async event=>{event.preventDefault();errorBox.classList.add('hidden');const button=form.querySelector('button[type="submit"]');button.disabled=true;try{const data=await request(socialManager.dataset.apiUrl,'POST',{platform:form.platform.value,handle:form.handle.value});list.querySelector('.social-empty')?.remove();const row=document.createElement('article');row.dataset.id=data.id;row.dataset.platform=data.platform;row.innerHTML='<div class="platform-avatar"><svg class="platform-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use></use></svg></div><div class="destination-name"><small>PLATFORM</small><strong></strong></div><input maxlength="160"><button class="download-chip social-update" type="button">Save changes</button><button class="download-chip social-delete" type="button">Remove</button>';row.querySelector('use').setAttribute('href',`${iconSprite}#${data.platform}`);row.querySelector('.destination-name strong').textContent=data.platform_label;const handleInput=row.querySelector('input');handleInput.value=data.handle;handleInput.setAttribute('aria-label',`${data.platform_label} handle`);list.appendChild(row);bind(row);syncConnectedCount();form.reset();}catch(error){showError(error);}finally{button.disabled=false;}});
+  form.addEventListener('submit',async event=>{event.preventDefault();errorBox.classList.add('hidden');const button=form.querySelector('button[type="submit"]');setButtonBusy(button,true,'Adding profile…');try{const data=await request(socialManager.dataset.apiUrl,'POST',{platform:form.platform.value,handle:form.handle.value});list.querySelector('.social-empty')?.remove();const row=document.createElement('article');row.classList.add('social-row-entering');row.dataset.id=data.id;row.dataset.platform=data.platform;row.innerHTML='<div class="platform-avatar"><svg class="platform-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use></use></svg></div><div class="destination-name"><small>PLATFORM</small><strong></strong></div><input maxlength="160"><button class="download-chip social-update" type="button">Save changes</button><button class="download-chip social-delete" type="button">Remove</button>';row.querySelector('use').setAttribute('href',`${iconSprite}#${data.platform}`);row.querySelector('.destination-name strong').textContent=data.platform_label;const handleInput=row.querySelector('input');handleInput.value=data.handle;handleInput.setAttribute('aria-label',`${data.platform_label} handle`);list.appendChild(row);requestAnimationFrame(()=>requestAnimationFrame(()=>row.classList.remove('social-row-entering')));bind(row);syncConnectedCount();form.reset();}catch(error){showError(error);}finally{setButtonBusy(button,false);button.disabled=false;}});
   syncConnectedCount();
 }
 
@@ -256,20 +265,31 @@ if(intel){
   const cookie=name=>document.cookie.split('; ').find(row=>row.startsWith(`${name}=`))?.split('=')[1]||'';
   const api=async(url,method='GET',body)=>{const response=await fetch(url,{method,headers:{Accept:'application/json','Content-Type':'application/json','X-CSRFToken':decodeURIComponent(cookie('csrftoken'))},body:body?JSON.stringify(body):undefined});const data=response.status===204?{}:await response.json();if(!response.ok)throw new Error(data.detail||data.action?.[0]||Object.values(data).flat().join(' ')||'Request failed.');return data;};
   const poll=async()=>{try{const data=await api(intel.dataset.intelligenceUrl);if(data.status==='ready'||data.status==='failed'){location.reload();return;}setTimeout(poll,1800);}catch(error){document.querySelector('.intel-error').textContent=error.message;}};
-  const start=async()=>{const button=document.querySelector('.intel-analyze');if(button){button.disabled=true;button.textContent='Reviewing this clip…';}try{await api(intel.dataset.startUrl,'POST');setTimeout(poll,1000);}catch(error){if(button){button.disabled=false;button.textContent='Try again';}document.querySelector('.intel-error').textContent=error.message;}};
+  const start=async()=>{const button=document.querySelector('.intel-analyze');if(button)setButtonBusy(button,true,'Reviewing this clip…');try{await api(intel.dataset.startUrl,'POST');setTimeout(poll,1000);}catch(error){if(button){setButtonBusy(button,false);button.disabled=false;button.textContent='Try again';}document.querySelector('.intel-error').textContent=error.message;}};
   document.querySelector('.intel-analyze')?.addEventListener('click',start);
   if(intel.dataset.status==='queued')start();else if(intel.dataset.status==='running')poll();
+  document.querySelectorAll('.intel-decision').forEach(button=>button.addEventListener('click',async()=>{
+    const buttons=[...document.querySelectorAll('.intel-decision')],label=document.querySelector('.intel-decision-state');
+    buttons.forEach(item=>item.disabled=true);
+    setButtonBusy(button,true,'Saving choice…');
+    try{
+      const data=await api(button.dataset.url,'POST');
+      buttons.forEach(item=>item.classList.toggle('is-active',item.dataset.state===data.status));
+      if(label)label.textContent=data.status==='approved'?'Selected':data.status==='rejected'?'Skipped':data.status;
+    }catch(error){alert(error.message);}
+    finally{setButtonBusy(button,false);buttons.forEach(item=>item.disabled=false);}
+  }));
   document.querySelectorAll('.repurpose-list article').forEach(asset=>{
     const textarea=asset.querySelector('textarea');
     asset.querySelector('.asset-copy')?.addEventListener('click',async event=>{await navigator.clipboard.writeText(textarea.value);event.currentTarget.textContent='Copied';setTimeout(()=>event.currentTarget.textContent='Copy',1200);});
-    asset.querySelector('.asset-save')?.addEventListener('click',async event=>{event.currentTarget.disabled=true;try{await api(`/api/v1/repurpose-assets/${asset.dataset.assetId}/`,'PATCH',{content:textarea.value});event.currentTarget.textContent='Saved';}catch(error){alert(error.message);}finally{event.currentTarget.disabled=false;setTimeout(()=>event.currentTarget.textContent='Save edits',1200);}});
-    asset.querySelectorAll('footer button[data-operation]').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{const data=await api(`/api/v1/repurpose-assets/${asset.dataset.assetId}/transform/`,'POST',{operation:button.dataset.operation});textarea.value=data.content;}catch(error){alert(error.message);}finally{button.disabled=false;}}));
+    asset.querySelector('.asset-save')?.addEventListener('click',async event=>{const button=event.currentTarget;setButtonBusy(button,true,'Saving edits…');try{await api(`/api/v1/repurpose-assets/${asset.dataset.assetId}/`,'PATCH',{content:textarea.value});button.textContent='Saved';}catch(error){alert(error.message);}finally{setButtonBusy(button,false);button.disabled=false;setTimeout(()=>button.textContent='Save edits',1200);}});
+    asset.querySelectorAll('footer button[data-operation]').forEach(button=>button.addEventListener('click',async()=>{const label={regenerate:'Regenerating…',improve:'Improving…',shorten:'Shortening…'}[button.dataset.operation]||'Working…';setButtonBusy(button,true,label);try{const data=await api(`/api/v1/repurpose-assets/${asset.dataset.assetId}/transform/`,'POST',{operation:button.dataset.operation});textarea.value=data.content;}catch(error){alert(error.message);}finally{setButtonBusy(button,false);button.disabled=false;}}));
   });
-  document.querySelectorAll('.editor-accept').forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;try{await api(`${intel.dataset.intelligenceUrl}accept-editor-recommendation/`,'POST',{action_id:button.dataset.actionId});button.textContent='Suggestion saved ✓';}catch(error){button.disabled=false;alert(error.message);}}));
+  document.querySelectorAll('.editor-accept').forEach(button=>button.addEventListener('click',async()=>{setButtonBusy(button,true,'Saving suggestion…');try{await api(`${intel.dataset.intelligenceUrl}accept-editor-recommendation/`,'POST',{action_id:button.dataset.actionId});button.textContent='Suggestion saved ✓';setButtonBusy(button,false);}catch(error){setButtonBusy(button,false);button.disabled=false;alert(error.message);}}));
   const publicationForm=document.querySelector('.publication-form');
   if(publicationForm){
     const actionField=publicationForm.querySelector('[name="action"]'),scheduleField=publicationForm.querySelector('[name="scheduled_for"]'),titleField=publicationForm.querySelector('[name="title"]'),captionField=publicationForm.querySelector('[name="caption"]');
     actionField.addEventListener('change',()=>publicationForm.querySelector('.schedule-field').classList.toggle('hidden',actionField.value!=='schedule'));
-    publicationForm.addEventListener('submit',async event=>{event.preventDefault();const destinations=[...publicationForm.querySelectorAll('[name="destination"]:checked')];const result=publicationForm.querySelector('.publish-result');if(!destinations.length){result.textContent='Choose at least one social profile.';return;}const clipId=Number(intel.dataset.startUrl.match(/clips\/(\d+)/)[1]);try{await Promise.all(destinations.map(destination=>api(intel.dataset.publicationUrl,'POST',{clip:clipId,social_handle:Number(destination.value),action:actionField.value,scheduled_for:scheduleField.value||null,platform_payload:{title:titleField.value,caption:captionField.value}})));result.textContent=`Publishing plan saved for ${destinations.length} profile${destinations.length===1?'':'s'}.`;result.className='publish-result success';}catch(error){result.textContent=error.message;result.className='publish-result error';}});
+    publicationForm.addEventListener('submit',async event=>{event.preventDefault();const destinations=[...publicationForm.querySelectorAll('[name="destination"]:checked')],button=publicationForm.querySelector('button[type="submit"]');const result=publicationForm.querySelector('.publish-result');if(!destinations.length){result.textContent='Choose at least one social profile.';return;}setButtonBusy(button,true,'Saving publishing plan…');const clipId=Number(intel.dataset.startUrl.match(/clips\/(\d+)/)[1]);try{await Promise.all(destinations.map(destination=>api(intel.dataset.publicationUrl,'POST',{clip:clipId,social_handle:Number(destination.value),action:actionField.value,scheduled_for:scheduleField.value||null,platform_payload:{title:titleField.value,caption:captionField.value}})));result.textContent=`Publishing plan saved for ${destinations.length} profile${destinations.length===1?'':'s'}.`;result.className='publish-result success';}catch(error){result.textContent=error.message;result.className='publish-result error';}finally{setButtonBusy(button,false);button.disabled=false;}});
   }
 }
