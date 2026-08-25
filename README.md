@@ -72,6 +72,16 @@ Set the Cloudinary credentials and keep `MEDIA_PIPELINE_PRIMARY=cloudinary`. The
 
 Public YouTube and other supported video-page URLs are imported with `yt-dlp`; direct media URLs continue through the lightweight HTTP downloader. Imports are limited to one video, capped at 1080p and `PUBLIC_MEDIA_MAX_BYTES`, and require the customer to confirm they own the content or have permission to download, clip, and republish it. Keep `yt-dlp` current because hosted-video extractors change regularly. The production image includes Deno and the yt-dlp EJS scripts required for current YouTube JavaScript challenges.
 
+### YouTube imports on Render
+
+Google OAuth can authorize YouTube Data API operations, but it does not provide the audiovisual file and therefore is not used as a download workaround. YouTube server verification can also vary by datacenter IP. Reeckast consequently uses three layers:
+
+1. Normal public extraction with current `yt-dlp`, Deno, and EJS.
+2. Optional cookies for sources that genuinely require an account. On Render, store a Netscape-format `youtube.cookies.txt` as a Secret File and set `YTDLP_COOKIES_FILE=/etc/secrets/youtube.cookies.txt`; do not set `YTDLP_COOKIES_FROM_BROWSER` on a headless server.
+3. An optional PO-token provider for public YouTube requests. Create a same-region Render Private Service from `docker.io/brainicism/bgutil-ytdlp-pot-provider:1.3.2`, let it listen on port `4416`, install this project's requirements, and set `YTDLP_PO_TOKEN_PROVIDER_URL` to the provider's internal HTTP address (for example, `http://reeckast-pot-provider:4416`) on every web or worker service that imports sources.
+
+Neither cookies nor a PO token can guarantee that YouTube will serve a particular request. When YouTube blocks the server, the failed project now offers an inline **Attach and continue** recovery: the owner can download their source from YouTube Studio or use their original recording, upload it to the same project, and restart analysis without re-entering the brief.
+
 ## Content Intelligence
 
 Every suggestion in the Publishing Queue opens a dedicated Content Intelligence Review. The review is generated asynchronously from the timestamped transcript, AI Mission, audience definition, brand voice, and selected platforms. It stores versioned Content DNA, editorial reasoning, platform strategies, business predictions, audience matching, semantic relationships, AI editor recommendations, and ten editable repurposing assets. Without an AI key the same complete workflow uses an evidence-based deterministic baseline, which keeps local development and tests functional.

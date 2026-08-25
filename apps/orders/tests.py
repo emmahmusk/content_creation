@@ -1,7 +1,8 @@
 from datetime import timedelta
+from tempfile import TemporaryDirectory
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -262,6 +263,54 @@ class ContentOrderTests(TestCase):
         PipelineRun.objects.create(order=self.order, status=PipelineRun.Status.RUNNING)
         self.client.force_login(self.other)
         response = self.client.post(reverse("orders:stop-analysis", args=[self.order.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_blocked_youtube_source_can_be_replaced_without_losing_the_project(self):
+        SourceAsset.objects.create(
+            order=self.order,
+            external_url="https://www.youtube.com/watch?v=blocked",
+            rights_confirmed=True,
+        )
+        PipelineRun.objects.create(
+            order=self.order,
+            status=PipelineRun.Status.FAILED,
+            current_stage="ingest",
+            error="The public video could not be imported: YouTube could not verify this server.",
+        )
+        self.client.force_login(self.user)
+
+        page = self.client.get(reverse("orders:detail", args=[self.order.pk]))
+        self.assertContains(page, "Continue with the original file")
+        self.assertContains(page, reverse("orders:replace-source", args=[self.order.pk]))
+
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(
+                reverse("orders:replace-source", args=[self.order.pk]),
+                {"file": ContentFile(b"video-data", name="authorized-source.mp4")},
+            )
+
+            self.assertRedirects(response, reverse("orders:detail", args=[self.order.pk]))
+            asset = self.order.source_assets.get()
+            self.assertEqual(asset.external_url, "")
+            self.assertEqual(asset.original_filename, "authorized-source.mp4")
+            self.assertTrue(bool(asset.file))
+
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.status, ContentOrder.Status.SUBMITTED)
+        self.assertEqual(self.order.pipeline_runs.count(), 2)
+        self.assertEqual(self.order.pipeline_runs.first().status, PipelineRun.Status.QUEUED)
+
+    def test_customer_cannot_replace_another_customers_source(self):
+        SourceAsset.objects.create(
+            order=self.order,
+            external_url="https://www.youtube.com/watch?v=blocked",
+            rights_confirmed=True,
+        )
+        self.client.force_login(self.other)
+        response = self.client.post(
+            reverse("orders:replace-source", args=[self.order.pk]),
+            {"file": ContentFile(b"video-data", name="source.mp4")},
+        )
         self.assertEqual(response.status_code, 404)
 
     def test_broll_preference_change_preserves_unrendered_analysis(self):

@@ -50,7 +50,28 @@
       </div>
       <a href="{% url 'orders:dashboard' %}">Back to workspace <span>↗</span></a>
     </aside>
-    <div class="pipeline-error{% if not pipeline.error %} hidden{% endif %}" role="alert"><strong>We hit a snag, but your source and decisions are safe.</strong><span>{{ pipeline.error }}</span></div>
+    <div class="pipeline-error{% if not pipeline.error %} hidden{% endif %}" role="alert">
+      <strong>We hit a snag, but your project and brief are safe.</strong>
+      <span>{{ pipeline.error }}</span>
+      {% if source_recovery_required %}
+      <div class="source-recovery">
+        <div>
+          <b>Continue with the original file</b>
+          <p>Google sign-in cannot grant another app permission to download YouTube video files. If this is your channel, download the video from YouTube Studio, then attach it here.</p>
+        </div>
+        <form method="post" enctype="multipart/form-data" action="{% url 'orders:replace-source' order.pk %}" data-source-recovery-form>
+          {% csrf_token %}
+          <div class="source-recovery-file">
+            {{ source_recovery_form.file }}
+            <label for="{{ source_recovery_form.file.id_for_label }}">Choose source file</label>
+            <span data-source-recovery-name>MP4, MOV, WebM, MP3, WAV or M4A</span>
+          </div>
+          <button class="btn" type="submit" data-loading-text="Attaching source…" disabled>Attach and continue <span>→</span></button>
+        </form>
+        <a href="https://studio.youtube.com/" target="_blank" rel="noopener noreferrer">Open YouTube Studio <span>↗</span></a>
+      </div>
+      {% endif %}
+    </div>
     <p class="pipeline-connection hidden" role="status"><i></i><span>Live updates paused. Reconnecting automatically…</span></p>
     <div class="pipeline-actions">
       {% if not clip_count %}

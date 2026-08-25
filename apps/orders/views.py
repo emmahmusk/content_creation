@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from .forms import ContentOrderForm, SourceAssetForm
+from .forms import ContentOrderForm, SourceAssetForm, SourceRecoveryUploadForm
 from .models import ContentOrder, OrderEvent
 from .services import (
     ANALYSIS_INPUT_FIELDS,
@@ -13,6 +13,7 @@ from .services import (
     prepare_render_restart,
 )
 from apps.processing.models import Clip, PipelineRun
+from apps.processing.services.public_media import is_youtube_authentication_error, is_youtube_url
 from apps.processing.services.run_control import cancel_pipeline_run
 
 @login_required
@@ -110,6 +111,14 @@ def order_detail(request, pk):
     clips=list(order.clips.all())
     rendered=sum(bool(clip.video) for clip in clips)
     approved=sum(clip.status == "approved" for clip in clips)
+    source_asset = order.source_assets.first()
+    source_recovery_required = bool(
+        source_asset
+        and source_asset.external_url
+        and is_youtube_url(source_asset.external_url)
+        and pipeline.status == PipelineRun.Status.FAILED
+        and is_youtube_authentication_error(pipeline.error)
+    )
     return render(request, "orders/detail.html", {
         "order": order,
         "pipeline": pipeline,
@@ -117,7 +126,68 @@ def order_detail(request, pk):
         "rendered_count": rendered,
         "approved_count": approved,
         "exports_ready": rendered > 0 and approved == 0,
+        "source_asset": source_asset,
+        "source_recovery_required": source_recovery_required,
+        "source_recovery_form": SourceRecoveryUploadForm(),
     })
+
+
+@login_required
+@transaction.atomic
+def replace_blocked_source(request, pk):
+    if request.method != "POST":
+        return redirect("orders:detail", pk=pk)
+    order = get_object_or_404(
+        ContentOrder.objects.select_for_update().prefetch_related("source_assets", "pipeline_runs"),
+        pk=pk,
+        customer=request.user,
+    )
+    pipeline = order.pipeline_runs.first()
+    if pipeline and pipeline.status == PipelineRun.Status.RUNNING:
+        messages.error(request, "Wait for the active analysis to finish or stop it before replacing the source.")
+        return redirect("orders:detail", pk=order.pk)
+
+    form = SourceRecoveryUploadForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Choose a supported video or audio file within the upload limit.")
+        return redirect("orders:detail", pk=order.pk)
+
+    asset = order.source_assets.first() or order.source_assets.create()
+    old_file = (asset.file.storage, asset.file.name) if asset.file and asset.file.name else None
+    uploaded = form.cleaned_data["file"]
+    asset.file = uploaded
+    asset.external_url = ""
+    asset.original_filename = uploaded.name
+    asset.duration_seconds = None
+    asset.cloudinary_public_id = ""
+    asset.cloudinary_url = ""
+    asset.rights_confirmed = True
+    asset.full_clean()
+    asset.save()
+
+    prepare_analysis_restart(order)
+    order.status = ContentOrder.Status.SUBMITTED
+    order.save(update_fields=["status", "updated_at"])
+    OrderEvent.objects.create(
+        order=order,
+        actor=request.user,
+        event_type="source_replaced",
+        message="Blocked public source replaced with an uploaded recording.",
+    )
+
+    if old_file:
+        storage, name = old_file
+
+        def remove_old_source():
+            try:
+                storage.delete(name)
+            except Exception:
+                pass
+
+        transaction.on_commit(remove_old_source)
+
+    messages.success(request, "Source replaced. Your project is ready to analyze again.")
+    return redirect("orders:detail", pk=order.pk)
 
 
 @login_required

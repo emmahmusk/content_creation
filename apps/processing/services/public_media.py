@@ -1,4 +1,5 @@
 import ipaddress
+import os
 import re
 import shutil
 import socket
@@ -14,6 +15,12 @@ class PublicMediaError(RuntimeError):
 
 DIRECT_MEDIA_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".ogv", ".ogg", ".mp3", ".wav", ".m4a"}
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"}
+YOUTUBE_RECOVERY_MESSAGE = (
+    "YouTube could not verify this server. Your project is safe. Upload the original "
+    "video or audio file to continue; if this is your channel, download the source from "
+    "YouTube Studio first."
+)
 
 
 def assert_public_url(url):
@@ -32,6 +39,24 @@ def assert_public_url(url):
 
 def is_direct_media_url(url):
     return Path(urlparse(url).path).suffix.lower() in DIRECT_MEDIA_EXTENSIONS
+
+
+def is_youtube_url(url):
+    hostname = (urlparse(url).hostname or "").lower()
+    return hostname in YOUTUBE_HOSTS or hostname.endswith(".youtube.com")
+
+
+def is_youtube_authentication_error(message):
+    normalized = ANSI_ESCAPE.sub("", str(message or "")).lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "sign in to confirm you’re not a bot",
+            "sign in to confirm you're not a bot",
+            "youtube could not verify this server",
+            "youtube verification required",
+        )
+    )
 
 
 def resolve_ffmpeg_location():
@@ -54,6 +79,57 @@ def resolve_js_runtime():
         return str(candidate.resolve())
     discovered = shutil.which(configured)
     return str(Path(discovered).resolve()) if discovered else None
+
+
+def resolve_cookie_options():
+    """Build yt-dlp cookie options without placing session data in source control."""
+    cookie_file = str(getattr(settings, "YTDLP_COOKIES_FILE", "") or "").strip()
+    if cookie_file:
+        path = Path(cookie_file).expanduser()
+        if not path.is_file():
+            raise PublicMediaError(
+                "The configured YouTube cookies file was not found. "
+                "Check YTDLP_COOKIES_FILE and restart the worker."
+            )
+        return {"cookiefile": str(path.resolve())}
+
+    browser_spec = str(getattr(settings, "YTDLP_COOKIES_FROM_BROWSER", "") or "").strip()
+    if not browser_spec:
+        return {}
+    if os.getenv("RENDER", "").strip().lower() == "true":
+        raise PublicMediaError(
+            "YTDLP_COOKIES_FROM_BROWSER cannot be used on Render because the server has no "
+            "signed-in browser profile. Upload youtube.cookies.txt as a Render Secret File, "
+            "remove YTDLP_COOKIES_FROM_BROWSER, and set "
+            "YTDLP_COOKIES_FILE=/etc/secrets/youtube.cookies.txt."
+        )
+    browser, separator, profile = browser_spec.partition(":")
+    browser = browser.strip().lower()
+    profile = profile.strip() if separator else None
+    if not browser:
+        raise PublicMediaError("YTDLP_COOKIES_FROM_BROWSER must name a browser, such as chrome or firefox.")
+    return {"cookiesfrombrowser": (browser, profile or None, None, None)}
+
+
+def resolve_po_token_options(url, using_cookies=False):
+    """Configure an optional yt-dlp PO-token provider for YouTube server traffic."""
+    provider_url = str(getattr(settings, "YTDLP_PO_TOKEN_PROVIDER_URL", "") or "").strip().rstrip("/")
+    if not provider_url or not is_youtube_url(url):
+        return {}
+    parsed = urlparse(provider_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise PublicMediaError(
+            "YTDLP_PO_TOKEN_PROVIDER_URL must be a complete HTTP(S) URL."
+        )
+    extractor_args = {
+        "youtubepot-bgutilhttp": {"base_url": [provider_url]},
+    }
+    # mweb is yt-dlp's recommended client for provider-backed public video
+    # requests. Account cookies and mweb are not combined because that client
+    # does not support account-cookie authentication.
+    if not using_cookies:
+        extractor_args["youtube"] = {"player_client": ["mweb"]}
+    return {"extractor_args": extractor_args}
 
 
 def download_with_ytdlp(url, work_directory):
@@ -79,6 +155,9 @@ def download_with_ytdlp(url, work_directory):
         "quiet": True,
         "no_warnings": True,
     }
+    cookie_options = resolve_cookie_options()
+    options.update(cookie_options)
+    options.update(resolve_po_token_options(url, using_cookies=bool(cookie_options)))
     if js_runtime:
         options["js_runtimes"] = {"deno": {"path": js_runtime}}
     if ffmpeg_location:
@@ -100,6 +179,8 @@ def download_with_ytdlp(url, work_directory):
             candidates.extend([info.get("filepath"), downloader.prepare_filename(info)])
     except Exception as exc:
         message = ANSI_ESCAPE.sub("", str(exc)).strip()
+        if is_youtube_url(url) and is_youtube_authentication_error(message):
+            message = YOUTUBE_RECOVERY_MESSAGE
         raise PublicMediaError(f"The public video could not be imported: {message}") from exc
     existing = [Path(item) for item in candidates if item and Path(item).exists()]
     if not existing:

@@ -284,6 +284,21 @@ body.app-page :is(.status-revision,.status-failed,.status-cancelled){
 .review-studio .clip-decision.primary{border-color:var(--cc-ink);background:var(--cc-ink);color:var(--cc-canvas)}
 .pipeline-error{display:grid;gap:4px;margin:18px 0 0;padding:13px 15px;border:1px solid #68332f;border-radius:8px;background:#2b1b1a;color:#f3c4c0;font-size:10px}
 .pipeline-error strong{color:#fff;font-size:11px}
+.source-recovery{display:grid;grid-template-columns:minmax(220px,.85fr) minmax(430px,1.4fr) auto;align-items:center;gap:16px;margin-top:10px;padding:14px;border:1px solid #ffffff17;border-radius:11px;background:#ffffff08;color:#f6f3f2}
+.source-recovery>div>b{display:block;color:#fff;font:700 12px Manrope}
+.source-recovery>div>p{max-width:54ch;margin:4px 0 0;color:#d7c5c2;font-size:10px;line-height:1.55}
+.source-recovery form{display:grid;grid-template-columns:minmax(220px,1fr) auto;align-items:center;gap:9px}
+.source-recovery-file{position:relative;display:grid;min-height:52px;align-content:center;padding:7px 13px;border:1px solid #ffffff25;border-radius:9px;background:#0f1015}
+.source-recovery-file input{position:absolute;inset:0;width:100%;height:100%;cursor:pointer;opacity:0}
+.source-recovery-file label{overflow:hidden;color:#fff;font-size:10px;font-weight:800;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.source-recovery-file span{overflow:hidden;margin-top:2px;color:#b9afb0;font-size:8px;letter-spacing:0;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.source-recovery .has-file .source-recovery-file{border-color:var(--cc-accent)}
+.source-recovery .btn{min-height:52px;padding:0 15px;border:0;border-radius:9px;background:var(--cc-accent);color:var(--accent-ink);white-space:nowrap}
+.source-recovery .btn:disabled{cursor:not-allowed;opacity:.48}
+.source-recovery>a{color:#fff;font-size:9px;font-weight:800;white-space:nowrap}
+.source-recovery>a span{color:var(--cc-accent)}
+@media(max-width:980px){.source-recovery{grid-template-columns:1fr}.source-recovery form{grid-template-columns:1fr auto}.source-recovery>a{justify-self:start}}
+@media(max-width:600px){.source-recovery form{grid-template-columns:1fr}.source-recovery .btn{width:100%}}
 
 /* Intelligence reads like an editorial report, not a card wall. */
 .intelligence-page{background:var(--cc-canvas)}

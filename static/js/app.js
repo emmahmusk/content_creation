@@ -27,6 +27,17 @@ document.querySelectorAll('.upload-zone input[type="file"]').forEach(input=>{
   const syncUploadLabel=()=>{const file=input.files?.[0];if(label)label.textContent=file?.name||'Choose a recording';zone?.classList.toggle('is-selected',Boolean(file));};
   input.addEventListener('change',syncUploadLabel);syncUploadLabel();
 });
+document.querySelectorAll('[data-source-recovery-form]').forEach(form=>{
+  const input=form.querySelector('[data-source-recovery-file]');
+  const name=form.querySelector('[data-source-recovery-name]');
+  const button=form.querySelector('button[type="submit"]');
+  input?.addEventListener('change',()=>{
+    const file=input.files?.[0];
+    if(name)name.textContent=file?.name||'MP4, MOV, WebM, MP3, WAV or M4A';
+    if(button)button.disabled=!file;
+    form.classList.toggle('has-file',Boolean(file));
+  });
+});
 const themeControl=document.querySelector('.theme-control'),themeTrigger=document.querySelector('.theme-trigger'),themeChoices=[...document.querySelectorAll('[data-theme-choice]')],colorQuery=window.matchMedia('(prefers-color-scheme: dark)');
 const paletteChoices=[...document.querySelectorAll('[data-palette-choice]')],paletteName=document.querySelector('.palette-name');
 const applyTheme=(theme,persist=true)=>{const selected=['system','light','dark'].includes(theme)?theme:'system',dark=selected==='dark'||(selected==='system'&&colorQuery.matches);document.documentElement.dataset.theme=selected;document.documentElement.dataset.colorMode=dark?'dark':'light';document.querySelector('meta[name="theme-color"]')?.setAttribute('content',dark?'#0b0d0c':'#fbfcf8');themeChoices.forEach(choice=>choice.setAttribute('aria-checked',String(choice.dataset.themeChoice===selected)));if(persist)localStorage.setItem('recast-theme',selected)};
@@ -187,6 +198,10 @@ if(pipeline){
       const data=await response.json();render(data);
       if(['queued','running'].includes(data.status)){setTimeout(refresh,2000);return;}
       if(data.status==='failed'){
+        if(/youtube could not verify this server|sign in to confirm (?:you’re|you're) not a bot/i.test(data.error||'')){
+          location.reload();
+          return;
+        }
         const activeButton=renderButton||analyzeButton;
         if(activeButton){setButtonBusy(activeButton,false);activeButton.disabled=false;activeButton.textContent='Try again';}
         return;

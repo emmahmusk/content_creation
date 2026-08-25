@@ -15,3 +15,6 @@ htmlcov/
 Thumbs.db
 .celerybeat-schedule
 .history/
+.cookies/
+cookies.txt
+*.cookies.txt

@@ -321,6 +321,58 @@ class PublicMediaTests(TestCase):
         self.assertTrue(public_media.is_direct_media_url("https://cdn.example.com/show.mp4?token=abc"))
         self.assertFalse(public_media.is_direct_media_url("https://www.youtube.com/watch?v=abc"))
 
+    def test_youtube_authentication_errors_are_identified_for_recovery(self):
+        self.assertTrue(public_media.is_youtube_url("https://youtu.be/example"))
+        self.assertTrue(
+            public_media.is_youtube_authentication_error(
+                "ERROR: Sign in to confirm you’re not a bot"
+            )
+        )
+
+    @override_settings(YTDLP_PO_TOKEN_PROVIDER_URL="http://pot-provider:4416")
+    def test_po_token_provider_uses_recommended_public_youtube_client(self):
+        self.assertEqual(
+            public_media.resolve_po_token_options(
+                "https://www.youtube.com/watch?v=example"
+            ),
+            {
+                "extractor_args": {
+                    "youtubepot-bgutilhttp": {
+                        "base_url": ["http://pot-provider:4416"]
+                    },
+                    "youtube": {"player_client": ["mweb"]},
+                }
+            },
+        )
+
+    @override_settings(YTDLP_PO_TOKEN_PROVIDER_URL="http://pot-provider:4416")
+    def test_po_token_provider_does_not_force_mweb_with_account_cookies(self):
+        options = public_media.resolve_po_token_options(
+            "https://www.youtube.com/watch?v=example", using_cookies=True
+        )
+        self.assertNotIn("youtube", options["extractor_args"])
+
+    @override_settings(YTDLP_COOKIES_FILE="", YTDLP_COOKIES_FROM_BROWSER="chrome:Default")
+    def test_browser_cookie_configuration_is_forwarded_to_ytdlp(self):
+        self.assertEqual(
+            public_media.resolve_cookie_options(),
+            {"cookiesfrombrowser": ("chrome", "Default", None, None)},
+        )
+
+    @override_settings(YTDLP_COOKIES_FILE="", YTDLP_COOKIES_FROM_BROWSER="chrome")
+    @patch.dict("os.environ", {"RENDER": "true"})
+    def test_render_requires_a_secret_cookie_file(self):
+        with self.assertRaisesRegex(public_media.PublicMediaError, "Render Secret File"):
+            public_media.resolve_cookie_options()
+
+    @override_settings(YTDLP_COOKIES_FROM_BROWSER="")
+    def test_cookie_file_must_exist(self):
+        with TemporaryDirectory() as folder:
+            missing = Path(folder) / "missing.cookies.txt"
+            with override_settings(YTDLP_COOKIES_FILE=str(missing)):
+                with self.assertRaisesRegex(public_media.PublicMediaError, "cookies file was not found"):
+                    public_media.resolve_cookie_options()
+
     @override_settings(PUBLIC_MEDIA_MAX_BYTES=1000000,FFMPEG_BINARY="ffmpeg")
     @override_settings(YTDLP_JS_RUNTIME="deno")
     @patch("apps.processing.services.public_media.shutil.which",side_effect=lambda name: {"ffmpeg":"C:/tools/ffmpeg.exe","deno":"C:/tools/deno.exe"}.get(name))

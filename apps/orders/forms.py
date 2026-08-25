@@ -1,4 +1,6 @@
 from django import forms
+from django.conf import settings
+from django.core.validators import FileExtensionValidator
 from .models import ContentOrder, SourceAsset
 
 PLATFORMS = [("linkedin", "LinkedIn"), ("x", "X / Twitter"), ("instagram", "Instagram"), ("youtube", "YouTube"), ("newsletter", "Newsletter / article")]
@@ -53,3 +55,23 @@ class SourceAssetForm(forms.ModelForm):
         if cleaned.get("external_url") and not cleaned.get("rights_confirmed"):
             self.add_error("rights_confirmed", "You must confirm your rights before importing a public URL.")
         return cleaned
+
+
+class SourceRecoveryUploadForm(forms.Form):
+    file = forms.FileField(
+        label="Upload the original video or audio",
+        validators=[
+            FileExtensionValidator(
+                ["mp4", "mov", "mkv", "webm", "ogv", "ogg", "mp3", "wav", "m4a"]
+            )
+        ],
+        widget=forms.ClearableFileInput(
+            attrs={"accept": "video/*,audio/*", "data-source-recovery-file": ""}
+        ),
+    )
+
+    def clean_file(self):
+        uploaded = self.cleaned_data["file"]
+        if uploaded.size > settings.PUBLIC_MEDIA_MAX_BYTES:
+            raise forms.ValidationError("This source exceeds the configured upload limit.")
+        return uploaded
