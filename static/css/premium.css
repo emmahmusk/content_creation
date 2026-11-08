@@ -1,4 +1,4 @@
-/* Reeckast premium interface layer — quiet materials, clear hierarchy, precise motion. */
+/* Kraftaa premium interface layer — quiet materials, clear hierarchy, precise motion. */
 :root{--premium-radius-sm:12px;--premium-radius:18px;--premium-radius-lg:26px;--premium-ease:cubic-bezier(.22,.8,.3,1);--premium-border:color-mix(in srgb,var(--text-primary) 10%,transparent);--premium-fill:color-mix(in srgb,var(--layer) 92%,transparent);--premium-glow:0 24px 70px color-mix(in srgb,var(--text-primary) 8%,transparent)}
 html{scroll-padding-top:88px}body{font-feature-settings:"kern" 1,"liga" 1,"ss01" 1;text-rendering:optimizeLegibility}body:after{content:"";position:fixed;z-index:9999;inset:0 0 auto;height:2px;transform:scaleX(var(--page-progress,0));transform-origin:left;background:var(--accent);pointer-events:none;transition:transform .1s linear}::selection{background:color-mix(in srgb,var(--accent) 72%,white);color:#090a0d}*{scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--text-primary) 22%,transparent) transparent}
 

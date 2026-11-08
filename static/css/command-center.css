@@ -1,4 +1,4 @@
-/* Reeckast command-center layer — dense intelligence, restrained materials, explicit states. */
+/* Kraftaa command-center layer — dense intelligence, restrained materials, explicit states. */
 :root{
   --cc-canvas:#f4f4f1;
   --cc-surface:#fbfbf9;
@@ -284,6 +284,18 @@ body.app-page :is(.status-revision,.status-failed,.status-cancelled){
 .review-studio .clip-decision.primary{border-color:var(--cc-ink);background:var(--cc-ink);color:var(--cc-canvas)}
 .pipeline-error{display:grid;gap:4px;margin:18px 0 0;padding:13px 15px;border:1px solid #68332f;border-radius:8px;background:#2b1b1a;color:#f3c4c0;font-size:10px}
 .pipeline-error strong{color:#fff;font-size:11px}
+.youtube-auth-prompt{display:grid;grid-template-columns:minmax(180px,1fr) auto auto auto;align-items:center;gap:12px;margin:18px 0 0;padding:16px;border:1px solid color-mix(in srgb,var(--cc-accent) 45%,transparent);border-radius:12px;background:color-mix(in srgb,var(--cc-accent) 11%,var(--cc-surface));color:var(--cc-ink)}
+.youtube-auth-prompt>div>span{color:var(--cc-accent);font-size:8px;font-weight:800;letter-spacing:.13em}
+.youtube-auth-prompt h3{margin:4px 0;font:700 14px Manrope}
+.youtube-auth-prompt p{max-width:48ch;margin:0;color:var(--cc-muted);font-size:10px;line-height:1.5}
+.youtube-auth-prompt>a{color:var(--cc-ink);font-size:10px;font-weight:800;white-space:nowrap}
+.youtube-auth-prompt>a span{color:var(--cc-accent)}
+.youtube-auth-prompt>strong{padding:10px 13px;border:1px dashed var(--cc-line-strong);border-radius:8px;background:var(--cc-surface);font:800 18px Manrope;letter-spacing:.12em;white-space:nowrap}
+.youtube-auth-prompt>.btn{min-height:40px;padding:0 13px;border:0;border-radius:9px;background:var(--cc-accent);color:var(--accent-ink);font-size:10px;font-weight:800;white-space:nowrap}
+.youtube-auth-prompt>small{grid-column:2/-1;color:var(--cc-muted);font-size:9px}
+.youtube-auth-prompt.is-approved{opacity:.7}
+@media(max-width:900px){.youtube-auth-prompt{grid-template-columns:1fr auto}.youtube-auth-prompt>div{grid-column:1/-1}.youtube-auth-prompt>small{grid-column:1/-1}}
+@media(max-width:560px){.youtube-auth-prompt{grid-template-columns:1fr}.youtube-auth-prompt>div,.youtube-auth-prompt>small{grid-column:auto}.youtube-auth-prompt>a,.youtube-auth-prompt>strong,.youtube-auth-prompt>.btn{width:100%;text-align:center}.youtube-auth-prompt>strong{letter-spacing:.18em}}
 .source-recovery{display:grid;grid-template-columns:minmax(220px,.85fr) minmax(430px,1.4fr) auto;align-items:center;gap:16px;margin-top:10px;padding:14px;border:1px solid #ffffff17;border-radius:11px;background:#ffffff08;color:#f6f3f2}
 .source-recovery>div>b{display:block;color:#fff;font:700 12px Manrope}
 .source-recovery>div>p{max-width:54ch;margin:4px 0 0;color:#d7c5c2;font-size:10px;line-height:1.55}

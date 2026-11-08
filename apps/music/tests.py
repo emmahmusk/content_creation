@@ -123,7 +123,7 @@ class StudioViewTests(TestCase):
 
 @override_settings(
     PIPELINE_ALLOW_MOCK_AI=True,
-    OPENAI_API_KEY="",
+    GROQ_API_KEY="",
     PASSWORD_HASHERS=TEST_PASSWORD_HASHERS,
 )
 class StudioPipelineTests(TestCase):

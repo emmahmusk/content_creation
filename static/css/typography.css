@@ -1,4 +1,4 @@
-/* Reeckast typography resilience layer.
+/* Kraftaa typography resilience layer.
    Loaded last so every legacy `font` shorthand keeps a sans-serif fallback
    while the primary web fonts are downloading or unavailable. */
 :root{

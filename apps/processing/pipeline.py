@@ -9,7 +9,7 @@ from django.utils import timezone
 from apps.deliverables.models import Deliverable
 from apps.orders.models import ContentOrder, OrderEvent
 from .models import Clip, PipelineRun, StageRun, TranscriptSegment
-from .services import broll, media, nvidia, openai_poc, cloudinary_media, public_media
+from .services import broll, media, nvidia, groq_provider, cloudinary_media, public_media
 from .services.run_control import PipelineCancelled, assert_pipeline_active
 from .services.thumbnails import create_thumbnail
 
@@ -34,7 +34,8 @@ def _finish(run,order,current_stage,progress=100):
         locked=PipelineRun.objects.select_for_update().get(pk=run.pk)
         if locked.status == PipelineRun.Status.CANCELLED:
             raise PipelineCancelled("Analysis stopped by the customer.")
-        locked.status=PipelineRun.Status.REVIEW; locked.current_stage=current_stage; locked.progress=progress; locked.finished_at=timezone.now(); locked.error=""; locked.save()
+        locked.status=PipelineRun.Status.REVIEW; locked.current_stage=current_stage; locked.progress=progress; locked.finished_at=timezone.now(); locked.error=""
+        locked.youtube_auth_url=""; locked.youtube_auth_code=""; locked.youtube_auth_confirmed=False; locked.save()
         locked_order=ContentOrder.objects.select_for_update().get(pk=order.pk)
         locked_order.status=ContentOrder.Status.QUALITY_CHECK; locked_order.save(update_fields=["status","updated_at"])
     run.status=locked.status; run.current_stage=locked.current_stage; run.progress=locked.progress; run.finished_at=locked.finished_at
@@ -60,7 +61,7 @@ def _download(url,destination):
                 if downloaded > settings.PUBLIC_MEDIA_MAX_BYTES: raise ValueError("This media file exceeds the configured import size limit.")
                 output.write(chunk)
 
-def _source(order,work):
+def _source(order,work,run):
     asset=order.source_assets.first()
     if not asset: raise ValueError("This order has no source asset.")
     if asset.file: return Path(asset.file.path)
@@ -68,13 +69,13 @@ def _source(order,work):
         destination=work/"source-video"
         _download(asset.external_url,destination)
         return destination
-    return public_media.download_with_ytdlp(asset.external_url,work)
+    return public_media.download_with_pytubefix(asset.external_url,work,run)
 
 def _transcript_text(order):
     return "\n".join(f"[{s.start_ms}-{s.end_ms}] {s.text}" for s in order.transcript_segments.all())
 
 def _provider():
-    return openai_poc if settings.AI_PROVIDER == "openai" else nvidia
+    return groq_provider if settings.AI_PROVIDER == "groq" else nvidia
 
 def _deliver(order,kind,title,content="",file_path=None,creator=None):
     latest=Deliverable.objects.filter(order=order,kind=kind).order_by("-version").first()
@@ -125,7 +126,7 @@ def render_existing_clips(run_id):
     try:
         assert_pipeline_active(run)
         run.started_at=run.started_at or timezone.now(); run.error=""; run.progress=50; run.save(update_fields=["started_at","error","progress","updated_at"])
-        source=_source(order,work)
+        source=_source(order,work,run)
         approved_clips=list(order.clips.filter(status=Clip.Status.APPROVED))
         if not approved_clips: raise ValueError("Approve at least one suggested clip before rendering exports.")
         stage=_stage(run,"broll")
@@ -144,7 +145,9 @@ def render_existing_clips(run_id):
         if run.status == PipelineRun.Status.CANCELLED: return
         current=run.stages.filter(status=StageRun.Status.RUNNING).last()
         if current: current.status=StageRun.Status.FAILED; current.error=str(exc); current.finished_at=timezone.now(); current.save()
-        run.status=PipelineRun.Status.FAILED; run.error=str(exc); run.finished_at=timezone.now(); run.save()
+        run.status=PipelineRun.Status.FAILED; run.error=str(exc); run.finished_at=timezone.now()
+        run.youtube_auth_url=""; run.youtube_auth_code=""; run.youtube_auth_confirmed=False
+        run.save()
         order.status=ContentOrder.Status.QUALITY_CHECK;order.save(update_fields=["status","updated_at"])
         raise
     finally:
@@ -156,7 +159,7 @@ def execute_pipeline(run_id):
     try:
         assert_pipeline_active(run)
         run.started_at=run.started_at or timezone.now(); run.error=""; run.save(update_fields=["started_at","error","updated_at"])
-        stage=_stage(run,"ingest"); source=_source(order,work); asset=order.source_assets.first()
+        stage=_stage(run,"ingest"); source=_source(order,work,run); asset=order.source_assets.first()
         cloudinary_first=settings.MEDIA_PIPELINE_PRIMARY == "cloudinary" and cloudinary_media.configured()
         if cloudinary_first:
             try:
@@ -204,7 +207,7 @@ def execute_pipeline(run_id):
 
         stage=_stage(run,"strategy")
         preferences={"importance_definition":order.importance_definition,"moments_to_avoid":order.moments_to_avoid,"desired_clip_count":order.desired_clip_count,"min_clip_seconds":order.min_clip_seconds,"max_clip_seconds":order.max_clip_seconds}
-        if settings.AI_PROVIDER == "openai":
+        if settings.AI_PROVIDER == "groq":
             package=provider.plan_package(_transcript_text(order),f"{order.content_brief}\nVoice: {order.brand_voice}",duration_ms,preferences)
         else:
             package=provider.plan_package(_transcript_text(order),f"{order.content_brief}\nImportance: {order.importance_definition}\nAvoid: {order.moments_to_avoid}\nVoice: {order.brand_voice}",duration_ms)
@@ -223,7 +226,7 @@ def execute_pipeline(run_id):
             clips.append(Clip(order=order,rank=idx,title=f"Clip {idx}",hook="A key moment",caption="",start_ms=start,end_ms=end,preview_url=preview))
         Clip.objects.bulk_create(clips)
         (work/"package.json").write_text(json.dumps(package,indent=2),encoding="utf-8")
-        _complete(run,stage,{"clips":len(clips),"provider":settings.AI_PROVIDER,"model":settings.OPENAI_TEXT_MODEL if settings.AI_PROVIDER == "openai" else settings.NVIDIA_LLM_MODEL,"summary":package.get("summary","")})
+        _complete(run,stage,{"clips":len(clips),"provider":settings.AI_PROVIDER,"model":settings.GROQ_TEXT_MODEL if settings.AI_PROVIDER == "groq" else settings.NVIDIA_LLM_MODEL,"summary":package.get("summary","")})
 
         if settings.PIPELINE_REQUIRE_APPROVAL or settings.PIPELINE_ANALYSIS_ONLY:
             stage,_=StageRun.objects.get_or_create(pipeline=run,name="broll"); stage.status=StageRun.Status.SKIPPED; stage.metadata={"reason":"Runs only after clip approval","mode":order.broll_mode}; stage.finished_at=timezone.now(); stage.save()
@@ -272,7 +275,9 @@ def execute_pipeline(run_id):
         if run.status == PipelineRun.Status.CANCELLED: return
         current=run.stages.filter(status=StageRun.Status.RUNNING).last()
         if current: current.status=StageRun.Status.FAILED; current.error=str(exc); current.finished_at=timezone.now(); current.save()
-        run.status=PipelineRun.Status.FAILED; run.error=str(exc); run.finished_at=timezone.now(); run.save()
+        run.status=PipelineRun.Status.FAILED; run.error=str(exc); run.finished_at=timezone.now()
+        run.youtube_auth_url=""; run.youtube_auth_code=""; run.youtube_auth_confirmed=False
+        run.save()
         order.status=ContentOrder.Status.REVISION;order.save(update_fields=["status","updated_at"])
         raise
     finally:

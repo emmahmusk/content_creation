@@ -4,7 +4,12 @@ class StageRunSerializer(serializers.ModelSerializer):
     class Meta: model=StageRun; fields=["name","status","attempts","metadata","error","started_at","finished_at"]
 class PipelineRunSerializer(serializers.ModelSerializer):
     stages=StageRunSerializer(many=True,read_only=True)
-    class Meta: model=PipelineRun; fields=["id","order","status","current_stage","progress","error","started_at","finished_at","created_at","stages"]
+    youtube_auth_prompt=serializers.SerializerMethodField()
+    def get_youtube_auth_prompt(self,run):
+        if not run.youtube_auth_url or not run.youtube_auth_code or run.youtube_auth_confirmed:
+            return None
+        return {"verification_url":run.youtube_auth_url,"user_code":run.youtube_auth_code}
+    class Meta: model=PipelineRun; fields=["id","order","status","current_stage","progress","error","youtube_auth_prompt","started_at","finished_at","created_at","stages"]
 class BrollPlanSerializer(serializers.ModelSerializer):
     class Meta: model=BrollPlan; fields=["mode","intensity","status","scenes","provider","error","updated_at"]
 class ClipSerializer(serializers.ModelSerializer):

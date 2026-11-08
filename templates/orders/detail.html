@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}{{ order.title }} — Reeckast Studio{% endblock %}
+{% extends 'base.html' %}{% load static %}
+{% block title %}{{ order.title }} — Kraftaa Studio{% endblock %}
 {% block body_class %}app-page review-page{% endblock %}
 {% block content %}
 <main class="studio-shell review-studio">
@@ -42,13 +42,21 @@
       <li class="{% if exports_ready %}is-complete{% endif %}"><b>06</b><span>Export</span></li>
     </ol>
     <aside class="pipeline-companion{% if pipeline.status != 'running' %} hidden{% endif %}" data-pipeline-companion>
-      <div class="companion-orbit" aria-hidden="true"><i></i><i></i><b>R</b></div>
+      <div class="companion-orbit" aria-hidden="true"><i></i><i></i><img class="kraftaa-symbol" src="{% static 'images/kraftaa-symbol.png' %}" alt=""></div>
       <div class="companion-copy">
         <span data-companion-kicker>{% if pipeline.current_stage == 'broll' %}VISUAL STORYBOARD: ACTIVE{% elif pipeline.current_stage == 'rendering_exports' or pipeline.current_stage == 'render' %}THE EDIT SUITE IS MOVING{% else %}WORKING IN THE BACKGROUND{% endif %}</span>
         <strong data-pipeline-message>{% if pipeline.current_stage == 'broll' %}Approved clips are getting visual context.{% elif pipeline.current_stage == 'rendering_exports' or pipeline.current_stage == 'render' %}Your exports are cooking.{% else %}We’re finding the moments people will replay.{% endif %}</strong>
-        <p data-pipeline-detail>You can leave this page, close the tab, or get back to your day. Your progress is saved and Reeckast will keep working.</p>
+        <p data-pipeline-detail>You can leave this page, close the tab, or get back to your day. Your progress is saved and Kraftaa will keep working.</p>
       </div>
       <a href="{% url 'orders:dashboard' %}">Back to workspace <span>↗</span></a>
+    </aside>
+    <aside class="youtube-auth-prompt hidden" data-youtube-auth-prompt role="status" aria-live="polite"
+      data-confirm-url="/api/v1/pipeline-runs/{{ pipeline.id }}/confirm-youtube-auth/">
+      <div><span>ONE-TIME YOUTUBE CHECK</span><h3>Approve access to this video</h3><p>Open Google’s verification page, enter this code, then return here. Your sign-in is used only for this import.</p></div>
+      <a data-youtube-auth-link href="#" target="_blank" rel="noopener noreferrer">Open verification page <span>↗</span></a>
+      <strong data-youtube-auth-code></strong>
+      <button class="btn" type="button" data-youtube-auth-confirm>I've approved access</button>
+      <small data-youtube-auth-message></small>
     </aside>
     <div class="pipeline-error{% if not pipeline.error %} hidden{% endif %}" role="alert">
       <strong>We hit a snag, but your project and brief are safe.</strong>
@@ -178,7 +186,7 @@
         <div class="workspace-loader" aria-hidden="true"><i></i><i></i><i></i></div>
         <span>BUILDING YOUR CLIP WORKSPACE</span>
         <h2>The strongest moments are taking shape.</h2>
-        <p>Reeckast is reading the recording and your creative brief. Recommendations will appear here as soon as selection is complete.</p>
+        <p>Kraftaa is reading the recording and your creative brief. Recommendations will appear here as soon as selection is complete.</p>
       </section>
     {% elif pipeline.status == 'cancelled' %}
       <section class="empty studio-empty studio-empty-paused"><div>Ⅱ</div><h2>Analysis stopped safely.</h2><p>Edit the project settings, then return here to start a clean analysis.</p><a class="btn btn-small" href="{% url 'orders:edit' order.pk %}">Change project settings</a></section>

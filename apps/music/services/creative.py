@@ -1,8 +1,9 @@
 import json
 import re
 
-import requests
 from django.conf import settings
+
+from apps.processing.services import groq_provider
 
 
 class CreativeSafetyError(ValueError):
@@ -21,28 +22,8 @@ def enforce_originality(direction):
         raise CreativeSafetyError("Describe musical qualities—not an artist, celebrity, cloned voice, or identifiable performance style.")
 
 
-def _response_text(payload):
-    if payload.get("output_text"):
-        return payload["output_text"]
-    for item in payload.get("output", []):
-        for content in item.get("content", []):
-            if content.get("type") == "output_text":
-                return content.get("text", "")
-    raise RuntimeError("OpenAI returned no text output.")
-
-
-def _openai_json(instructions, prompt, schema, name):
-    if not settings.OPENAI_API_KEY:
-        raise RuntimeError("OPENAI_API_KEY is not configured.")
-    response = requests.post(
-        "https://api.openai.com/v1/responses",
-        headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}", "Content-Type": "application/json"},
-        json={"model": settings.OPENAI_TEXT_MODEL, "instructions": instructions, "input": prompt,
-              "text": {"format": {"type": "json_schema", "name": name, "strict": True, "schema": schema}}},
-        timeout=(20, 300),
-    )
-    response.raise_for_status()
-    return json.loads(_response_text(response.json()))
+def _groq_json(instructions, prompt, schema, name):
+    return groq_provider.generate_json(instructions, prompt, schema, name)
 
 
 REPORT_SCHEMA = {
@@ -50,8 +31,8 @@ REPORT_SCHEMA = {
     "properties": {
         "genre_analysis": {"type": "string"}, "mood_analysis": {"type": "string"},
         "groove_analysis": {"type": "string"}, "arrangement": {"type": "string"},
-        "musical_dna": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 6},
-        "creative_opportunities": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 5},
+        "musical_dna": {"type": "array", "items": {"type": "string"}},
+        "creative_opportunities": {"type": "array", "items": {"type": "string"}},
         "inspiration_summary": {"type": "string"},
     },
     "required": ["genre_analysis", "mood_analysis", "groove_analysis", "arrangement", "musical_dna", "creative_opportunities", "inspiration_summary"],
@@ -74,14 +55,14 @@ SONG_SCHEMA = {
 
 
 def build_report(features):
-    if settings.OPENAI_API_KEY:
-        return _openai_json(
+    if settings.GROQ_API_KEY:
+        return _groq_json(
             "You are a music intelligence analyst. Discuss only high-level musical characteristics. Never identify an artist, transcribe lyrics, reproduce melody, or suggest copied stems.",
             f"Create a concise AfroFusion producer report from these measured characteristics:\n{json.dumps(features)}",
             REPORT_SCHEMA, "music_intelligence_report",
         )
     if not settings.PIPELINE_ALLOW_MOCK_AI:
-        raise RuntimeError("OpenAI is not configured and mock AI is disabled.")
+        raise RuntimeError("Groq is not configured and mock AI is disabled.")
     return {
         "genre_analysis": f"A {features['groove']} rhythmic foundation with room for AfroFusion interpretation.",
         "mood_analysis": f"The measured energy reads as {features['mood']}.",
@@ -105,13 +86,13 @@ Rules:
 - Lyrics must be newly written, culturally respectful, and rhythmically natural.
 - Use section labels in the lyrics and include a memorable original chorus.
 - Chord map and melody plan are compositional guidance, not transcriptions."""
-    if settings.OPENAI_API_KEY:
-        return _openai_json(
+    if settings.GROQ_API_KEY:
+        return _groq_json(
             "You are an original AfroFusion songwriter and producer. Copyright safety and non-imitation are mandatory.",
             prompt, SONG_SCHEMA, "original_afrofusion_song",
         )
     if not settings.PIPELINE_ALLOW_MOCK_AI:
-        raise RuntimeError("OpenAI is not configured and mock AI is disabled.")
+        raise RuntimeError("Groq is not configured and mock AI is disabled.")
     story = direction.get("story", "moving forward")
     language = direction.get("language", "english").title()
     return {

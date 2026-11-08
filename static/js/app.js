@@ -112,6 +112,7 @@ if(pipeline){
   const errorBox=pipeline.querySelector('.pipeline-error');
   const connectionBox=pipeline.querySelector('.pipeline-connection');
   const companion=pipeline.querySelector('[data-pipeline-companion]');
+  const youtubeAuthPrompt=pipeline.querySelector('[data-youtube-auth-prompt]');
   const companionKicker=companion?.querySelector('[data-companion-kicker]');
   const companionMessage=companion?.querySelector('[data-pipeline-message]');
   const companionDetail=companion?.querySelector('[data-pipeline-detail]');
@@ -124,25 +125,25 @@ if(pipeline){
   const companionStories={
     ingest:[
       ['YOUR SOURCE IS CHECKING IN','Bringing every frame into the kitchen.','You can leave this page while we prepare the recording. Your progress is saved.'],
-      ['BACKGROUND MODE: ON','Go make coffee. We’ve got the timeline.','Closing this tab won’t stop the work—Reeckast will keep moving behind the scenes.']
+      ['BACKGROUND MODE: ON','Go make coffee. We’ve got the timeline.','Closing this tab won’t stop the work—Kraftaa will keep moving behind the scenes.']
     ],
     transcribe:[
       ['LISTENING BETWEEN THE LINES','Turning every word into a useful map.','Take a call, answer a message, or get back to your day. We’ll keep listening.'],
       ['SAFE TO STEP AWAY','Your recording is talking. We’re taking notes.','You can close this tab and return whenever you’re ready. Nothing here loses its place.']
     ],
     strategy:[
-      ['MOMENT RADAR: ACTIVE','Finding the parts people will replay.','Your brief is directing the search while Reeckast ranks hooks, clarity, and audience fit.'],
+      ['MOMENT RADAR: ACTIVE','Finding the parts people will replay.','Your brief is directing the search while Kraftaa ranks hooks, clarity, and audience fit.'],
       ['YOUR BRIEF IS DIRECTING','Ideas are becoming an approval queue.','Go chase another idea—we’ll keep sorting signal from filler in the background.'],
       ['NO NEED TO BABYSIT THIS','We’re shaping ten small sparks from one big conversation.','Close the tab or head back to your workspace. Your analysis will keep cooking.']
     ],
     render:[
       ['THE EDIT SUITE IS MOVING','Your exports are cooking.','Frames, captions, audio, and thumbnails are being prepared for your approved moments.'],
-      ['BACKGROUND MODE: ON','Go stretch, take a call, or chase another idea.','You can close this tab. Reeckast will keep rendering, and your progress is safely saved.'],
+      ['BACKGROUND MODE: ON','Go stretch, take a call, or chase another idea.','You can close this tab. Kraftaa will keep rendering, and your progress is safely saved.'],
       ['POLISH IN PROGRESS','Everything is lining up for publish.','Come back whenever you like—we’re handling the repetitive bits behind the scenes.']
     ],
     broll:[
       ['VISUAL STORYBOARD: ACTIVE','Building cutaways for the clips you approved.','The AI is matching each spoken beat with useful visual context—nothing unapproved is being generated.'],
-      ['B-ROLL IS COOKING','Your approved clips are getting visual rhythm.','You can close this tab. Reeckast will keep sourcing and generating in the background.']
+      ['B-ROLL IS COOKING','Your approved clips are getting visual rhythm.','You can close this tab. Kraftaa will keep sourcing and generating in the background.']
     ],
     package:[
       ['PACKAGING THE GOOD STUFF','Your content system is almost ready.','We’re gathering every finished asset into one calm, downloadable workspace.'],
@@ -186,6 +187,15 @@ if(pipeline){
     pipeline.querySelector('.pipeline-stage').textContent=humanize(data.current_stage||data.status);
     pipeline.querySelector('.progress-track i').style.width=`${data.progress}%`;
     errorBox.textContent=data.error||'';errorBox.classList.toggle('hidden',!data.error);
+    if(youtubeAuthPrompt){
+      const prompt=data.youtube_auth_prompt;
+      youtubeAuthPrompt.classList.toggle('hidden',!prompt||data.status!=='running');
+      if(prompt){
+        const link=youtubeAuthPrompt.querySelector('[data-youtube-auth-link]');
+        link.href=prompt.verification_url;
+        youtubeAuthPrompt.querySelector('[data-youtube-auth-code]').textContent=prompt.user_code;
+      }
+    }
     updateStages(data);
     updateCompanion(data.status,data.current_stage||data.status);
   };
@@ -224,6 +234,15 @@ if(pipeline){
   };
   analyzeButton?.addEventListener('click',()=>start(analyzeButton,pipeline.dataset.startUrl,'Finding the best moments…'));
   renderButton?.addEventListener('click',()=>start(renderButton,pipeline.dataset.renderUrl,'Creating selected clips…'));
+  youtubeAuthPrompt?.querySelector('[data-youtube-auth-confirm]')?.addEventListener('click',async event=>{
+    const button=event.currentTarget;const note=youtubeAuthPrompt.querySelector('[data-youtube-auth-message]');
+    setButtonBusy(button,true,'Confirming…');note.textContent='Checking with YouTube…';
+    try{
+      const response=await fetch(youtubeAuthPrompt.dataset.confirmUrl,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
+      const data=await response.json();if(!response.ok)throw new Error(data.detail||'Could not confirm the sign-in yet.');
+      note.textContent='Approved. The video import is resuming.';youtubeAuthPrompt.classList.add('is-approved');
+    }catch(error){note.textContent=error.message;button.disabled=false;setButtonBusy(button,false);}
+  });
   updateStages({status:pipeline.dataset.status,current_stage:pipeline.dataset.stage});
   updateCompanion(pipeline.dataset.status,pipeline.dataset.stage);
   setInterval(()=>updateCompanion(pipeline.dataset.status,pipeline.dataset.stage,true),7200);

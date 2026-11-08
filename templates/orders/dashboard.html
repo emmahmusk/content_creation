@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Command center — Reeckast{% endblock %}
+{% block title %}Command center — Kraftaa{% endblock %}
 {% block body_class %}app-page command-center-page{% endblock %}
 {% block content %}
 <section class="dashboard workspace-dashboard command-dashboard">
@@ -31,7 +31,7 @@
       {% else %}
         <span class="state-chip state-ready"><i></i>Ready</span>
         <h2 id="priority-title">Start the next production batch.</h2>
-        <p>Define the clipping brief once. Reeckast will find the moments, explain the signals, and wait for approval before expensive editing.</p>
+        <p>Define the clipping brief once. Kraftaa will find the moments, explain the signals, and wait for approval before expensive editing.</p>
         <a href="{% url 'orders:create' %}">Add a long-form source <span>→</span></a>
       {% endif %}
     </div>
@@ -84,7 +84,7 @@
       {% else %}
       <div class="command-activity-empty"><p>Activity will appear as the engine discovers, explains, approves, finishes, and exports clips.</p></div>
       {% endif %}
-      <footer><span>Reeckast preserves every decision and stage change.</span></footer>
+      <footer><span>Kraftaa preserves every decision and stage change.</span></footer>
     </aside>
   </div>
 </section>

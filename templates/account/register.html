@@ -1,10 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}Create your workspace — Reeckast{% endblock %}
+{% extends 'base.html' %}{% load static %}
+{% block title %}Create your workspace — Kraftaa{% endblock %}
 {% block body_class %}auth-page{% endblock %}
 {% block content %}
 <section class="auth-shell register-shell">
   <div class="auth-story"><div class="auth-story-inner"><div class="auth-kicker">Built for high-volume content teams</div><h1 class="calm-display"><span>One source.</span><em>A finished clip batch.</em></h1><p>Find strong moments, choose what matters, and finish clips without wasting production budget.</p><ul class="auth-benefits"><li><i>✦</i><div><strong>Explainable clip discovery</strong><span>Know why each moment deserves your editors’ time.</span></div></li><li><i>⌁</i><div><strong>Approval before production</strong><span>Spend rendering and generation only on clips you keep.</span></div></li><li><i>↗</i><div><strong>Automated finishing</strong><span>B-roll, captions, hooks, reframing, and batch exports in one flow.</span></div></li></ul></div></div>
-  <div class="auth-form-wrap"><div class="form-card form-card-wide"><div class="auth-card-top"><a class="brand auth-brand" href="/"><span class="brand-mark">R</span><span>reeckast</span></a><a class="auth-back" href="{% url 'home' %}"><span>←</span> Back to home</a></div><div class="eyebrow">CREATE YOUR ACCOUNT</div><h2>Start creating clips</h2><p>Tell us a little about your work so Reeckast can tailor clip suggestions and exports to you.</p>
+  <div class="auth-form-wrap"><div class="form-card form-card-wide"><div class="auth-card-top"><a class="brand auth-brand kraftaa-brand" href="/" aria-label="Kraftaa home"><img class="kraftaa-wordmark" src="{% static 'images/kraftaa-wordmark.png' %}" alt=""></a><a class="auth-back" href="{% url 'home' %}"><span>←</span> Back to home</a></div><div class="eyebrow">CREATE YOUR ACCOUNT</div><h2>Start creating clips</h2><p>Tell us a little about your work so Kraftaa can tailor clip suggestions and exports to you.</p>
     <form method="post" class="register-form" novalidate>{% csrf_token %}{{ form.non_field_errors }}
       <div class="registration-grid">
         <div class="form-field">{{ form.username.label_tag }}{{ form.username }}{{ form.username.errors }}</div><div class="form-field">{{ form.email.label_tag }}{{ form.email }}{{ form.email.errors }}</div>

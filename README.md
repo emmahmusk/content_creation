@@ -1,8 +1,8 @@
-# Reeckast
+# Kraftaa
 
 A production-ready Django/DRF foundation for an AI-powered clipping production pipeline built for high-volume content teams. Agencies, professional clippers, creator teams, and growing operators submit one long-form recording, review AI-ranked moments with reasoning, and selectively produce publication-ready clip batches without spending render or generation budget on rejected ideas.
 
-The content engine runs an end-to-end, resumable pipeline: media validation, 16 kHz audio extraction, NVIDIA speech recognition with word timestamps, NVIDIA NIM clip discovery and reasoning, human approval/rejection, optional AI-planned B-roll, vertical H.264 renders with restrained captions, hooks, reframing, SRT files, source-derived thumbnails, social/YouTube/newsletter copy, optional cleaned audio, batch export, and quality-review handoff.
+The content engine runs an end-to-end, resumable pipeline: media validation, 16 kHz audio extraction, timestamped speech recognition and clip discovery (Groq by default, with NVIDIA Riva/NIM available as an alternative), human approval/rejection, optional AI-planned B-roll, vertical H.264 renders with restrained captions, hooks, reframing, SRT files, source-derived thumbnails, social/YouTube/newsletter copy, optional cleaned audio, batch export, and quality-review handoff.
 
 ## Local setup
 
@@ -15,7 +15,7 @@ Use Python 3.13. Python 3.14 is not currently supported by the NVIDIA Riva clien
 5. Create staff access with `python manage.py createsuperuser`.
 6. Start the service with `python manage.py runserver`.
 
-The default local configuration uses `PIPELINE_EXECUTION_MODE=thread`, so processing buttons run jobs in a background thread inside the Django process. Redis and a Celery worker are not required locally; start only `python manage.py runserver`. FFmpeg and Deno are still required for media and YouTube imports. Set `YTDLP_JS_RUNTIME` to the full Deno executable path when it is not available on `PATH`.
+The default local configuration uses `PIPELINE_EXECUTION_MODE=thread`, so processing buttons run jobs in a background thread inside the Django process. Redis and a Celery worker are not required locally; start only `python manage.py runserver`. FFmpeg and FFprobe are used for media processing. YouTube URL imports use `pytubefix` and can request a one-time user verification during analysis; Deno and shared browser-cookie files are not used.
 
 For production, set `PIPELINE_EXECUTION_MODE=celery`, configure `CELERY_BROKER_URL` with a durable Redis-compatible broker, and run `celery -A config worker -l info`. Do not enable Celery mode without a running broker.
 
@@ -38,7 +38,7 @@ All customer web views and API querysets are tenant-scoped. Staff can see all or
 ## Approval-first production workflow
 
 1. A team creates a production batch and uploads a file or provides an authorized public URL.
-2. Reeckast transcribes the source, discovers the strongest moments, and explains each recommendation.
+2. Kraftaa transcribes the source, discovers the strongest moments, and explains each recommendation.
 3. A human approves or rejects moments before costly generation and rendering begins.
 4. Approved clips optionally receive AI-selected stock, AI-generated, or hybrid B-roll at minimal, moderate, or aggressive frequency.
 5. The finishing pipeline applies B-roll, captions, hooks, reframing, audio, and export polish.
@@ -58,29 +58,23 @@ Music Studio endpoints begin at `/api/v1/music-projects/`. Projects expose owner
 
 Add the provided key to `NVIDIA_API_KEY` in `.env`. Text generation uses the OpenAI-compatible NVIDIA NIM endpoint and its model is configurable with `NVIDIA_LLM_MODEL`. Transcription uses NVIDIA Riva gRPC; its server, function ID, and language are all environment settings. Optional generated B-roll uses `NVIDIA_IMAGE_API_URL`, `NVIDIA_IMAGE_MODEL`, `NVIDIA_VIDEO_API_URL`, and `NVIDIA_VIDEO_MODEL`; licensed stock discovery uses `PEXELS_API_KEY`. With no key, `PIPELINE_ALLOW_MOCK_AI=True` permits deterministic development output while still exercising the database workflow. Set it to `False` in production so missing credentials fail loudly. Never commit `.env`.
 
-The default ASR is Parakeet TDT 0.6B v2, chosen for punctuation and word timestamps. The default strategist is NVIDIA Nemotron Nano 9B v2. These model names and endpoint identifiers are configuration, not hard-coded workflow assumptions, so newer free NIM endpoints can be swapped without migrations.
+When `AI_PROVIDER=nvidia`, the default ASR is Parakeet TDT 0.6B v2, chosen for punctuation and word timestamps, and the default strategist is NVIDIA Nemotron Nano 9B v2. These model names and endpoint identifiers are configuration, not hard-coded workflow assumptions, so newer NIM endpoints can be swapped without migrations.
 
-Install `requirements-nvidia.txt` instead of the base requirements only when using the NVIDIA/Riva provider. The OpenAI proof of concept does not require the Riva gRPC packages.
+Install `requirements-nvidia.txt` instead of the base requirements only when using the NVIDIA/Riva provider. The Groq workflow uses the standard requirements and does not need the Riva gRPC packages.
 
-## OpenAI clip-finder proof of concept
+## Groq clip-finder
 
-The default configuration runs the OpenAI clipping workflow in two phases. Analysis produces timestamped recommendations and instant previews; the customer approves the moments they want, then **Produce approved clips** creates vertical MP4 clips, matching MP3 audio cuts, movie-style SRT captions, thumbnails, and a downloadable ZIP without repeating transcription or ranking. Use `PIPELINE_EXECUTION_MODE=thread` locally or `celery` with a durable production worker. FFmpeg and FFprobe power final rendering and the local fallback path.
+The default configuration uses Groq for timestamped Whisper transcription and clip recommendations. Set `groq_api_key` in `.env`; `GROQ_TEXT_MODEL` and `GROQ_TRANSCRIPTION_MODEL` can override the defaults. Analysis produces timestamped recommendations and instant previews; the customer approves the moments they want, then **Produce approved clips** creates vertical MP4 clips, matching MP3 audio cuts, movie-style SRT captions, thumbnails, and a downloadable ZIP without repeating transcription or ranking. Use `PIPELINE_EXECUTION_MODE=thread` locally or `celery` with a durable production worker. FFmpeg and FFprobe power final rendering and the local fallback path.
 
 ### Cloudinary-first media pipeline
 
 Set the Cloudinary credentials and keep `MEDIA_PIPELINE_PRIMARY=cloudinary`. The source is uploaded once, Cloudinary supplies duration metadata and a compressed 16 kHz/64 kbps MP3 for timestamped STT, and AI-selected ranges receive lazy 9:16 preview URLs immediately. Approved ranges are rendered by FFmpeg for precise captions, thumbnails, audio, and downloadable files. If Cloudinary is unavailable, FFprobe and FFmpeg automatically provide ingest and audio extraction; if local media tools fail, `CLOUDINARY_FALLBACK_ENABLED=True` enables the reverse fallback. `SUBTITLE_FONT_SIZE` and `SUBTITLE_MARGIN_V` control the restrained movie-subtitle appearance.
 
-Public YouTube and other supported video-page URLs are imported with `yt-dlp`; direct media URLs continue through the lightweight HTTP downloader. Imports are limited to one video, capped at 1080p and `PUBLIC_MEDIA_MAX_BYTES`, and require the customer to confirm they own the content or have permission to download, clip, and republish it. Keep `yt-dlp` current because hosted-video extractors change regularly. The production image includes Deno and the yt-dlp EJS scripts required for current YouTube JavaScript challenges.
+YouTube URLs are imported with `pytubefix`; direct media URLs continue through the lightweight HTTP downloader. YouTube imports are limited to one progressive MP4, capped at 1080p and `PUBLIC_MEDIA_MAX_BYTES`. If YouTube asks for verification, the project page presents the provider's device-approval link and code; the user approves it in YouTube and returns to the app to resume. The temporary OAuth token file is isolated to that job's work directory and removed after the import attempt. Users must only submit content they own or are authorized to download, clip, and republish.
 
 ### YouTube imports on Render
 
-Google OAuth can authorize YouTube Data API operations, but it does not provide the audiovisual file and therefore is not used as a download workaround. YouTube server verification can also vary by datacenter IP. Reeckast consequently uses three layers:
-
-1. Normal public extraction with current `yt-dlp`, Deno, and EJS.
-2. Optional cookies for sources that genuinely require an account. On Render, store a Netscape-format `youtube.cookies.txt` as a Secret File and set `YTDLP_COOKIES_FILE=/etc/secrets/youtube.cookies.txt`; do not set `YTDLP_COOKIES_FROM_BROWSER` on a headless server.
-3. An optional PO-token provider for public YouTube requests. Create a same-region Render Private Service from `docker.io/brainicism/bgutil-ytdlp-pot-provider:1.3.2`, let it listen on port `4416`, install this project's requirements, and set `YTDLP_PO_TOKEN_PROVIDER_URL` to the provider's internal HTTP address (for example, `http://reeckast-pot-provider:4416`) on every web or worker service that imports sources.
-
-Neither cookies nor a PO token can guarantee that YouTube will serve a particular request. When YouTube blocks the server, the failed project now offers an inline **Attach and continue** recovery: the owner can download their source from YouTube Studio or use their original recording, upload it to the same project, and restart analysis without re-entering the brief.
+No browser cookies or shared account credentials are required. If verification is requested, the user completes the device approval shown in the active project. This is not a guarantee that every video can be imported: YouTube can still deny a request based on its availability, permissions, rate limits, or the server's network reputation. In that case, use the original recording or an authorized downloadable source; the project retains the existing upload-and-retry recovery path. This third-party downloader is not an official YouTube API and should be treated as a best-effort import provider.
 
 ## Content Intelligence
 
@@ -90,9 +84,9 @@ Saved social handles are intentionally treated as destinations rather than authe
 
 ## AI AfroFusion Studio
 
-Authenticated creators can open `/music/` as a separate workspace from clipping. The upload gate accepts MP3, WAV, FLAC, AAC, and M4A up to 150 MB and requires both rights and analysis-only confirmations. FFprobe and FFmpeg extract technical metadata and a lightweight energy/tempo profile; OpenAI turns those high-level measurements into a producer report and, after the creator supplies direction, generates an original concept, lyrics, arrangement, chord map, and melody plan.
+Authenticated creators can open `/music/` as a separate workspace from clipping. The upload gate accepts MP3, WAV, FLAC, AAC, and M4A up to 150 MB and requires both rights and analysis-only confirmations. FFprobe and FFmpeg extract technical metadata and a lightweight energy/tempo profile; Groq turns those high-level measurements into a producer report and, after the creator supplies direction, generates an original concept, lyrics, arrangement, chord map, and melody plan.
 
-The reference is never transcribed for lyrics, separated into stems, sampled, or used for artist/voice imitation. The current feature exports editable lyrics and structured project JSON. Melody audio, beat generation, licensed vocal synthesis, and mix/master rendering are intentionally presented as provider adapter slots rather than simulated completed outputs. With no OpenAI key, `PIPELINE_ALLOW_MOCK_AI=True` keeps the workflow testable using deterministic original development content; disable that fallback in production.
+The reference is never transcribed for lyrics, separated into stems, sampled, or used for artist/voice imitation. The current feature exports editable lyrics and structured project JSON. Melody audio, beat generation, licensed vocal synthesis, and mix/master rendering are intentionally presented as provider adapter slots rather than simulated completed outputs. With no Groq key, `PIPELINE_ALLOW_MOCK_AI=True` keeps the workflow available using deterministic original development content; disable that fallback in production.
 
 ## Deployment checklist
 

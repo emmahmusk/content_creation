@@ -23,7 +23,7 @@
   </header>
 
   {% if intelligence.status != 'ready' %}
-  <section class="intel-loading"><div class="intel-orbit"></div><div><div class="eyebrow">CHECKING CLIP POTENTIAL</div><h2 class="intel-loading-title">{% if intelligence.status == 'failed' %}The review needs another pass{% else %}Finding what could make this perform{% endif %}</h2><p class="intel-loading-copy">Reeckast is checking the opening, watchability, audience relevance, engagement potential, and best publishing channels.</p><button class="btn intel-analyze" type="button">{% if intelligence.status == 'failed' %}Try again{% else %}Review this clip{% endif %}</button><p class="intel-error">{{ intelligence.error }}</p></div></section>
+  <section class="intel-loading"><div class="intel-orbit"></div><div><div class="eyebrow">CHECKING CLIP POTENTIAL</div><h2 class="intel-loading-title">{% if intelligence.status == 'failed' %}The review needs another pass{% else %}Finding what could make this perform{% endif %}</h2><p class="intel-loading-copy">Kraftaa is checking the opening, watchability, audience relevance, engagement potential, and best publishing channels.</p><button class="btn intel-analyze" type="button">{% if intelligence.status == 'failed' %}Try again{% else %}Review this clip{% endif %}</button><p class="intel-error">{{ intelligence.error }}</p></div></section>
   {% else %}
   <div class="intel-layout clipper-intel-layout">
     <aside class="intel-source clipper-source">

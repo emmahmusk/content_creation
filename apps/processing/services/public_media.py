@@ -1,12 +1,11 @@
 import ipaddress
-import os
-import re
-import shutil
 import socket
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
 from django.conf import settings
+from apps.processing.services.run_control import PipelineCancelled
 
 
 class PublicMediaError(RuntimeError):
@@ -14,7 +13,6 @@ class PublicMediaError(RuntimeError):
 
 
 DIRECT_MEDIA_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".ogv", ".ogg", ".mp3", ".wav", ".m4a"}
-ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"}
 YOUTUBE_RECOVERY_MESSAGE = (
     "YouTube could not verify this server. Your project is safe. Upload the original "
@@ -47,144 +45,100 @@ def is_youtube_url(url):
 
 
 def is_youtube_authentication_error(message):
-    normalized = ANSI_ESCAPE.sub("", str(message or "")).lower()
+    normalized = (message or "").lower()
     return any(
-        marker in normalized
-        for marker in (
-            "sign in to confirm you’re not a bot",
-            "sign in to confirm you're not a bot",
-            "youtube could not verify this server",
-            "youtube verification required",
+        phrase in normalized
+        for phrase in (
+            "could not verify this server",
+            "sign in to confirm",
+            "not a bot",
+            "loginrequired",
+            "http error 403",
+            "403 forbidden",
         )
     )
 
 
-def resolve_ffmpeg_location():
-    """Return the actual FFmpeg path yt-dlp expects, not a bare command name."""
-    configured = str(settings.FFMPEG_BINARY or "").strip()
-    if not configured:
-        return None
-    candidate = Path(configured).expanduser()
-    if candidate.exists():
-        return str(candidate.resolve())
-    discovered = shutil.which(configured)
-    return str(Path(discovered).resolve()) if discovered else None
-
-
-def resolve_js_runtime():
-    """Resolve the JavaScript runtime required by yt-dlp's YouTube challenge solver."""
-    configured = str(settings.YTDLP_JS_RUNTIME or "deno").strip()
-    candidate = Path(configured).expanduser()
-    if candidate.is_file():
-        return str(candidate.resolve())
-    discovered = shutil.which(configured)
-    return str(Path(discovered).resolve()) if discovered else None
-
-
-def resolve_cookie_options():
-    """Build yt-dlp cookie options without placing session data in source control."""
-    cookie_file = str(getattr(settings, "YTDLP_COOKIES_FILE", "") or "").strip()
-    if cookie_file:
-        path = Path(cookie_file).expanduser()
-        if not path.is_file():
-            raise PublicMediaError(
-                "The configured YouTube cookies file was not found. "
-                "Check YTDLP_COOKIES_FILE and restart the worker."
-            )
-        return {"cookiefile": str(path.resolve())}
-
-    browser_spec = str(getattr(settings, "YTDLP_COOKIES_FROM_BROWSER", "") or "").strip()
-    if not browser_spec:
-        return {}
-    if os.getenv("RENDER", "").strip().lower() == "true":
-        raise PublicMediaError(
-            "YTDLP_COOKIES_FROM_BROWSER cannot be used on Render because the server has no "
-            "signed-in browser profile. Upload youtube.cookies.txt as a Render Secret File, "
-            "remove YTDLP_COOKIES_FROM_BROWSER, and set "
-            "YTDLP_COOKIES_FILE=/etc/secrets/youtube.cookies.txt."
-        )
-    browser, separator, profile = browser_spec.partition(":")
-    browser = browser.strip().lower()
-    profile = profile.strip() if separator else None
-    if not browser:
-        raise PublicMediaError("YTDLP_COOKIES_FROM_BROWSER must name a browser, such as chrome or firefox.")
-    return {"cookiesfrombrowser": (browser, profile or None, None, None)}
-
-
-def resolve_po_token_options(url, using_cookies=False):
-    """Configure an optional yt-dlp PO-token provider for YouTube server traffic."""
-    provider_url = str(getattr(settings, "YTDLP_PO_TOKEN_PROVIDER_URL", "") or "").strip().rstrip("/")
-    if not provider_url or not is_youtube_url(url):
-        return {}
-    parsed = urlparse(provider_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise PublicMediaError(
-            "YTDLP_PO_TOKEN_PROVIDER_URL must be a complete HTTP(S) URL."
-        )
-    extractor_args = {
-        "youtubepot-bgutilhttp": {"base_url": [provider_url]},
-    }
-    # mweb is yt-dlp's recommended client for provider-backed public video
-    # requests. Account cookies and mweb are not combined because that client
-    # does not support account-cookie authentication.
-    if not using_cookies:
-        extractor_args["youtube"] = {"player_client": ["mweb"]}
-    return {"extractor_args": extractor_args}
-
-
-def download_with_ytdlp(url, work_directory):
-    """Download one public video supported by yt-dlp and return its final path."""
+def download_with_pytubefix(url, work_directory, run):
+    """Download one authorized YouTube source, using the owner's device approval."""
     assert_public_url(url)
+    if not is_youtube_url(url):
+        raise PublicMediaError("This downloader accepts YouTube video links only.")
     try:
-        import yt_dlp
+        from pytubefix import YouTube
     except ImportError as exc:
-        raise PublicMediaError("Public video importing is unavailable because yt-dlp is not installed.") from exc
-    work = Path(work_directory); work.mkdir(parents=True, exist_ok=True)
-    output = str(work / "public-source-%(id)s.%(ext)s")
-    ffmpeg_location = resolve_ffmpeg_location()
-    js_runtime = resolve_js_runtime()
-    options = {
-        "outtmpl": output,
-        "noplaylist": True,
-        "restrictfilenames": True,
-        "windowsfilenames": True,
-        "max_filesize": settings.PUBLIC_MEDIA_MAX_BYTES,
-        "socket_timeout": 30,
-        "retries": 3,
-        "fragment_retries": 3,
-        "quiet": True,
-        "no_warnings": True,
-    }
-    cookie_options = resolve_cookie_options()
-    options.update(cookie_options)
-    options.update(resolve_po_token_options(url, using_cookies=bool(cookie_options)))
-    if js_runtime:
-        options["js_runtimes"] = {"deno": {"path": js_runtime}}
-    if ffmpeg_location:
-        options.update({
-            "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
-            "merge_output_format": "mp4",
-            "ffmpeg_location": ffmpeg_location,
-        })
-    else:
-        # Progressive formats already contain video and audio, so yt-dlp does not
-        # need to invoke FFmpeg merely to import the public source.
-        options["format"] = "best[height<=1080][ext=mp4][vcodec!=none][acodec!=none]/best[height<=1080][vcodec!=none][acodec!=none]/best"
+        raise PublicMediaError("YouTube importing is unavailable because pytubefix is not installed.") from exc
+    work = Path(work_directory)
+    work.mkdir(parents=True, exist_ok=True)
+    token_file = work / "youtube-oauth-tokens.json"
+    oauth_timeout_seconds = 10 * 60
+
+    def request_user_approval(verification_url, user_code):
+        from apps.processing.models import PipelineRun
+
+        PipelineRun.objects.filter(pk=run.pk).update(
+            youtube_auth_url=verification_url,
+            youtube_auth_code=user_code,
+            youtube_auth_confirmed=False,
+        )
+        deadline = time.monotonic() + oauth_timeout_seconds
+        while time.monotonic() < deadline:
+            current = PipelineRun.objects.only("status", "youtube_auth_confirmed").get(pk=run.pk)
+            if current.status == PipelineRun.Status.CANCELLED:
+                raise PipelineCancelled("Analysis stopped by the customer.")
+            if current.youtube_auth_confirmed:
+                return
+            time.sleep(2)
+        raise PublicMediaError(
+            "YouTube sign-in expired before approval. Start the analysis again and complete the sign-in prompt."
+        )
+
     try:
-        with yt_dlp.YoutubeDL(options) as downloader:
-            info = downloader.extract_info(url, download=True)
-            candidates = []
-            if info.get("requested_downloads"):
-                candidates.extend(item.get("filepath") for item in info["requested_downloads"])
-            candidates.extend([info.get("filepath"), downloader.prepare_filename(info)])
+        video = YouTube(
+            url,
+            use_oauth=True,
+            allow_oauth_cache=True,
+            token_file=str(token_file),
+            oauth_verifier=request_user_approval,
+        )
+        streams = video.streams.filter(progressive=True, file_extension="mp4")
+        eligible = []
+        for stream in streams:
+            try:
+                height = int(str(stream.resolution or "").rstrip("p"))
+            except (TypeError, ValueError):
+                continue
+            size = getattr(stream, "filesize", None) or getattr(stream, "filesize_approx", None)
+            if height <= 1080 and (not size or size <= settings.PUBLIC_MEDIA_MAX_BYTES):
+                eligible.append((height, stream))
+        if not eligible:
+            raise PublicMediaError(
+                "YouTube did not offer a progressive MP4 within the configured import limits. "
+                "Upload the original recording to continue."
+            )
+        _, selected_stream = max(eligible, key=lambda item: item[0])
+        downloaded = selected_stream.download(
+            output_path=str(work),
+            filename="public-source-youtube.mp4",
+        )
     except Exception as exc:
-        message = ANSI_ESCAPE.sub("", str(exc)).strip()
-        if is_youtube_url(url) and is_youtube_authentication_error(message):
+        if isinstance(exc, PipelineCancelled):
+            raise
+        if isinstance(exc, PublicMediaError):
+            raise
+        message = str(exc).strip()
+        normalized = message.lower()
+        if any(token in normalized for token in ("bot", "403", "forbidden", "loginrequired")):
             message = YOUTUBE_RECOVERY_MESSAGE
-        raise PublicMediaError(f"The public video could not be imported: {message}") from exc
-    existing = [Path(item) for item in candidates if item and Path(item).exists()]
-    if not existing:
-        existing = sorted(work.glob("public-source-*"), key=lambda path: path.stat().st_mtime, reverse=True)
-    if not existing:
-        raise PublicMediaError("The provider did not return a downloadable media file.")
-    return existing[0]
+        raise PublicMediaError(f"The YouTube video could not be imported: {message}") from exc
+    finally:
+        # Device-flow access tokens are scoped to this import and must not survive in
+        # failed work directories that are retained for debugging or retries.
+        token_file.unlink(missing_ok=True)
+    downloaded_path = Path(downloaded)
+    if not downloaded_path.is_file():
+        raise PublicMediaError("YouTube did not return a local video file.")
+    if downloaded_path.stat().st_size > settings.PUBLIC_MEDIA_MAX_BYTES:
+        downloaded_path.unlink(missing_ok=True)
+        raise PublicMediaError("This YouTube video exceeds the configured import size limit.")
+    return downloaded_path

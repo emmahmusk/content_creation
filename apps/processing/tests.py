@@ -5,7 +5,7 @@ from apps.orders.models import ContentOrder
 from apps.orders.models import SourceAsset
 from apps.accounts.models import SocialHandle
 from .models import BrollPlan, Clip, ContentIntelligence, PipelineRun, RepurposeAsset, StageRun, TranscriptSegment
-from .services import openai_poc
+from .services import groq_provider
 from .services import media
 from .services import cloudinary_media
 from .services import public_media
@@ -136,7 +136,7 @@ class ProcessingAccessTests(TestCase):
         self.assertEqual(clip.start_timecode,"1:05")
         self.assertEqual(clip.end_timecode,"1:02:03")
 
-    @override_settings(OPENAI_API_KEY="",STORAGES={"default":{"BACKEND":"django.core.files.storage.FileSystemStorage"},"staticfiles":{"BACKEND":"django.contrib.staticfiles.storage.StaticFilesStorage"}})
+    @override_settings(GROQ_API_KEY="",STORAGES={"default":{"BACKEND":"django.core.files.storage.FileSystemStorage"},"staticfiles":{"BACKEND":"django.contrib.staticfiles.storage.StaticFilesStorage"}})
     def test_intelligence_review_is_customer_scoped(self):
         clip=self.order.clips.get(rank=1)
         content_intelligence.generate_for_clip(clip.id)
@@ -154,7 +154,7 @@ class ProcessingAccessTests(TestCase):
         response=client.post(f"/api/v1/clips/{clip.id}/analyze-intelligence/")
         self.assertEqual(response.status_code,202);dispatch.assert_called_once_with(clip.id)
 
-    @override_settings(OPENAI_API_KEY="")
+    @override_settings(GROQ_API_KEY="")
     def test_intelligence_baseline_builds_full_report_and_assets(self):
         clip=self.order.clips.get(rank=1)
         intelligence=content_intelligence.generate_for_clip(clip.id)
@@ -178,7 +178,7 @@ class ProcessingAccessTests(TestCase):
         response=client.post("/api/v1/publication-jobs/",payload,format="json")
         self.assertEqual(response.status_code,400);self.assertIn("authenticated",str(response.data))
 
-    @override_settings(OPENAI_API_KEY="")
+    @override_settings(GROQ_API_KEY="")
     def test_accepting_trim_recommendation_updates_final_render_instructions(self):
         clip=self.order.clips.get(rank=1);intelligence=content_intelligence.generate_for_clip(clip.id)
         client=APIClient();client.force_authenticate(self.owner)
@@ -241,34 +241,34 @@ class ProcessingAccessTests(TestCase):
         self.assertTrue(report["warnings"])
         normalize.assert_not_called()
 
-class OpenAIPocTests(TestCase):
-    @override_settings(OPENAI_API_KEY="test-key", OPENAI_TEXT_MODEL="test-model")
-    @patch("apps.processing.services.openai_poc.requests.post")
+class GroqProviderTests(TestCase):
+    @override_settings(GROQ_API_KEY="test-key", GROQ_TEXT_MODEL="test-model")
+    @patch("apps.processing.services.groq_provider.requests.post")
     def test_ranker_sends_preferences_and_parses_schema_output(self, post):
         api_response=Mock(); api_response.raise_for_status.return_value=None
-        api_response.json.return_value={"output_text": '{"clips":[{"rank":1,"title":"Strong lesson","hook":"Most people miss this","caption":"Save this","start_ms":1000,"end_ms":31000,"score":9.2,"rationale":"Actionable","matched_preference":"Practical advice"}],"summary":"One match"}'}
+        api_response.json.return_value={"choices":[{"message":{"content": '{"clips":[{"rank":1,"title":"Strong lesson","hook":"Most people miss this","caption":"Save this","start_ms":1000,"end_ms":31000,"score":9.2,"rationale":"Actionable","matched_preference":"Practical advice"}],"summary":"One match"}'}}]}
         post.return_value=api_response
-        result=openai_poc.plan_package("[1000-31000] Useful lesson", "For founders", 600000, {"importance_definition":"Practical advice","moments_to_avoid":"Ads","desired_clip_count":1})
+        result=groq_provider.plan_package("[1000-31000] Useful lesson", "For founders", 600000, {"importance_definition":"Practical advice","moments_to_avoid":"Ads","desired_clip_count":1})
         self.assertEqual(result["clips"][0]["start_ms"],1000)
         sent=post.call_args.kwargs["json"]
-        self.assertIn("Practical advice",sent["input"])
-        self.assertEqual(sent["text"]["format"]["type"],"json_schema")
+        self.assertIn("Practical advice",sent["messages"][1]["content"])
+        self.assertEqual(sent["response_format"]["type"],"json_schema")
 
-    @override_settings(OPENAI_API_KEY="test-key", OPENAI_TRANSCRIPTION_MODEL="whisper-1")
-    @patch("apps.processing.services.openai_poc.requests.post")
+    @override_settings(GROQ_API_KEY="test-key", GROQ_TRANSCRIPTION_MODEL="whisper-large-v3-turbo")
+    @patch("apps.processing.services.groq_provider.requests.post")
     def test_transcription_converts_seconds_to_milliseconds(self, post):
         api_response=Mock(); api_response.raise_for_status.return_value=None
         api_response.json.return_value={"text":"Hello world","segments":[{"start":1.25,"end":2.5,"text":"Hello world"}],"words":[{"start":1.25,"end":1.7,"word":"Hello"},{"start":1.7,"end":2.5,"word":"world"}]}
         post.return_value=api_response
         with TemporaryDirectory() as folder:
             audio=Path(folder)/"audio.wav"; audio.write_bytes(b"RIFF-test")
-            result=openai_poc.transcribe(audio)
+            result=groq_provider.transcribe(audio)
         self.assertEqual(result[0]["start_ms"],1250)
         self.assertEqual(result[0]["words"][1]["end_ms"],2500)
 
-    @patch("apps.processing.services.openai_poc.OPENAI_UPLOAD_LIMIT_BYTES",4)
-    @patch("apps.processing.services.openai_poc._transcribe_file")
-    @patch("apps.processing.services.openai_poc.media.split_audio")
+    @patch("apps.processing.services.groq_provider.GROQ_UPLOAD_LIMIT_BYTES",4)
+    @patch("apps.processing.services.groq_provider._transcribe_file")
+    @patch("apps.processing.services.groq_provider.media.split_audio")
     def test_large_audio_is_chunked_and_timestamps_are_merged(self, split_audio, transcribe_file):
         with TemporaryDirectory() as folder:
             source=Path(folder)/"large.mp3";source.write_bytes(b"large")
@@ -279,7 +279,7 @@ class OpenAIPocTests(TestCase):
                 [{"start_ms":100,"end_ms":500,"text":"First","words":[{"word":"First","start_ms":100,"end_ms":500}]}],
                 [{"start_ms":200,"end_ms":600,"text":"Second","words":[{"word":"Second","start_ms":200,"end_ms":600}]}],
             ]
-            result=openai_poc.transcribe(source)
+            result=groq_provider.transcribe(source)
         self.assertEqual(result[1]["start_ms"],900200)
         self.assertEqual(result[1]["words"][0]["end_ms"],900600)
         split_audio.assert_called_once()
@@ -328,83 +328,3 @@ class PublicMediaTests(TestCase):
                 "ERROR: Sign in to confirm you’re not a bot"
             )
         )
-
-    @override_settings(YTDLP_PO_TOKEN_PROVIDER_URL="http://pot-provider:4416")
-    def test_po_token_provider_uses_recommended_public_youtube_client(self):
-        self.assertEqual(
-            public_media.resolve_po_token_options(
-                "https://www.youtube.com/watch?v=example"
-            ),
-            {
-                "extractor_args": {
-                    "youtubepot-bgutilhttp": {
-                        "base_url": ["http://pot-provider:4416"]
-                    },
-                    "youtube": {"player_client": ["mweb"]},
-                }
-            },
-        )
-
-    @override_settings(YTDLP_PO_TOKEN_PROVIDER_URL="http://pot-provider:4416")
-    def test_po_token_provider_does_not_force_mweb_with_account_cookies(self):
-        options = public_media.resolve_po_token_options(
-            "https://www.youtube.com/watch?v=example", using_cookies=True
-        )
-        self.assertNotIn("youtube", options["extractor_args"])
-
-    @override_settings(YTDLP_COOKIES_FILE="", YTDLP_COOKIES_FROM_BROWSER="chrome:Default")
-    def test_browser_cookie_configuration_is_forwarded_to_ytdlp(self):
-        self.assertEqual(
-            public_media.resolve_cookie_options(),
-            {"cookiesfrombrowser": ("chrome", "Default", None, None)},
-        )
-
-    @override_settings(YTDLP_COOKIES_FILE="", YTDLP_COOKIES_FROM_BROWSER="chrome")
-    @patch.dict("os.environ", {"RENDER": "true"})
-    def test_render_requires_a_secret_cookie_file(self):
-        with self.assertRaisesRegex(public_media.PublicMediaError, "Render Secret File"):
-            public_media.resolve_cookie_options()
-
-    @override_settings(YTDLP_COOKIES_FROM_BROWSER="")
-    def test_cookie_file_must_exist(self):
-        with TemporaryDirectory() as folder:
-            missing = Path(folder) / "missing.cookies.txt"
-            with override_settings(YTDLP_COOKIES_FILE=str(missing)):
-                with self.assertRaisesRegex(public_media.PublicMediaError, "cookies file was not found"):
-                    public_media.resolve_cookie_options()
-
-    @override_settings(PUBLIC_MEDIA_MAX_BYTES=1000000,FFMPEG_BINARY="ffmpeg")
-    @override_settings(YTDLP_JS_RUNTIME="deno")
-    @patch("apps.processing.services.public_media.shutil.which",side_effect=lambda name: {"ffmpeg":"C:/tools/ffmpeg.exe","deno":"C:/tools/deno.exe"}.get(name))
-    @patch("apps.processing.services.public_media.socket.getaddrinfo",return_value=[(2,1,6,"",("8.8.8.8",443))])
-    @patch("yt_dlp.YoutubeDL")
-    def test_hosted_video_download_is_single_video_and_size_limited(self,downloader_class,getaddrinfo,which):
-        with TemporaryDirectory() as folder:
-            output=Path(folder)/"public-source-test.mp4";output.write_bytes(b"video")
-            downloader=downloader_class.return_value.__enter__.return_value
-            downloader.extract_info.return_value={"id":"test","filepath":str(output)}
-            downloader.prepare_filename.return_value=str(output)
-            result=public_media.download_with_ytdlp("https://www.youtube.com/watch?v=test",folder)
-        self.assertEqual(result,output)
-        options=downloader_class.call_args.args[0]
-        self.assertTrue(options["noplaylist"]);self.assertEqual(options["max_filesize"],1000000)
-        self.assertEqual(options["ffmpeg_location"],str(Path("C:/tools/ffmpeg.exe").resolve()))
-        self.assertEqual(options["js_runtimes"]["deno"]["path"],str(Path("C:/tools/deno.exe").resolve()))
-        self.assertIn("bestvideo",options["format"])
-
-    @override_settings(PUBLIC_MEDIA_MAX_BYTES=1000000,FFMPEG_BINARY="missing-ffmpeg")
-    @override_settings(YTDLP_JS_RUNTIME="missing-deno")
-    @patch("apps.processing.services.public_media.shutil.which",return_value=None)
-    @patch("apps.processing.services.public_media.socket.getaddrinfo",return_value=[(2,1,6,"",("8.8.8.8",443))])
-    @patch("yt_dlp.YoutubeDL")
-    def test_hosted_video_uses_progressive_format_when_ffmpeg_is_unavailable(self,downloader_class,getaddrinfo,which):
-        with TemporaryDirectory() as folder:
-            output=Path(folder)/"public-source-test.mp4";output.write_bytes(b"video")
-            downloader=downloader_class.return_value.__enter__.return_value
-            downloader.extract_info.return_value={"id":"test","filepath":str(output)}
-            downloader.prepare_filename.return_value=str(output)
-            public_media.download_with_ytdlp("https://www.youtube.com/watch?v=test",folder)
-        options=downloader_class.call_args.args[0]
-        self.assertNotIn("ffmpeg_location",options)
-        self.assertNotIn("merge_output_format",options)
-        self.assertIn("acodec!=none",options["format"])

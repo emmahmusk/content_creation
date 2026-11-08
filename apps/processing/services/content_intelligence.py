@@ -1,10 +1,10 @@
 import json
 
-import requests
 from django.conf import settings
 from django.db import transaction
 
 from apps.processing.models import ContentIntelligence, RepurposeAsset
+from apps.processing.services import groq_provider
 
 
 PLATFORMS=("LinkedIn","Instagram","TikTok","YouTube Shorts","X","Newsletter","Blog")
@@ -54,14 +54,14 @@ def _merge(base, generated):
     return base
 
 
-def _openai_analysis(clip, base):
-    if not settings.OPENAI_API_KEY: return base
+def _groq_analysis(clip, base):
+    if not settings.GROQ_API_KEY: return base
     prompt={"mission":clip.order.content_brief,"importance_definition":clip.order.importance_definition,"brand_voice":clip.order.brand_voice,"target_platforms":clip.order.target_platforms,"clip":{"title":clip.title,"hook":clip.hook,"caption":clip.caption,"rationale":clip.rationale,"duration_seconds":clip.duration_seconds},"transcript":_clip_transcript(clip)}
-    response=requests.post("https://api.openai.com/v1/responses",headers={"Authorization":f"Bearer {settings.OPENAI_API_KEY}","Content-Type":"application/json"},json={"model":settings.OPENAI_TEXT_MODEL,"instructions":"Act as a senior content strategist. Return JSON only. Preserve every top-level key from the supplied baseline, replacing generic values with evidence-based analysis. Scores are 0-100. Never invent quotations or statistics.","input":json.dumps({"baseline":base,"source":prompt}),"text":{"format":{"type":"json_object"}}},timeout=(20,300))
-    response.raise_for_status();payload=response.json();text=payload.get("output_text")
-    if not text:
-        text=next((part.get("text") for item in payload.get("output",[]) for part in item.get("content",[]) if part.get("type")=="output_text"),None)
-    return _merge(base,json.loads(text)) if text else base
+    generated=groq_provider.generate_json(
+        "Act as a senior content strategist. Return JSON only. Preserve every top-level key from the supplied baseline, replacing generic values with evidence-based analysis. Scores are 0-100. Never invent quotations or statistics.",
+        json.dumps({"baseline":base,"source":prompt}),
+    )
+    return _merge(base,generated)
 
 
 @transaction.atomic
@@ -72,10 +72,10 @@ def generate_for_clip(clip_id):
     intelligence.status=ContentIntelligence.Status.RUNNING;intelligence.error="";intelligence.save(update_fields=["status","error","updated_at"])
     try:
         baseline=_default_analysis(clip);provider_error=""
-        try: result=_openai_analysis(clip,baseline)
+        try: result=_groq_analysis(clip,baseline)
         except Exception as exc: result=baseline;provider_error=f"AI enrichment was unavailable; baseline analysis was used. {exc}"
         for field in ("content_dna","selection_reasoning","platform_strategy","business_impact","audience_matching","semantic_graph","editor_recommendations"): setattr(intelligence,field,result[field])
-        intelligence.confidence=int(result["content_dna"].get("ai_confidence",0));intelligence.model=settings.OPENAI_TEXT_MODEL if settings.OPENAI_API_KEY and not provider_error else "deterministic-baseline";intelligence.error=provider_error;intelligence.status=ContentIntelligence.Status.READY;intelligence.version+=1;intelligence.save()
+        intelligence.confidence=int(result["content_dna"].get("ai_confidence",0));intelligence.model=settings.GROQ_TEXT_MODEL if settings.GROQ_API_KEY and not provider_error else "deterministic-baseline";intelligence.error=provider_error;intelligence.status=ContentIntelligence.Status.READY;intelligence.version+=1;intelligence.save()
         labels=dict(RepurposeAsset.Kind.choices)
         for kind,content in result["repurpose"].items(): RepurposeAsset.objects.update_or_create(clip=clip,kind=kind,defaults={"title":labels.get(kind,kind.replace("_"," ").title()),"content":content})
     except Exception as exc:

@@ -22,7 +22,9 @@ class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
     def start(self,request,pk=None):
         run=self.get_object()
         if run.status not in [PipelineRun.Status.FAILED,PipelineRun.Status.QUEUED]: return Response({"detail":"Only queued or failed runs can be started."},status=409)
-        run.status=PipelineRun.Status.RUNNING; run.error=""; run.progress=0; run.current_stage="starting"; run.finished_at=None; run.save()
+        run.status=PipelineRun.Status.RUNNING; run.error=""; run.progress=0; run.current_stage="starting"; run.finished_at=None
+        run.youtube_auth_url=""; run.youtube_auth_code=""; run.youtube_auth_confirmed=False
+        run.save()
         run.order.status=ContentOrder.Status.IN_PROGRESS;run.order.save(update_fields=["status","updated_at"])
         try:
             dispatch_pipeline(run.id)
@@ -35,6 +37,15 @@ class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True,methods=["post"])
     def retry(self,request,pk=None):
         return self.start(request,pk)
+
+    @action(detail=True,methods=["post"],url_path="confirm-youtube-auth")
+    def confirm_youtube_auth(self,request,pk=None):
+        run=self.get_object()
+        if run.status != PipelineRun.Status.RUNNING or not run.youtube_auth_code or not run.youtube_auth_url:
+            return Response({"detail":"There is no active YouTube sign-in request for this analysis."},status=409)
+        run.youtube_auth_confirmed=True
+        run.save(update_fields=["youtube_auth_confirmed","updated_at"])
+        return Response({"detail":"YouTube approval received. Resuming source import."},status=202)
 
     @action(detail=True,methods=["post"])
     def cancel(self,request,pk=None):
@@ -78,7 +89,7 @@ class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
                     with field.open("rb") as source:
                         bundle.writestr(f"clip-{clip.rank:02}-{label}{suffix}",source.read())
         archive.seek(0)
-        filename=f"{run.order.title[:60].strip().replace(' ','-') or 'reeckast'}-clips.zip"
+        filename=f"{run.order.title[:60].strip().replace(' ','-') or 'kraftaa'}-clips.zip"
         return FileResponse(archive,as_attachment=True,filename=filename,content_type="application/zip")
 
 class ClipViewSet(viewsets.ReadOnlyModelViewSet):

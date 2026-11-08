@@ -31,7 +31,10 @@ def cancel_pipeline_run(run, *, actor=None, reason="Project settings need to be 
     locked.current_stage = "cancelled_for_edit"
     locked.error = ""
     locked.finished_at = now
-    locked.save(update_fields=["status", "current_stage", "error", "finished_at", "updated_at"])
+    locked.youtube_auth_url = ""
+    locked.youtube_auth_code = ""
+    locked.youtube_auth_confirmed = False
+    locked.save(update_fields=["status", "current_stage", "error", "finished_at", "youtube_auth_url", "youtube_auth_code", "youtube_auth_confirmed", "updated_at"])
     locked.stages.filter(status=StageRun.Status.RUNNING).update(
         status=StageRun.Status.SKIPPED,
         error="",
