@@ -64,11 +64,24 @@ def _download(url,destination):
 def _source(order,work,run):
     asset=order.source_assets.first()
     if not asset: raise ValueError("This order has no source asset.")
-    if asset.file: return Path(asset.file.path)
+    if asset.file:
+        try:
+            local_source=Path(asset.file.path)
+        except (NotImplementedError, ValueError):
+            local_source=None
+        if local_source and local_source.is_file(): return local_source
+    if asset.cloudinary_public_id:
+        suffix=Path(asset.original_filename or "").suffix.lower() or ".mp4"
+        return cloudinary_media.download_source(asset,work/f"source-original{suffix}")
     if public_media.is_direct_media_url(asset.external_url):
         destination=work/"source-video"
         _download(asset.external_url,destination)
         return destination
+    if asset.file:
+        raise ValueError(
+            "The uploaded source is no longer available on this Render instance, and no Cloudinary copy exists. "
+            "Please re-upload the original video or audio file."
+        )
     return public_media.download_with_pytubefix(asset.external_url,work,run)
 
 def _transcript_text(order):

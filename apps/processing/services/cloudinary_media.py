@@ -94,3 +94,43 @@ def download_audio(asset, source_path, destination):
             for chunk in response.iter_content(1024 * 1024):
                 if chunk: output.write(chunk)
     return destination, result
+
+
+def download_source(asset, destination):
+    """Restore the original uploaded media from Cloudinary to a worker's temp disk."""
+    if not asset.cloudinary_public_id:
+        raise CloudinaryConfigurationError("This upload has no Cloudinary source copy to restore.")
+    _configure()
+    import cloudinary.utils
+
+    url, _ = cloudinary.utils.cloudinary_url(
+        asset.cloudinary_public_id,
+        resource_type="video",
+        secure=True,
+    )
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    limit = settings.PUBLIC_MEDIA_MAX_BYTES
+    downloaded = 0
+    try:
+        with requests.get(url, stream=True, timeout=(20, 900)) as response:
+            response.raise_for_status()
+            declared = int(response.headers.get("content-length") or 0)
+            if declared > limit:
+                raise ValueError("The Cloudinary source exceeds the configured media size limit.")
+            with destination.open("wb") as output:
+                for chunk in response.iter_content(1024 * 1024):
+                    if not chunk:
+                        continue
+                    downloaded += len(chunk)
+                    if downloaded > limit:
+                        raise ValueError("The Cloudinary source exceeds the configured media size limit.")
+                    output.write(chunk)
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+
+    if not downloaded:
+        destination.unlink(missing_ok=True)
+        raise ValueError("Cloudinary returned an empty source file.")
+    return destination

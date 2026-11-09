@@ -11,6 +11,7 @@ from .services import cloudinary_media
 from .services import public_media
 from .services import content_intelligence
 from .services import broll
+from . import pipeline
 from unittest.mock import Mock, patch
 from django.test import override_settings
 from django.core.files.base import ContentFile
@@ -409,6 +410,54 @@ class CloudinaryFallbackTests(TestCase):
         url=cloudinary_media.preview_url("recast/source/test",1000,31000)
         self.assertIn("so_1.0",url); self.assertIn("eo_31.0",url)
         self.assertIn("c_fill",url); self.assertIn("h_960",url); self.assertIn("w_540",url)
+
+    @override_settings(
+        CLOUDINARY_CLOUD_NAME="demo",CLOUDINARY_API_KEY="key",CLOUDINARY_API_SECRET="secret",
+        PUBLIC_MEDIA_MAX_BYTES=100,
+    )
+    @patch("cloudinary.utils.cloudinary_url",return_value=("https://res.cloudinary.com/demo/video/upload/source",{}))
+    @patch("apps.processing.services.cloudinary_media.requests.get")
+    def test_download_source_restores_original_to_temporary_storage(self, get, cloudinary_url):
+        response=Mock(headers={"content-length":"11"})
+        response.__enter__=Mock(return_value=response)
+        response.__exit__=Mock(return_value=False)
+        response.iter_content.return_value=[b"video-bytes"]
+        get.return_value=response
+        user=User.objects.create_user("source-restore-owner",password="safe-test-pass")
+        order=ContentOrder.objects.create(customer=user,title="Restore source",content_brief="Test")
+        asset=SourceAsset.objects.create(order=order,cloudinary_public_id="recast/source/original")
+
+        with TemporaryDirectory() as folder:
+            restored=cloudinary_media.download_source(asset,Path(folder)/"source-original.mp4")
+            self.assertEqual(restored.read_bytes(),b"video-bytes")
+        cloudinary_url.assert_called_once_with("recast/source/original",resource_type="video",secure=True)
+
+    @override_settings(CLOUDINARY_CLOUD_NAME="",CLOUDINARY_API_KEY="",CLOUDINARY_API_SECRET="")
+    def test_download_source_without_cloudinary_backup_fails_clearly(self):
+        user=User.objects.create_user("source-missing-owner",password="safe-test-pass")
+        order=ContentOrder.objects.create(customer=user,title="Missing source",content_brief="Test")
+        asset=SourceAsset.objects.create(order=order)
+        with TemporaryDirectory() as folder, self.assertRaisesRegex(
+            cloudinary_media.CloudinaryConfigurationError,"no Cloudinary source copy"
+        ):
+            cloudinary_media.download_source(asset,Path(folder)/"source.mp4")
+
+    @patch("apps.processing.pipeline.cloudinary_media.download_source")
+    def test_missing_local_upload_is_restored_from_cloudinary_for_render(self, download_source):
+        user=User.objects.create_user("pipeline-source-owner",password="safe-test-pass")
+        order=ContentOrder.objects.create(customer=user,title="Render restored source",content_brief="Test")
+        asset=SourceAsset.objects.create(
+            order=order,
+            file="source/2026/11/start_your_own_podcast.mp4",
+            original_filename="start_your_own_podcast.mp4",
+            cloudinary_public_id="recast/source/podcast",
+        )
+        with TemporaryDirectory() as folder, override_settings(MEDIA_ROOT=folder):
+            expected=Path(folder)/"source-original.mp4"
+            download_source.return_value=expected
+            resolved=pipeline._source(order,Path(folder),run=None)
+        self.assertEqual(resolved,expected)
+        download_source.assert_called_once_with(asset,expected)
 
 class PublicMediaTests(TestCase):
     def test_direct_media_detection_does_not_treat_youtube_as_a_file(self):
