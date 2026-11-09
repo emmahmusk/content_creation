@@ -33,7 +33,11 @@ Open `http://127.0.0.1:8000/`. Staff manage orders and publish deliverables at `
 - `core`: public pages and service health check.
 - `config`: environment-led application configuration and API routing.
 
-All customer web views and API querysets are tenant-scoped. Staff can see all orders, update production statuses through the API/admin, and create deliverables. SQLite is the local default; set a PostgreSQL `DATABASE_URL` for deployment. Uploaded media uses local storage by default; the `STORAGES` setting is the extension point for S3-compatible storage. The app is WSGI/ASGI ready, serves compressed static assets with WhiteNoise, and exposes `/health/` for platform probes.
+All customer web views and API querysets are tenant-scoped. Staff can see all orders, update production statuses through the API/admin, and create deliverables. SQLite is the local default; set a PostgreSQL `DATABASE_URL` for deployment. Supabase session-pooler URLs are supported, including URL-escaped credentials and SSL. Uploaded media uses local storage by default; the `STORAGES` setting is the extension point for S3-compatible storage. The app is WSGI/ASGI ready, serves compressed static assets with WhiteNoise, and exposes `/health/` for platform probes.
+
+### Supabase PostgreSQL on Render
+
+In the Render web service environment, set `DATABASE_URL` to the Supabase **Session pooler** connection URI (port `5432`) and replace `[YOUR-PASSWORD]` with the database password from Supabase. Keep this value in Render's secret environment settings; do not commit it or paste the real password into source files. If the password contains URI-reserved characters, URL-encode the password before inserting it into the URI. Supabase pooler hosts automatically use `sslmode=require`; `DB_SSLMODE` can override that setting and `DATABASE_CONN_MAX_AGE` controls Django's persistent connection lifetime. Then deploy and run `python manage.py migrate` once against the configured Supabase database. This creates/updates the schema; it does not copy existing SQLite user data.
 
 ## Approval-first production workflow
 
@@ -64,7 +68,7 @@ Install `requirements-nvidia.txt` instead of the base requirements only when usi
 
 ## Groq clip-finder
 
-The default configuration uses Groq for timestamped Whisper transcription and clip recommendations. Set `groq_api_key` in `.env`; `GROQ_TEXT_MODEL` and `GROQ_TRANSCRIPTION_MODEL` can override the defaults. Analysis produces timestamped recommendations and instant previews; the customer approves the moments they want, then **Produce approved clips** creates vertical MP4 clips, matching MP3 audio cuts, movie-style SRT captions, thumbnails, and a downloadable ZIP without repeating transcription or ranking. Use `PIPELINE_EXECUTION_MODE=thread` locally or `celery` with a durable production worker. FFmpeg and FFprobe power final rendering and the local fallback path.
+The default configuration uses Groq for timestamped Whisper transcription and clip recommendations. Set `groq_api_key` in `.env` or Render; `GROQ_TEXT_MODEL` and `GROQ_TRANSCRIPTION_MODEL` can override the defaults. Groq response telemetry is written to the application logs (Render captures stdout/stderr), including endpoint, model, status, request ID, rate-limit remaining/limit/reset headers, retry-after, and the provider's structured error code/message. Prompts, transcripts, uploaded files, and API keys are never included. Use these fields to distinguish request-per-minute, token-per-minute, daily quota, and malformed-request errors; `GROQ_LOG_LEVEL` defaults to `INFO`. Analysis produces timestamped recommendations and instant previews; the customer approves the moments they want, then **Produce approved clips** creates vertical MP4 clips, matching MP3 audio cuts, movie-style SRT captions, thumbnails, and a downloadable ZIP without repeating transcription or ranking. Use `PIPELINE_EXECUTION_MODE=thread` locally or `celery` with a durable production worker. FFmpeg and FFprobe power final rendering and the local fallback path.
 
 ### Cloudinary-first media pipeline
 

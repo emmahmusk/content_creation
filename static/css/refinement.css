@@ -743,10 +743,11 @@ body.is-navigating .route-status{opacity:1;transform:none;transition-delay:.14s}
 @keyframes route-sweep{0%{transform:translateX(-110%)}55%{transform:translateX(145%)}100%{transform:translateX(285%)}}
 @keyframes wait-spin{to{transform:rotate(360deg)}}
 
-button.is-loading{position:relative!important;color:transparent!important;cursor:progress!important;pointer-events:none!important}
-button.is-loading>*{opacity:0!important}
-button.is-loading::before{content:attr(data-loading-text);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:0 42px 0 16px;color:var(--busy-color,var(--text-primary));font:inherit;letter-spacing:inherit;white-space:nowrap}
-button.is-loading::after{content:"";position:absolute;top:50%;right:16px;width:14px;height:14px;margin-top:-7px;border:2px solid color-mix(in srgb,var(--busy-color,var(--text-primary)) 28%,transparent);border-top-color:var(--busy-color,var(--text-primary));border-radius:50%;animation:wait-spin .72s linear infinite}
+button.is-loading{position:relative!important;cursor:progress!important;pointer-events:none!important}
+button.is-loading>*{opacity:1!important}
+.button-busy-state{display:inline-flex;align-items:center;justify-content:center;gap:11px;max-width:100%;min-width:0}
+.button-busy-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.button-busy-spinner{flex:0 0 14px;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:wait-spin .72s linear infinite}
 
 .auth-card-top{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:clamp(32px,5vh,52px)}
 .auth-card-top .auth-brand{margin-bottom:0!important}

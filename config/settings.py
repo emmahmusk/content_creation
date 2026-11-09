@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from dotenv import load_dotenv
 
@@ -44,8 +44,21 @@ ASGI_APPLICATION = "config.asgi.application"
 db_url = os.getenv("DATABASE_URL", "")
 if db_url:
     parsed = urlparse(db_url)
-    DATABASES = {"default": {"ENGINE": "django.db.backends.postgresql", "NAME": parsed.path.lstrip("/"),
-        "USER": parsed.username, "PASSWORD": parsed.password, "HOST": parsed.hostname, "PORT": parsed.port or 5432}}
+    query = parse_qs(parsed.query)
+    database_options = {key: values[-1] for key, values in query.items() if values}
+    if parsed.hostname and parsed.hostname.endswith(".pooler.supabase.com"):
+        database_options.setdefault("sslmode", os.getenv("DB_SSLMODE", "require"))
+    DATABASES = {"default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": unquote(parsed.path.lstrip("/")),
+        "USER": unquote(parsed.username or ""),
+        "PASSWORD": unquote(parsed.password or ""),
+        "HOST": parsed.hostname,
+        "PORT": parsed.port or 5432,
+        "CONN_MAX_AGE": int(os.getenv("DATABASE_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": database_options,
+    }}
 else:
     DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 
@@ -121,3 +134,21 @@ CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 60 * 60 * 3
 CELERY_TASK_ALWAYS_EAGER = os.getenv("CELERY_TASK_ALWAYS_EAGER", "False").lower() in {"1", "true", "yes"}
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "render": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "render"},
+    },
+    "loggers": {
+        "apps.processing.services.groq_provider": {
+            "handlers": ["console"],
+            "level": os.getenv("GROQ_LOG_LEVEL", "INFO").upper(),
+            "propagate": False,
+        },
+    },
+}

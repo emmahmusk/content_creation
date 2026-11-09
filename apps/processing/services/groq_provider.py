@@ -1,4 +1,5 @@
 import json
+import logging
 import mimetypes
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -17,6 +18,57 @@ class GroqConfigurationError(RuntimeError):
 GROQ_UPLOAD_LIMIT_BYTES = 24 * 1024 * 1024
 TRANSCRIPTION_CHUNK_SECONDS = 15 * 60
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+logger = logging.getLogger(__name__)
+
+
+def _response_telemetry(response, endpoint, model, error=None, usage=None):
+    """Log safe Groq response metadata; never log prompts, files, or credentials."""
+    headers = response.headers
+    details = {
+        "endpoint": endpoint,
+        "model": model,
+        "status": response.status_code,
+        "request_id": headers.get("x-request-id") or headers.get("request-id"),
+        "retry_after": headers.get("retry-after"),
+        "limit_requests": headers.get("x-ratelimit-limit-requests"),
+        "remaining_requests": headers.get("x-ratelimit-remaining-requests"),
+        "reset_requests": headers.get("x-ratelimit-reset-requests"),
+        "limit_tokens": headers.get("x-ratelimit-limit-tokens"),
+        "remaining_tokens": headers.get("x-ratelimit-remaining-tokens"),
+        "reset_tokens": headers.get("x-ratelimit-reset-tokens"),
+    }
+    if error:
+        details.update(error)
+    if usage is not None:
+        details["usage"] = usage
+    logger.log(
+        logging.ERROR if response.is_error else logging.INFO,
+        "Groq API response %s",
+        json.dumps(details, sort_keys=True, separators=(",", ":")),
+    )
+
+
+def _check_response(response, endpoint, model):
+    if not response.is_error:
+        return
+
+    try:
+        payload = response.json()
+    except (ValueError, json.JSONDecodeError):
+        payload = {}
+    error = payload.get("error", {}) if isinstance(payload, dict) else {}
+    if not isinstance(error, dict):
+        error = {"message": str(error)}
+    message = str(error.get("message") or "Groq rejected the request.")[:600]
+    code = error.get("code") or error.get("type")
+    _response_telemetry(response, endpoint, model, {"error_code": code, "error_message": message})
+    retry_after = response.headers.get("retry-after")
+    suffix = f" Retry after {retry_after} seconds." if response.status_code == 429 and retry_after else ""
+    raise requests.HTTPError(
+        f"Groq returned HTTP {response.status_code}"
+        f"{f' ({code})' if code else ''}: {message}{suffix}",
+        response=response,
+    )
 
 
 def _headers():
@@ -45,8 +97,10 @@ def generate_json(instructions, prompt, schema=None, name="response"):
         json=body,
         timeout=(20, 300),
     )
-    response.raise_for_status()
-    choices = response.json().get("choices", [])
+    _check_response(response, "chat/completions", settings.GROQ_TEXT_MODEL)
+    payload = response.json()
+    _response_telemetry(response, "chat/completions", settings.GROQ_TEXT_MODEL, usage=payload.get("usage"))
+    choices = payload.get("choices", [])
     content = choices[0].get("message", {}).get("content") if choices else None
     if not content:
         raise RuntimeError("Groq returned no JSON content.")
@@ -71,8 +125,10 @@ def _transcribe_file(path, prompt=""):
             ],
             timeout=(20, 900),
         )
-    response.raise_for_status()
+    _check_response(response, "audio/transcriptions", settings.GROQ_TRANSCRIPTION_MODEL)
     payload = response.json()
+    if payload.get("duration") is not None:
+        _response_telemetry(response, "audio/transcriptions", settings.GROQ_TRANSCRIPTION_MODEL, usage={"audio_seconds": payload["duration"]})
     words = payload.get("words", [])
     result = []
     for segment in payload.get("segments", []):

@@ -245,7 +245,7 @@ class GroqProviderTests(TestCase):
     @override_settings(GROQ_API_KEY="test-key", GROQ_TEXT_MODEL="test-model")
     @patch("apps.processing.services.groq_provider.requests.post")
     def test_ranker_sends_preferences_and_parses_schema_output(self, post):
-        api_response=Mock(); api_response.raise_for_status.return_value=None
+        api_response=Mock(status_code=200, is_error=False, headers={})
         api_response.json.return_value={"choices":[{"message":{"content": '{"clips":[{"rank":1,"title":"Strong lesson","hook":"Most people miss this","caption":"Save this","start_ms":1000,"end_ms":31000,"score":9.2,"rationale":"Actionable","matched_preference":"Practical advice"}],"summary":"One match"}'}}]}
         post.return_value=api_response
         result=groq_provider.plan_package("[1000-31000] Useful lesson", "For founders", 600000, {"importance_definition":"Practical advice","moments_to_avoid":"Ads","desired_clip_count":1})
@@ -257,7 +257,7 @@ class GroqProviderTests(TestCase):
     @override_settings(GROQ_API_KEY="test-key", GROQ_TRANSCRIPTION_MODEL="whisper-large-v3-turbo")
     @patch("apps.processing.services.groq_provider.requests.post")
     def test_transcription_converts_seconds_to_milliseconds(self, post):
-        api_response=Mock(); api_response.raise_for_status.return_value=None
+        api_response=Mock(status_code=200, is_error=False, headers={})
         api_response.json.return_value={"text":"Hello world","segments":[{"start":1.25,"end":2.5,"text":"Hello world"}],"words":[{"start":1.25,"end":1.7,"word":"Hello"},{"start":1.7,"end":2.5,"word":"world"}]}
         post.return_value=api_response
         with TemporaryDirectory() as folder:
@@ -265,6 +265,20 @@ class GroqProviderTests(TestCase):
             result=groq_provider.transcribe(audio)
         self.assertEqual(result[0]["start_ms"],1250)
         self.assertEqual(result[0]["words"][1]["end_ms"],2500)
+
+    @patch("apps.processing.services.groq_provider.logger")
+    def test_rate_limit_error_logs_safe_headers_and_retry_after(self, logger):
+        response=Mock(status_code=429, is_error=True, headers={
+            "x-request-id":"req-test", "retry-after":"7",
+            "x-ratelimit-remaining-tokens":"0", "x-ratelimit-reset-tokens":"7s",
+        })
+        response.json.return_value={"error":{"type":"rate_limit_exceeded","message":"Token limit reached"}}
+        with self.assertRaisesRegex(Exception, "Retry after 7 seconds"):
+            groq_provider._check_response(response,"chat/completions","test-model")
+        logged=logger.log.call_args.args[2]
+        self.assertIn('"remaining_tokens":"0"',logged)
+        self.assertIn('"request_id":"req-test"',logged)
+        self.assertIn('"error_code":"rate_limit_exceeded"',logged)
 
     @patch("apps.processing.services.groq_provider.GROQ_UPLOAD_LIMIT_BYTES",4)
     @patch("apps.processing.services.groq_provider._transcribe_file")

@@ -1,7 +1,23 @@
 const routeStatus=document.querySelector('.route-status');
 const beginRouteTransition=(label='Opening next view…')=>{if(routeStatus){routeStatus.querySelector('b').textContent=label;routeStatus.setAttribute('aria-hidden','false');}document.body.classList.add('is-navigating');};
 const endRouteTransition=()=>{document.body.classList.remove('is-navigating');routeStatus?.setAttribute('aria-hidden','true');};
-const setButtonBusy=(button,busy,label='Working…')=>{if(!button)return;if(busy){button.style.setProperty('--busy-color',getComputedStyle(button).color);button.dataset.loadingText=label;button.classList.add('is-loading');button.disabled=true;button.setAttribute('aria-busy','true');}else{button.classList.remove('is-loading');button.style.removeProperty('--busy-color');button.removeAttribute('aria-busy');}};
+const setButtonBusy=(button,busy,label='Working…')=>{
+  if(!button)return;
+  if(busy){
+    if(!button.hasAttribute('data-original-content'))button.dataset.originalContent=button.innerHTML;
+    button.classList.add('is-loading');
+    button.replaceChildren();
+    const state=document.createElement('span');state.className='button-busy-state';
+    const copy=document.createElement('span');copy.className='button-busy-label';copy.textContent=label;
+    const spinner=document.createElement('span');spinner.className='button-busy-spinner';spinner.setAttribute('aria-hidden','true');
+    state.append(copy,spinner);button.append(state);
+    button.disabled=true;button.setAttribute('aria-busy','true');
+  }else{
+    button.classList.remove('is-loading');
+    if(button.hasAttribute('data-original-content')){button.innerHTML=button.dataset.originalContent;delete button.dataset.originalContent;}
+    button.removeAttribute('aria-busy');
+  }
+};
 window.addEventListener('pageshow',endRouteTransition);
 document.addEventListener('click',event=>{const link=event.target.closest('a[href]');if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.target==='_blank'||link.hasAttribute('download')||link.dataset.noTransition!==undefined)return;let target;try{target=new URL(link.href,location.href);}catch(error){return;}if(target.origin!==location.origin)return;const sameDocument=target.pathname===location.pathname&&target.search===location.search;if(sameDocument&&(!target.hash||target.hash===location.hash||document.querySelector(target.hash)))return;beginRouteTransition(link.dataset.loadingText||'Opening next view…');});
 document.addEventListener('submit',event=>{if(event.defaultPrevented)return;const form=event.target;if(!(form instanceof HTMLFormElement)||form.dataset.noTransition!==undefined)return;const button=form.querySelector('button:not([type]),button[type="submit"],input[type="submit"]');const label=button?.dataset.loadingText||'Saving and opening the next step…';setButtonBusy(button,true,label);beginRouteTransition(label);});

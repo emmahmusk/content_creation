@@ -4,6 +4,4 @@
 .auth-card-top .kraftaa-wordmark{width:148px;max-height:36px}
 :root[data-color-mode="dark"] .kraftaa-wordmark,.landing-page .kraftaa-wordmark,.site-footer .kraftaa-wordmark{filter:none;mix-blend-mode:screen}
 .companion-orbit .kraftaa-symbol{position:relative;z-index:1;display:block;width:25px;height:32px;object-fit:contain;filter:none;mix-blend-mode:screen}
-/* Keep the original button label hidden while the accessible loading label is shown. */
-.studio-pipeline[data-status="running"] .pipeline-start.is-loading,.studio-pipeline[data-status="running"] .pipeline-render.is-loading{color:transparent!important}
 @media(max-width:760px){.kraftaa-wordmark{width:132px;max-height:34px}.auth-card-top .kraftaa-wordmark{width:140px;max-height:34px}}
