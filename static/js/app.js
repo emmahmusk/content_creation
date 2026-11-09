@@ -232,8 +232,8 @@ if(pipeline){
       render(data);setTimeout(refresh,1000);
     }catch(error){errorBox.textContent=error.message;errorBox.classList.remove('hidden');setButtonBusy(button,false);button.disabled=false;button.textContent='Try again';}
   };
-  analyzeButton?.addEventListener('click',()=>start(analyzeButton,pipeline.dataset.startUrl,'Finding the best moments…'));
-  renderButton?.addEventListener('click',()=>start(renderButton,pipeline.dataset.renderUrl,'Creating selected clips…'));
+  analyzeButton?.addEventListener('click',()=>start(analyzeButton,pipeline.dataset.startUrl,'Finding moments…'));
+  renderButton?.addEventListener('click',()=>start(renderButton,pipeline.dataset.renderUrl,'Creating clips…'));
   youtubeAuthPrompt?.querySelector('[data-youtube-auth-confirm]')?.addEventListener('click',async event=>{
     const button=event.currentTarget;const note=youtubeAuthPrompt.querySelector('[data-youtube-auth-message]');
     setButtonBusy(button,true,'Confirming…');note.textContent='Checking with YouTube…';
