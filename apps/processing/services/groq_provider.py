@@ -132,6 +132,24 @@ def _post_with_rate_limit_retries(url, *, endpoint, model, **kwargs):
     return response
 
 
+def _is_completion_truncation(error):
+    response = getattr(error, "response", None)
+    if response is None:
+        return False
+    try:
+        payload = response.json()
+    except (AttributeError, TypeError, ValueError):
+        return False
+    detail = payload.get("error", {}) if isinstance(payload, dict) else {}
+    if not isinstance(detail, dict):
+        return False
+    message = str(detail.get("message", "")).lower()
+    return (
+        (detail.get("code") or detail.get("type")) == "json_validate_failed"
+        and "max completion tokens reached" in message
+    )
+
+
 def _headers():
     if not settings.GROQ_API_KEY:
         raise GroqConfigurationError("groq_api_key is not configured in .env.")
@@ -140,9 +158,10 @@ def _headers():
 
 def generate_json(instructions, prompt, schema=None, name="response"):
     """Call Groq chat completions and return a JSON response as a Python object."""
+    completion_budget = settings.GROQ_MAX_COMPLETION_TOKENS
     body = {
         "model": settings.GROQ_TEXT_MODEL,
-        "max_completion_tokens": settings.GROQ_MAX_COMPLETION_TOKENS,
+        "max_completion_tokens": completion_budget,
         "messages": [
             {"role": "system", "content": instructions},
             {"role": "user", "content": prompt},
@@ -153,15 +172,30 @@ def generate_json(instructions, prompt, schema=None, name="response"):
             else {"type": "json_object"}
         ),
     }
-    response = _post_with_rate_limit_retries(
-        f"{GROQ_BASE_URL}/chat/completions",
-        endpoint="chat/completions",
-        model=settings.GROQ_TEXT_MODEL,
-        headers={**_headers(), "Content-Type": "application/json"},
-        json=body,
-        timeout=(20, 300),
-    )
-    _check_response(response, "chat/completions", settings.GROQ_TEXT_MODEL)
+    for attempt in range(2):
+        response = _post_with_rate_limit_retries(
+            f"{GROQ_BASE_URL}/chat/completions",
+            endpoint="chat/completions",
+            model=settings.GROQ_TEXT_MODEL,
+            headers={**_headers(), "Content-Type": "application/json"},
+            json=body.copy(),
+            timeout=(20, 300),
+        )
+        try:
+            _check_response(response, "chat/completions", settings.GROQ_TEXT_MODEL)
+        except requests.HTTPError as error:
+            next_budget = min(completion_budget * 2, 16384)
+            if attempt or not _is_completion_truncation(error) or next_budget <= completion_budget:
+                raise
+            logger.warning(
+                "Groq truncated structured output at %s completion tokens; retrying once with %s",
+                completion_budget,
+                next_budget,
+            )
+            completion_budget = next_budget
+            body["max_completion_tokens"] = completion_budget
+            continue
+        break
     payload = response.json()
     _response_telemetry(response, "chat/completions", settings.GROQ_TEXT_MODEL, usage=payload.get("usage"))
     choices = payload.get("choices", [])
@@ -245,6 +279,7 @@ def transcribe(audio_path, fallback_text=""):
 CLIP_SCHEMA = {
     "type": "object",
     "properties": {
+        "summary": {"type": "string"},
         "clips": {
             "type": "array",
             "items": {
@@ -260,9 +295,8 @@ CLIP_SCHEMA = {
                 "additionalProperties": False,
             },
         },
-        "summary": {"type": "string"},
     },
-    "required": ["clips", "summary"], "additionalProperties": False,
+    "required": ["summary", "clips"], "additionalProperties": False,
 }
 
 

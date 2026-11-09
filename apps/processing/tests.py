@@ -255,6 +255,39 @@ class GroqProviderTests(TestCase):
         self.assertIn("Practical advice",sent["messages"][1]["content"])
         self.assertEqual(sent["response_format"]["type"],"json_schema")
         self.assertEqual(sent["max_completion_tokens"],4096)
+        self.assertEqual(list(sent["response_format"]["json_schema"]["schema"]["properties"])[0],"summary")
+
+    @override_settings(GROQ_API_KEY="test-key", GROQ_TEXT_MODEL="test-model", GROQ_MAX_COMPLETION_TOKENS=4096)
+    @patch("apps.processing.services.groq_provider.requests.post")
+    def test_truncated_json_is_retried_once_with_double_completion_budget(self, post):
+        truncated=Mock(status_code=400,headers={})
+        truncated.json.return_value={"error":{
+            "code":"json_validate_failed",
+            "message":"max completion tokens reached before generating a valid document; output truncated",
+        }}
+        completed=Mock(status_code=200,headers={})
+        completed.json.return_value={"choices":[{"message":{"content":"{\"summary\":\"Ready\",\"clips\":[]}"}}]}
+        post.side_effect=[truncated,completed]
+
+        result=groq_provider.generate_json("instructions","prompt",schema=groq_provider.CLIP_SCHEMA)
+
+        self.assertEqual(result["summary"],"Ready")
+        self.assertEqual(post.call_count,2)
+        self.assertEqual(post.call_args_list[0].kwargs["json"]["max_completion_tokens"],4096)
+        self.assertEqual(post.call_args_list[1].kwargs["json"]["max_completion_tokens"],8192)
+
+    @override_settings(GROQ_API_KEY="test-key", GROQ_TEXT_MODEL="test-model", GROQ_MAX_COMPLETION_TOKENS=16384)
+    @patch("apps.processing.services.groq_provider.requests.post")
+    def test_truncated_json_at_max_budget_is_not_retried(self, post):
+        truncated=Mock(status_code=400,headers={})
+        truncated.json.return_value={"error":{
+            "code":"json_validate_failed",
+            "message":"max completion tokens reached before generating a valid document",
+        }}
+        post.return_value=truncated
+        with self.assertRaisesRegex(Exception,"json_validate_failed"):
+            groq_provider.generate_json("instructions","prompt",schema=groq_provider.CLIP_SCHEMA)
+        post.assert_called_once()
 
     @override_settings(GROQ_API_KEY="test-key", GROQ_TRANSCRIPTION_MODEL="whisper-large-v3-turbo")
     @patch("apps.processing.services.groq_provider.requests.post")
