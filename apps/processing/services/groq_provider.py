@@ -42,14 +42,14 @@ def _response_telemetry(response, endpoint, model, error=None, usage=None):
     if usage is not None:
         details["usage"] = usage
     logger.log(
-        logging.ERROR if response.is_error else logging.INFO,
+        logging.ERROR if response.status_code >= 400 else logging.INFO,
         "Groq API response %s",
         json.dumps(details, sort_keys=True, separators=(",", ":")),
     )
 
 
 def _check_response(response, endpoint, model):
-    if not response.is_error:
+    if response.status_code < 400:
         return
 
     try:
