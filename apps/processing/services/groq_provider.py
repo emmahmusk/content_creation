@@ -1,8 +1,10 @@
 import json
 import logging
 import mimetypes
+import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import time
 
 import requests
 from django.conf import settings
@@ -71,6 +73,65 @@ def _check_response(response, endpoint, model):
     )
 
 
+def _retry_delay_seconds(value):
+    if not value:
+        return None
+    value = str(value).strip().lower()
+    try:
+        return float(value)
+    except ValueError:
+        match = re.fullmatch(r"(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?", value)
+        if not match or not any(match.groups()):
+            return None
+        minutes, seconds = match.groups()
+        return (float(minutes or 0) * 60) + float(seconds or 0)
+
+
+def _is_rate_limited(response):
+    if response.status_code == 429:
+        return True
+    # Groq's attached log export included HTTP 413 responses carrying its
+    # rate_limit_exceeded code. Retry only that explicit case; ordinary 413s
+    # are payload-size failures and must not be repeated.
+    if response.status_code != 413:
+        return False
+    try:
+        error = response.json().get("error", {})
+    except (AttributeError, TypeError, ValueError):
+        return False
+    return isinstance(error, dict) and (error.get("code") or error.get("type")) == "rate_limit_exceeded"
+
+
+def _post_with_rate_limit_retries(url, *, endpoint, model, **kwargs):
+    """Retry short-lived Groq rate limits, but surface hard payload errors."""
+    for attempt in range(3):
+        response = requests.post(url, **kwargs)
+        if not _is_rate_limited(response) or attempt == 2:
+            return response
+
+        delay = (
+            _retry_delay_seconds(response.headers.get("retry-after"))
+            or _retry_delay_seconds(response.headers.get("x-ratelimit-reset-tokens"))
+            or _retry_delay_seconds(response.headers.get("x-ratelimit-reset-requests"))
+            or min(2 ** attempt, 4)
+        )
+        # Avoid holding a worker for a long quota reset; the normal error path
+        # logs the provider's reset headers and lets the user retry later.
+        if delay > 30:
+            return response
+        for uploaded_file in (kwargs.get("files") or {}).values():
+            if isinstance(uploaded_file, (tuple, list)) and len(uploaded_file) > 1:
+                file_object = uploaded_file[1]
+                if hasattr(file_object, "seek"):
+                    file_object.seek(0)
+        logger.warning(
+            "Groq rate limited request; retrying %s in %.1fs (attempt %s/2)",
+            endpoint, delay, attempt + 1,
+        )
+        time.sleep(max(0, delay))
+    return response
+
+
 def _headers():
     if not settings.GROQ_API_KEY:
         raise GroqConfigurationError("groq_api_key is not configured in .env.")
@@ -81,6 +142,7 @@ def generate_json(instructions, prompt, schema=None, name="response"):
     """Call Groq chat completions and return a JSON response as a Python object."""
     body = {
         "model": settings.GROQ_TEXT_MODEL,
+        "max_completion_tokens": settings.GROQ_MAX_COMPLETION_TOKENS,
         "messages": [
             {"role": "system", "content": instructions},
             {"role": "user", "content": prompt},
@@ -91,8 +153,10 @@ def generate_json(instructions, prompt, schema=None, name="response"):
             else {"type": "json_object"}
         ),
     }
-    response = requests.post(
+    response = _post_with_rate_limit_retries(
         f"{GROQ_BASE_URL}/chat/completions",
+        endpoint="chat/completions",
+        model=settings.GROQ_TEXT_MODEL,
         headers={**_headers(), "Content-Type": "application/json"},
         json=body,
         timeout=(20, 300),
@@ -111,8 +175,10 @@ def _transcribe_file(path, prompt=""):
     """Transcribe one upload-safe audio file and normalize timestamped words."""
     path = Path(path)
     with path.open("rb") as audio:
-        response = requests.post(
+        response = _post_with_rate_limit_retries(
             f"{GROQ_BASE_URL}/audio/transcriptions",
+            endpoint="audio/transcriptions",
+            model=settings.GROQ_TRANSCRIPTION_MODEL,
             headers=_headers(),
             files={"file": (path.name, audio, mimetypes.guess_type(path.name)[0] or "application/octet-stream")},
             data=[
@@ -223,6 +289,8 @@ Rules:
 - Score relevance against the clipper's definition, standalone clarity, hook strength, information density and emotional impact.
 - Avoid overlapping or semantically duplicate clips.
 - Explain which preference each selection matched.
+- Keep each title under 10 words, hook under 18 words, caption under 30 words, rationale under 25 words, and matched preference under 10 words.
+- Keep the summary under 60 words. Return exactly {count} clips and no extra fields or prose.
 
 TRANSCRIPT:
 {transcript[:90000]}"""

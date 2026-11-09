@@ -243,7 +243,7 @@ class ProcessingAccessTests(TestCase):
         normalize.assert_not_called()
 
 class GroqProviderTests(TestCase):
-    @override_settings(GROQ_API_KEY="test-key", GROQ_TEXT_MODEL="test-model")
+    @override_settings(GROQ_API_KEY="test-key", GROQ_TEXT_MODEL="test-model", GROQ_MAX_COMPLETION_TOKENS=4096)
     @patch("apps.processing.services.groq_provider.requests.post")
     def test_ranker_sends_preferences_and_parses_schema_output(self, post):
         api_response=Mock(status_code=200, headers={})
@@ -254,6 +254,7 @@ class GroqProviderTests(TestCase):
         sent=post.call_args.kwargs["json"]
         self.assertIn("Practical advice",sent["messages"][1]["content"])
         self.assertEqual(sent["response_format"]["type"],"json_schema")
+        self.assertEqual(sent["max_completion_tokens"],4096)
 
     @override_settings(GROQ_API_KEY="test-key", GROQ_TRANSCRIPTION_MODEL="whisper-large-v3-turbo")
     @patch("apps.processing.services.groq_provider.requests.post")
@@ -286,6 +287,45 @@ class GroqProviderTests(TestCase):
         response.status_code=200
         response.headers={}
         groq_provider._check_response(response,"chat/completions","test-model")
+
+    @patch("apps.processing.services.groq_provider.time.sleep")
+    @patch("apps.processing.services.groq_provider.requests.post")
+    def test_chat_retries_short_rate_limit_after_provider_reset(self, post, sleep):
+        throttled=Mock(status_code=429,headers={"x-ratelimit-reset-tokens":"2.5s"})
+        ok=Mock(status_code=200,headers={})
+        post.side_effect=[throttled,ok]
+        response=groq_provider._post_with_rate_limit_retries(
+            "https://example.test",endpoint="chat/completions",model="test-model"
+        )
+        self.assertIs(response,ok)
+        self.assertEqual(post.call_count,2)
+        sleep.assert_called_once_with(2.5)
+
+    @patch("apps.processing.services.groq_provider.time.sleep")
+    @patch("apps.processing.services.groq_provider.requests.post")
+    def test_chat_does_not_retry_hard_413(self, post, sleep):
+        oversized=Mock(status_code=413,headers={})
+        post.return_value=oversized
+        response=groq_provider._post_with_rate_limit_retries(
+            "https://example.test",endpoint="chat/completions",model="test-model"
+        )
+        self.assertIs(response,oversized)
+        post.assert_called_once()
+        sleep.assert_not_called()
+
+    @patch("apps.processing.services.groq_provider.time.sleep")
+    @patch("apps.processing.services.groq_provider.requests.post")
+    def test_chat_retries_groq_rate_limit_code_even_if_status_is_413(self, post, sleep):
+        throttled=Mock(status_code=413,headers={})
+        throttled.json.return_value={"error":{"code":"rate_limit_exceeded"}}
+        ok=Mock(status_code=200,headers={})
+        post.side_effect=[throttled,ok]
+        response=groq_provider._post_with_rate_limit_retries(
+            "https://example.test",endpoint="chat/completions",model="test-model"
+        )
+        self.assertIs(response,ok)
+        self.assertEqual(post.call_count,2)
+        sleep.assert_called_once_with(1)
 
     @patch("apps.processing.services.groq_provider.GROQ_UPLOAD_LIMIT_BYTES",4)
     @patch("apps.processing.services.groq_provider._transcribe_file")
