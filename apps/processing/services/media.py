@@ -10,8 +10,8 @@ def run(command):
     except FileNotFoundError as exc:
         raise MediaError(f"Required media tool is missing: {command[0]}") from exc
     except subprocess.CalledProcessError as exc:
-        detail = (exc.stderr or "Media processing failed")[-2000:]
-        raise MediaError(f"FFmpeg exited with code {exc.returncode}. {detail}") from exc
+        detail = (exc.stderr or "No diagnostic output was returned.").strip()[-2000:]
+        raise MediaError(f"Media command exited with code {exc.returncode}. {detail}") from exc
 
 def probe(path):
     result=run([settings.FFPROBE_BINARY,"-v","error","-show_streams","-show_format","-of","json",str(path)])
@@ -88,7 +88,7 @@ def render_vertical(source, start_ms, end_ms, subtitle, destination, broll_segme
     duration=max(1.0,(end_ms-start_ms)/1000)
     info=probe(source)
     has_video=any(stream.get("codec_type")=="video" for stream in info.get("streams",[]))
-    command=[settings.FFMPEG_BINARY,"-y"]
+    command=[settings.FFMPEG_BINARY,"-hide_banner","-loglevel","error","-nostats","-filter_complex_threads","1","-y"]
     if has_video:
         command += ["-ss",f"{start_ms/1000:.3f}","-t",f"{duration:.3f}","-i",str(source)]
         audio_index=0
@@ -115,7 +115,7 @@ def render_vertical(source, start_ms, end_ms, subtitle, destination, broll_segme
         f"[{current}]subtitles='{escaped}':force_style='FontName=Arial,FontSize={settings.SUBTITLE_FONT_SIZE},PrimaryColour=&H00FFFFFF,"
         f"OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,Alignment=2,MarginV={settings.SUBTITLE_MARGIN_V}'[vout]"
     )
-    command += ["-filter_complex",";".join(filters),"-map","[vout]","-map",f"{audio_index}:a?","-t",f"{duration:.3f}","-c:v","libx264","-preset","veryfast","-threads",str(settings.FFMPEG_ENCODER_THREADS),"-crf","20","-c:a","aac","-b:a","160k","-movflags","+faststart","-shortest",str(destination)]
+    command += ["-filter_complex",";".join(filters),"-map","[vout]","-map",f"{audio_index}:a?","-t",f"{duration:.3f}","-c:v","libx264","-preset","ultrafast","-threads",str(settings.FFMPEG_ENCODER_THREADS),"-crf","20","-c:a","aac","-b:a","160k","-movflags","+faststart","-shortest",str(destination)]
     run(command)
     return destination
 
