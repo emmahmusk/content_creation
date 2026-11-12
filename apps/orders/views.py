@@ -3,8 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from .forms import ContentOrderForm, SourceAssetForm, SourceRecoveryUploadForm
-from .models import ContentOrder, OrderEvent
+from .forms import ContentOrderForm, SourceAssetForm, SourceRecoveryUploadForm, WalkthroughWaitlistForm
+from .models import ContentOrder, OrderEvent, WalkthroughWaitlist
 from .services import (
     ANALYSIS_INPUT_FIELDS,
     RENDER_INPUT_FIELDS,
@@ -18,6 +18,31 @@ from apps.processing.services.run_control import cancel_pipeline_run
 
 @login_required
 def dashboard(request):
+    waitlist_form = WalkthroughWaitlistForm(
+        request.POST or None,
+        initial={"email": request.user.email},
+    )
+    if request.method == "POST":
+        if waitlist_form.is_valid():
+            email = waitlist_form.cleaned_data["email"]
+            signup, created = WalkthroughWaitlist.objects.get_or_create(
+                email=email,
+                defaults={
+                    "user": request.user,
+                    "availability": waitlist_form.cleaned_data["availability"],
+                },
+            )
+            if not created and signup.user_id is None:
+                signup.user = request.user
+                signup.save(update_fields=["user"])
+            messages.success(
+                request,
+                "You’re on the walkthrough waitlist. We’ll email you when a session opens."
+                if created
+                else "That email is already on the walkthrough waitlist.",
+            )
+            return redirect("orders:dashboard")
+
     orders = list(
         request.user.content_orders.prefetch_related(
             "deliverables", "clips", "pipeline_runs"
@@ -73,6 +98,10 @@ def dashboard(request):
         .select_related("order")
         .order_by("-created_at")[:4]
     )
+    waitlist_joined = WalkthroughWaitlist.objects.filter(
+        Q(user=request.user)
+        | Q(email__iexact=request.user.email)
+    ).exists()
     return render(
         request,
         "orders/dashboard.html",
@@ -85,6 +114,8 @@ def dashboard(request):
             "priority_order": priority_order,
             "priority_kind": priority_kind,
             "recent_events": recent_events,
+            "walkthrough_waitlist_form": waitlist_form,
+            "walkthrough_waitlist_joined": waitlist_joined,
         },
     )
 

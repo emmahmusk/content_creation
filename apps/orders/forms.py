@@ -1,7 +1,7 @@
 from django import forms
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
-from .models import ContentOrder, SourceAsset
+from .models import ContentOrder, SourceAsset, WalkthroughWaitlist
 
 PLATFORMS = [("linkedin", "LinkedIn"), ("x", "X / Twitter"), ("instagram", "Instagram"), ("youtube", "YouTube"), ("newsletter", "Newsletter / article")]
 class ContentOrderForm(forms.ModelForm):
@@ -75,3 +75,20 @@ class SourceRecoveryUploadForm(forms.Form):
         if uploaded.size > settings.PUBLIC_MEDIA_MAX_BYTES:
             raise forms.ValidationError("This source exceeds the configured upload limit.")
         return uploaded
+
+
+class WalkthroughWaitlistForm(forms.ModelForm):
+    class Meta:
+        model = WalkthroughWaitlist
+        fields = ["email", "availability"]
+        labels = {
+            "email": "Email address",
+            "availability": "Best time for you (optional)",
+        }
+        widgets = {
+            "email": forms.EmailInput(attrs={"autocomplete": "email", "placeholder": "you@example.com"}),
+            "availability": forms.TextInput(attrs={"placeholder": "Weekday afternoons (WAT)"}),
+        }
+
+    def clean_email(self):
+        return self.cleaned_data["email"].strip().lower()

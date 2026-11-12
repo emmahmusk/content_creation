@@ -43,6 +43,35 @@
     </div>
   </section>
 
+  <section class="walkthrough-waitlist" aria-labelledby="walkthrough-waitlist-title">
+    <div class="walkthrough-waitlist-copy">
+      <span>GUIDED ONBOARDING</span>
+      <h2 id="walkthrough-waitlist-title">Want a walkthrough?</h2>
+      <p>Join the waitlist for a guided session on finding moments, approving clips, and preparing exports.</p>
+    </div>
+    {% if walkthrough_waitlist_joined %}
+      <div class="walkthrough-waitlist-confirmation" role="status">
+        <i aria-hidden="true">✓</i>
+        <div><strong>You’re on the list.</strong><span>We’ll email you when a walkthrough session opens.</span></div>
+      </div>
+    {% else %}
+      <form class="walkthrough-waitlist-form" method="post" action="{% url 'orders:dashboard' %}">
+        {% csrf_token %}
+        <div class="walkthrough-field">
+          <label for="{{ walkthrough_waitlist_form.email.id_for_label }}">{{ walkthrough_waitlist_form.email.label }}</label>
+          {{ walkthrough_waitlist_form.email }}
+          {% for error in walkthrough_waitlist_form.email.errors %}<small class="walkthrough-field-error">{{ error }}</small>{% endfor %}
+        </div>
+        <div class="walkthrough-field">
+          <label for="{{ walkthrough_waitlist_form.availability.id_for_label }}">{{ walkthrough_waitlist_form.availability.label }}</label>
+          {{ walkthrough_waitlist_form.availability }}
+          {% for error in walkthrough_waitlist_form.availability.errors %}<small class="walkthrough-field-error">{{ error }}</small>{% endfor %}
+        </div>
+        <button class="btn btn-lime" type="submit">Join waitlist <span>→</span></button>
+      </form>
+    {% endif %}
+  </section>
+
   <section class="command-metrics" aria-label="Workspace intelligence summary">
     <div><span>Active projects</span><strong>{{ active_projects|stringformat:'02d' }}</strong><small>In the production system</small></div>
     <div><span>Discovered moments</span><strong>{{ total_moments|stringformat:'02d' }}</strong><small>Ranked by audience potential</small></div>

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ContentOrder, OrderEvent, SourceAsset
+from .models import ContentOrder, OrderEvent, SourceAsset, WalkthroughWaitlist
 
 class SourceAssetInline(admin.TabularInline):
     model = SourceAsset; extra = 0
@@ -13,3 +13,11 @@ class ContentOrderAdmin(admin.ModelAdmin):
     inlines = [SourceAssetInline, OrderEventInline]
 admin.site.register(SourceAsset)
 admin.site.register(OrderEvent)
+
+
+@admin.register(WalkthroughWaitlist)
+class WalkthroughWaitlistAdmin(admin.ModelAdmin):
+    list_display = ("email", "availability", "user", "created_at")
+    search_fields = ("email", "user__username", "user__email")
+    list_filter = ("created_at",)
+    readonly_fields = ("created_at",)

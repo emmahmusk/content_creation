@@ -98,3 +98,28 @@ class OrderEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         ordering = ["-created_at"]
+
+
+class WalkthroughWaitlist(models.Model):
+    email = models.EmailField(unique=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="walkthrough_waitlist_signups",
+    )
+    availability = models.CharField(max_length=160, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "walkthrough waitlist signup"
+        verbose_name_plural = "walkthrough waitlist signups"
+
+    def save(self, *args, **kwargs):
+        self.email = self.email.strip().lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.email
