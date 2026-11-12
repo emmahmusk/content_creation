@@ -1,4 +1,4 @@
-import json, subprocess
+import json, re, subprocess
 from pathlib import Path
 from django.conf import settings
 
@@ -54,12 +54,88 @@ def srt_timestamp(ms):
     h, rem=divmod(ms,3600000); m, rem=divmod(rem,60000); s, milli=divmod(rem,1000)
     return f"{h:02}:{m:02}:{s:02},{milli:03}"
 
+
+def _caption_groups(words, max_words, max_chars):
+    """Keep short spoken-word groups together, preferring natural phrase ends."""
+    groups = []
+    current = []
+    current_chars = 0
+    for word in words:
+        text = word["text"]
+        added_chars = len(text) + (1 if current else 0)
+        previous_ends_phrase = bool(current) and current[-1]["text"].endswith((".", "?", "!", ",", ";", ":"))
+        if current and (
+            len(current) >= max_words
+            or current_chars + added_chars > max_chars
+            or (previous_ends_phrase and len(current) >= 2)
+        ):
+            groups.append(current)
+            current = []
+            current_chars = 0
+            added_chars = len(text)
+        current.append(word)
+        current_chars += added_chars
+        if text.endswith((".", "?", "!")):
+            groups.append(current)
+            current = []
+            current_chars = 0
+    if current:
+        groups.append(current)
+    return groups
+
+
+def _segment_caption_words(segment, clip_start, clip_end):
+    """Use ASR word timings when present; otherwise distribute timing across the text."""
+    words = segment.words or []
+    if words:
+        timed_words = []
+        for word in words:
+            text = str(word.get("word", "")).strip()
+            if not text:
+                continue
+            start = max(clip_start, int(word.get("start_ms", segment.start_ms)))
+            end = min(clip_end, int(word.get("end_ms", segment.end_ms)))
+            if end <= start:
+                continue
+            timed_words.append({"text": text, "start_ms": start, "end_ms": end})
+        if timed_words:
+            return timed_words
+
+    text_words = re.findall(r"\S+", segment.text or "")
+    if not text_words:
+        return []
+    start = max(clip_start, segment.start_ms)
+    end = min(clip_end, segment.end_ms)
+    if end <= start:
+        return []
+    duration = end - start
+    weights = [max(1, len(word)) for word in text_words]
+    total_weight = sum(weights)
+    timed_words = []
+    consumed = 0
+    for word, weight in zip(text_words, weights):
+        word_start = start + round(duration * consumed / total_weight)
+        consumed += weight
+        word_end = start + round(duration * consumed / total_weight)
+        timed_words.append({"text": word, "start_ms": word_start, "end_ms": max(word_start + 1, word_end)})
+    return timed_words
+
+
 def write_srt(segments, start_ms, end_ms, destination):
     rows=[]; index=1
+    max_words = settings.SUBTITLE_MAX_WORDS
+    max_chars = settings.SUBTITLE_MAX_CHARS
     for seg in segments:
         if seg.end_ms <= start_ms or seg.start_ms >= end_ms: continue
-        local_start=max(seg.start_ms,start_ms)-start_ms; local_end=min(seg.end_ms,end_ms)-start_ms
-        rows.extend([str(index),f"{srt_timestamp(local_start)} --> {srt_timestamp(local_end)}",seg.text.strip(),""]); index+=1
+        words = _segment_caption_words(seg, start_ms, end_ms)
+        for group in _caption_groups(words, max_words, max_chars):
+            local_start = max(start_ms, group[0]["start_ms"]) - start_ms
+            local_end = min(end_ms, group[-1]["end_ms"]) - start_ms
+            if local_end <= local_start:
+                continue
+            caption = " ".join(word["text"] for word in group)
+            rows.extend([str(index), f"{srt_timestamp(local_start)} --> {srt_timestamp(local_end)}", caption, ""])
+            index += 1
     Path(destination).write_text("\n".join(rows), encoding="utf-8")
     return destination
 
