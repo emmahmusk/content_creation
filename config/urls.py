@@ -29,6 +29,7 @@ router.register("music-projects", AfroStudioProjectViewSet, basename="music-proj
 
 urlpatterns = [
     path("admin/", admin.site.urls), path("", home, name="home"), path("health/", health, name="health"),
+    path("credits/", include("apps.credits.urls")),
     path("accounts/login/", auth_views.LoginView.as_view(template_name="account/login.html", authentication_form=WorkspaceAuthenticationForm), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("accounts/", include("apps.accounts.urls")), path("orders/", include("apps.orders.urls")), path("intelligence/",include("apps.processing.urls")), path("music/", include("apps.music.urls")),

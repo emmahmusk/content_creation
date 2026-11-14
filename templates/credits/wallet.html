@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Clipping credits — Kraftaa{% endblock %}
+{% block body_class %}credits-page{% endblock %}
+{% block content %}
+<section class="wallet-shell">
+  <div class="wallet-heading"><div><span>YOUR KRAFTAA ACCOUNT</span><h1>Clipping credits</h1><p>Track your balance, purchases, and payment reviews in one place.</p></div><a class="btn btn-lime" href="{% url 'credits:pricing' %}">Get clipping credits <b>+</b></a></div>
+  <section class="wallet-balance-card" aria-label="Credit balance">
+    <div><span>AVAILABLE BALANCE</span><strong class="credit-balance-value" data-credit-value>{{ balance }}</strong><small>credits</small></div>
+    <button class="balance-visibility-toggle" type="button" data-credit-visibility aria-pressed="false"><span aria-hidden="true">◉</span> Hide balance</button>
+    <p>Credits are added after payment verification. Pending purchases are not included in the available balance.</p>
+  </section>
+  <section class="wallet-section"><header><div><span>PAYMENT ACTIVITY</span><h2>Purchase requests</h2></div></header>
+    {% if payments %}<div class="wallet-payment-list">{% for payment in payments %}<article><div class="wallet-payment-main"><b>{{ payment.plan_name }}</b><span>{% if payment.currency == 'NGN' %}₦{{ payment.amount|floatformat:0 }}{% else %}${{ payment.amount|floatformat:2 }}{% endif %} · {{ payment.credits }} credits</span><small>{{ payment.created_at|date:"M j, Y · g:i A" }}</small></div><span class="wallet-payment-status status-{{ payment.status }}">{{ payment.get_status_display }}</span>{% if payment.status == 'awaiting_payment' %}<a href="{% url 'credits:payment' payment.pk %}">Continue payment →</a>{% elif payment.status == 'awaiting_review' %}<span class="wallet-pending-note">Manual verification in progress</span>{% endif %}</article>{% endfor %}</div>{% else %}<div class="wallet-empty"><h3>No credit purchases yet</h3><p>Choose a plan when you’re ready to create your first clip batch.</p><a href="{% url 'credits:pricing' %}">Compare plans →</a></div>{% endif %}
+  </section>
+  <section class="wallet-section"><header><div><span>ACCOUNT HISTORY</span><h2>Credit ledger</h2></div></header>
+    {% if entries %}<div class="credit-ledger">{% for entry in entries %}<article><div><b>{{ entry.description }}</b><small>{{ entry.created_at|date:"M j, Y · g:i A" }}</small></div><strong class="{% if entry.amount < 0 %}is-debit{% else %}is-credit{% endif %}">{% if entry.amount > 0 %}+{% endif %}{{ entry.amount }}</strong></article>{% endfor %}</div>{% else %}<div class="wallet-empty"><p>Approved credit purchases and future usage will appear here.</p></div>{% endif %}
+  </section>
+</section>
+<script>
+(()=>{const button=document.querySelector('[data-credit-visibility]'),value=document.querySelector('[data-credit-value]');if(!button||!value)return;let hidden=localStorage.getItem('kraftaa-credit-balance-hidden')==='true';const draw=()=>{value.textContent=hidden?'••••':value.dataset.balance||value.textContent;button.setAttribute('aria-pressed',String(hidden));button.innerHTML=hidden?'<span aria-hidden="true">◉</span> Show balance':'<span aria-hidden="true">◉</span> Hide balance'};value.dataset.balance=value.textContent;draw();button.addEventListener('click',()=>{hidden=!hidden;localStorage.setItem('kraftaa-credit-balance-hidden',String(hidden));draw()})})();
+</script>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Payment confirmation — Kraftaa{% endblock %}
+{% block body_class %}credits-page{% endblock %}
+{% block content %}
+<section class="payment-waiting-shell">
+  <a class="credits-back-link" href="{% url 'credits:wallet' %}">← Back to credits</a>
+  <div class="payment-waiting-card">
+    <div class="payment-pulse" aria-hidden="true"><i></i><i></i><i></i></div>
+    {% if payment.status == 'approved' %}
+      <span class="payment-status is-approved">PAYMENT VERIFIED</span><h1>Your credits are ready.</h1><p>{{ payment.credits }} credits were added to your Kraftaa balance.</p><a class="btn btn-lime" href="{% url 'credits:wallet' %}">View credit balance <b>→</b></a>
+    {% elif payment.status == 'declined' %}
+      <span class="payment-status is-declined">PAYMENT NOT APPROVED</span><h1>We couldn’t verify this payment.</h1><p>{% if payment.admin_note %}{{ payment.admin_note }}{% else %}Check the Selar reference and contact support if you believe this is an error.{% endif %}</p><a class="btn btn-lime" href="{% url 'credits:pricing' %}">View plans <b>→</b></a>
+    {% elif payment.status == 'awaiting_review' %}
+      <span class="payment-status is-pending"><i></i> PAYMENT UNDER REVIEW</span><h1>We’re checking your payment.</h1><p>Your payment reference was received. Credits will be added automatically after our team verifies the sale in Selar or the connected bank account.</p><div class="payment-request-summary"><span>{{ payment.plan_name }} · {{ payment.credits }} credits</span><strong>{% if payment.currency == 'NGN' %}₦{{ payment.amount|floatformat:0 }}{% else %}${{ payment.amount|floatformat:2 }}{% endif %}</strong></div><a class="btn btn-ghost" href="{% url 'credits:wallet' %}">View credit status</a>
+    {% else %}
+      <span class="payment-status is-pending"><i></i> AWAITING PAYMENT</span><h1>Complete payment on Selar.</h1><p>We’ll keep this request pending while you pay. After checkout, return here and submit the transaction reference. Credits are issued only after a manual check.</p>
+      <div class="payment-request-summary"><span>{{ payment.plan_name }} · {{ payment.credits }} credits<br><small>{% if payment.max_source_mb %}Up to {{ payment.max_source_mb }} MB source · {% endif %}{% if payment.max_source_minutes %}{{ payment.max_source_minutes }} min · {% endif %}Up to {{ payment.max_clips_per_order }} clips per project</small></span><strong>{% if payment.currency == 'NGN' %}₦{{ payment.amount|floatformat:0 }}{% else %}${{ payment.amount|floatformat:2 }}{% endif %}</strong></div>
+      <a class="plan-buy-button payment-selar-link" href="{{ payment.selar_url }}" target="_blank" rel="noopener"><span class="selar-wordmark">Selar</span> Continue to Selar checkout <b>↗</b></a>
+      {% if payment.plan.qr_code %}<details class="payment-qr"><summary>Or scan this plan’s Selar QR code</summary><img src="{{ payment.plan.qr_code.url }}" alt="Selar QR code for {{ payment.plan_name }}"></details>{% endif %}
+      <div class="payment-wait-state" role="status"><span class="loader-ring" aria-hidden="true"></span><span>Waiting for you to complete payment and return to Kraftaa</span></div>
+      <div class="payment-confirm-form"><h2>Already paid?</h2><p>Enter the transaction reference from your Selar receipt to send this payment for manual verification.</p>
+        <form method="post">{% csrf_token %}
+          <div class="credit-form-field"><label for="id_payment_reference">{{ form.payment_reference.label }}</label>{{ form.payment_reference }}{% if form.payment_reference.help_text %}<small>{{ form.payment_reference.help_text }}</small>{% endif %}{{ form.payment_reference.errors }}</div>
+          <label class="payment-confirm-check">{{ form.confirm }}<span>{{ form.confirm.label }}</span></label>{{ form.confirm.errors }}
+          <button class="btn btn-lime" type="submit">I have made payment <b>→</b></button>
+        </form>
+      </div>
+    {% endif %}
+    <small class="payment-reference">Payment request {{ payment.id }}</small>
+  </div>
+</section>
+{% endblock %}
