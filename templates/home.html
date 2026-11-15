@@ -1,26 +1,39 @@
 {% extends 'base.html' %}
+{% load static %}
+{% block title %}AI Podcast & Video Clip Maker for Creators | Kraftaa{% endblock %}
+{% block meta_description %}Turn podcasts, interviews, and long videos into short-form clips. Find key moments, choose your favorites, and export vertical videos with captions using Kraftaa.{% endblock %}
+{% block og_title %}AI podcast and video clip maker for creators | Kraftaa{% endblock %}
+{% block og_description %}Turn podcasts, interviews, and long videos into short-form clips. Choose key moments and export captioned vertical videos with Kraftaa.{% endblock %}
 {% block body_class %}landing-page{% endblock %}
 {% block content %}
 <section class="hero">
   <div class="hero-glow"></div><div class="hero-orb orb-one"></div><div class="hero-orb orb-two"></div>
+  <figure class="hero-image" aria-hidden="true"><img src="{% static 'images/hero-clipping-studio.jpg' %}" alt="" fetchpriority="high"></figure>
   <div class="hero-inner">
-    <div class="hero-badge"><span>AI clipping production</span><strong>Discovery → approval → finished batch</strong></div>
-    <h1 class="calm-display"><span>One long-form source.</span><span>A complete clip batch.</span></h1>
-    <p class="hero-copy">Find the strongest moments. Choose what gets produced. Export finished clips with optional B-roll.</p>
-    <div class="hero-actions"><a class="btn btn-lime" href="{% url 'register' %}">Start creating clips <span>→</span></a><a class="btn btn-ghost" href="#workflow"><i class="play-icon">▶</i> See how it works</a></div>
-    <div class="hero-proof"><div><span>Built for high-volume</span><strong>Clipping agencies · Content teams · Creators</strong></div><div class="proof-avatars"><i>A</i><i>P</i><i>C</i><i>+</i><span>More clips. Less production waste.</span></div></div>
+    <div class="hero-lead-copy">
+      <div class="hero-badge"><span>AI podcast &amp; video clipping</span></div>
+      <h1 class="calm-display"><span>Turn long videos into</span><span>clips ready to post.</span></h1>
+      <p class="hero-copy">Find standout moments. Choose your clips. Export vertical videos with captions.</p>
+    </div>
+    <div class="hero-quick-flow" aria-label="Upload a long video, let AI find standout moments, choose clips, and export captioned clips">
+      <span><b>01</b> Upload a long video</span><i aria-hidden="true">→</i>
+      <span><b>02</b> AI finds standout moments</span><i aria-hidden="true">→</i>
+      <span><b>03</b> Choose your clips</span><i aria-hidden="true">→</i>
+      <span><b>04</b> Export with captions</span>
+    </div>
+    <div class="hero-actions"><a class="btn btn-lime" href="{% url 'register' %}">Create your first clip batch <span>→</span></a><a class="btn btn-ghost" href="#workflow"><i class="play-icon">▶</i> See how it works</a></div>
   </div>
   <a class="hero-scroll" href="#workflow"><span>See the five-step workflow</span><i>↓</i></a>
 </section>
 
 <section class="clipping-path-section" id="clipping-path">
-  <div class="clipping-path-head"><span>BUILD YOUR CLIPPING PRACTICE</span><h2>Turn a skill into a service, one batch at a time.</h2><p>Kraftaa helps you discover moments and prepare clips. Your results depend on your clients, content rights, distribution, and the platforms you publish on; no income is guaranteed.</p></div>
+  <div class="clipping-path-head"><span>BUILD YOUR CLIPPING PRACTICE</span><h2>Turn a skill into a service, one batch at a time.</h2><p>Kraftaa helps you turn long videos into clips for client work or your own channels. Build a repeatable workflow, sharpen your craft, and share your work.</p></div>
   <div class="clipping-path-grid">
     <article><span>01</span><div><b>Learn the workflow</b><p>Study what makes a useful short-form clip: a clear opening, one focused idea, readable captions, and a strong close.</p></div></article>
     <article><span>02</span><div><b>Create your Kraftaa account</b><p>Set up a workspace to review source videos, choose moments, and prepare approved clips for export.</p></div></article>
     <article><span>03</span><div><b>Choose a plan that fits</b><p>Compare source upload limits and clip allowances before you buy. Plans and their limits are shown on the pricing page.</p></div></article>
     <article><span>04</span><div><b>Pay securely through Selar</b><p>Open the matching Selar product, complete payment, then return to Kraftaa and submit your payment reference.</p></div></article>
-    <article><span>05</span><div><b>Wait for a manual check</b><p>Kraftaa staff verify the payment in Selar or the connected bank account. Credits are added after an admin approves it.</p></div></article>
+    <article><span>05</span><div><b>Start clipping</b><p>Your balance updates once the payment is confirmed. Use your credits to analyze sources and render your selected clips.</p></div></article>
   </div>
   <div class="clipping-path-footer"><p>Clipping can support freelance services, creator teams, and audience growth. Income depends on your own work and agreements. Kraftaa does not promise earnings.</p><a class="btn btn-lime" href="{% url 'credits:pricing' %}">Compare clipping credit plans <b>→</b></a></div>
 </section>

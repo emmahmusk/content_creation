@@ -8,6 +8,16 @@ from django.db import transaction
 from django.utils import timezone
 from apps.deliverables.models import Deliverable
 from apps.orders.models import ContentOrder, OrderEvent
+from apps.credits.models import CreditReservation
+from apps.credits.services import (
+    analysis_credit_cost,
+    capture_reservation,
+    next_reservation_attempt,
+    release_reservation,
+    reserve_credits,
+    reserve_render_credits,
+    settle_render_reservation,
+)
 from .models import Clip, PipelineRun, StageRun, TranscriptSegment
 from .services import broll, media, nvidia, groq_provider, cloudinary_media, public_media
 from .services.run_control import PipelineCancelled, assert_pipeline_active
@@ -136,6 +146,7 @@ def render_existing_clips(run_id):
     """Resume an analysis-only run at export without repeating transcription or AI."""
     run=PipelineRun.objects.select_related("order").get(pk=run_id); order=run.order
     work=Path(settings.MEDIA_ROOT)/"work"/f"{run.id}-exports"; work.mkdir(parents=True,exist_ok=True)
+    render_reservation=None
     try:
         assert_pipeline_active(run)
         run.started_at=run.started_at or timezone.now(); run.error=""; run.progress=50; run.save(update_fields=["started_at","error","progress","updated_at"])
@@ -146,14 +157,42 @@ def render_existing_clips(run_id):
         broll_assets,broll_report=broll.prepare_order_broll(order,approved_clips,work,run)
         _complete(run,stage,broll_report)
         stage=_stage(run,"render")
+        render_reservation=CreditReservation.objects.filter(
+            pipeline=run,
+            kind=CreditReservation.Kind.RENDER,
+            status=CreditReservation.Status.RESERVED,
+        ).order_by("-attempt").first()
+        if render_reservation is None:
+            attempt=next_reservation_attempt(run,CreditReservation.Kind.RENDER)
+            render_reservation=reserve_render_credits(run,approved_clips,attempt)
         rendered=_render_clip_files(order,source,work,run,broll_assets)
+        settle_render_reservation(render_reservation)
+        render_reservation=None
         _complete(run,stage,{"rendered":rendered,"formats":["mp4","mp3","srt","jpg"],"broll":broll_report})
         _finish(run,order,"quality_review")
         OrderEvent.objects.create(order=order,event_type="exports_ready",message=f"{rendered} approved clip exports are ready to download.")
     except PipelineCancelled:
+        if render_reservation is None:
+            render_reservation=CreditReservation.objects.filter(
+                pipeline=run,
+                kind=CreditReservation.Kind.RENDER,
+                status=CreditReservation.Status.RESERVED,
+            ).order_by("-attempt").first()
+        if render_reservation:
+            settle_render_reservation(render_reservation)
         _acknowledge_cancelled(run)
         return
     except Exception as exc:
+        if render_reservation:
+            settle_render_reservation(render_reservation)
+        else:
+            render_reservation=CreditReservation.objects.filter(
+                pipeline=run,
+                kind=CreditReservation.Kind.RENDER,
+                status=CreditReservation.Status.RESERVED,
+            ).order_by("-attempt").first()
+            if render_reservation:
+                settle_render_reservation(render_reservation)
         run.refresh_from_db()
         if run.status == PipelineRun.Status.CANCELLED: return
         current=run.stages.filter(status=StageRun.Status.RUNNING).last()
@@ -169,6 +208,8 @@ def render_existing_clips(run_id):
 def execute_pipeline(run_id):
     run=PipelineRun.objects.select_related("order").get(pk=run_id); order=run.order
     work=Path(settings.MEDIA_ROOT)/"work"/str(run.id); work.mkdir(parents=True,exist_ok=True)
+    analysis_reservation=None
+    render_reservation=None
     try:
         assert_pipeline_active(run)
         run.started_at=run.started_at or timezone.now(); run.error=""; run.save(update_fields=["started_at","error","updated_at"])
@@ -192,6 +233,13 @@ def execute_pipeline(run_id):
         if duration_ms<5000: raise ValueError("The source must be at least five seconds long.")
         if settings.PIPELINE_ANALYSIS_ONLY and duration_ms > 11 * 60 * 1000:
             raise ValueError("The proof of concept accepts recordings up to 11 minutes. Trim this source and try again.")
+        analysis_reservation=reserve_credits(
+            run,
+            CreditReservation.Kind.ANALYSIS,
+            stage.attempts,
+            analysis_credit_cost(duration_ms),
+            usage_items={"source_duration_ms": duration_ms},
+        )
         _complete(run,stage,{"source":str(source),"duration_ms":duration_ms,"engine":ingest_engine,"cloudinary_public_id":asset.cloudinary_public_id})
 
         stage=_stage(run,"audio")
@@ -230,7 +278,7 @@ def execute_pipeline(run_id):
         for idx,data in enumerate(package.get("clips",[])[:order.desired_clip_count],1):
             start=max(0,min(int(data.get("start_ms",0)),duration_ms-1000)); end=max(start+1000,min(int(data.get("end_ms",start+30000)),duration_ms))
             rationale=data.get("rationale","")
-            if data.get("matched_preference"): rationale=f"{data['matched_preference']} — {rationale}"
+            if data.get("matched_preference"): rationale=f"{data['matched_preference']}: {rationale}"
             preview=cloudinary_media.preview_url(asset.cloudinary_public_id,start,end) if asset.cloudinary_public_id else ""
             clips.append(Clip(order=order,rank=idx,title=str(data.get("title",f"Clip {idx}"))[:160],hook=str(data.get("hook",""))[:240],caption=data.get("caption",""),start_ms=start,end_ms=end,score=data.get("score",0),rationale=rationale,preview_url=preview))
         while len(clips)<order.desired_clip_count:
@@ -240,6 +288,11 @@ def execute_pipeline(run_id):
         Clip.objects.bulk_create(clips)
         (work/"package.json").write_text(json.dumps(package,indent=2),encoding="utf-8")
         _complete(run,stage,{"clips":len(clips),"provider":settings.AI_PROVIDER,"model":settings.GROQ_TEXT_MODEL if settings.AI_PROVIDER == "groq" else settings.NVIDIA_LLM_MODEL,"summary":package.get("summary","")})
+        capture_reservation(
+            analysis_reservation,
+            description=f"Source analysis for {order.title}",
+        )
+        analysis_reservation=None
 
         if settings.PIPELINE_REQUIRE_APPROVAL or settings.PIPELINE_ANALYSIS_ONLY:
             stage,_=StageRun.objects.get_or_create(pipeline=run,name="broll"); stage.status=StageRun.Status.SKIPPED; stage.metadata={"reason":"Runs only after clip approval","mode":order.broll_mode}; stage.finished_at=timezone.now(); stage.save()
@@ -264,7 +317,14 @@ def execute_pipeline(run_id):
         broll_assets,broll_report=broll.prepare_order_broll(order,approved_clips,work,run)
         _complete(run,stage,broll_report)
         stage=_stage(run,"render")
+        render_reservation=reserve_render_credits(
+            run,
+            approved_clips,
+            next_reservation_attempt(run,CreditReservation.Kind.RENDER),
+        )
         rendered=_render_clip_files(order,source,work,run,broll_assets)
+        settle_render_reservation(render_reservation)
+        render_reservation=None
         _complete(run,stage,{"rendered":rendered,"formats":["mp4","mp3","srt","jpg"],"broll":broll_report})
 
         stage=_stage(run,"package")
@@ -281,9 +341,17 @@ def execute_pipeline(run_id):
         _finish(run,order,"quality_review")
         OrderEvent.objects.create(order=order,event_type="pipeline_complete",message="Your clips and content package are ready for quality review.")
     except PipelineCancelled:
+        if analysis_reservation:
+            release_reservation(analysis_reservation)
+        if render_reservation:
+            settle_render_reservation(render_reservation)
         _acknowledge_cancelled(run)
         return
     except Exception as exc:
+        if analysis_reservation:
+            release_reservation(analysis_reservation)
+        if render_reservation:
+            settle_render_reservation(render_reservation)
         run.refresh_from_db()
         if run.status == PipelineRun.Status.CANCELLED: return
         current=run.stages.filter(status=StageRun.Status.RUNNING).last()

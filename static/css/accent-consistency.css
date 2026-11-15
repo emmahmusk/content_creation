@@ -1,0 +1,54 @@
+/* Keep palette-sensitive highlights tied to the user's selected accent. */
+.landing-page .hero h1.calm-display>span:last-child,
+.landing-page .hero-quick-flow b,
+.landing-page .hero-quick-flow i{color:var(--lime-2)}
+.landing-page .hero-actions .btn-lime{background:var(--accent);color:var(--accent-ink)}
+.landing-page .hero-actions .btn-lime:hover{background:color-mix(in srgb,var(--accent) 86%,#000)}
+.auth-story h1 em{color:var(--lime-2)}
+
+.credits-kicker>span{background:var(--accent);box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 12%,transparent)}
+.credit-plan.is-recommended{border-color:var(--accent);box-shadow:0 18px 55px color-mix(in srgb,var(--accent) 13%,transparent)}
+.plan-recommended{background:var(--accent);color:var(--accent-ink)}
+.payment-step-grid article a,.wallet-payment-list article>a,.wallet-empty a{color:var(--accent)}
+.payment-pulse{border-color:color-mix(in srgb,var(--accent) 20%,var(--rule));background:var(--accent-soft)}
+.payment-pulse i,.payment-status.is-pending i{background:var(--accent)}
+.payment-status.is-pending{color:var(--accent)}
+.payment-status.is-pending i{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 14%,transparent)}
+.loader-ring{border-color:color-mix(in srgb,var(--accent) 26%,var(--rule));border-top-color:var(--accent)}
+.payment-wait-state{background:var(--accent-soft);color:var(--text-primary)}
+.wallet-balance-card{border:1px solid var(--rule);background:radial-gradient(circle at 90% 0,color-mix(in srgb,var(--accent) 23%,var(--layer)),var(--layer) 52%);color:var(--text-primary)}
+.wallet-balance-card>div>span,.wallet-balance-card>div>small,.wallet-balance-card>p{color:var(--text-secondary)}
+.balance-visibility-toggle{border-color:var(--rule);background:var(--canvas-soft);color:var(--text-primary)}
+.wallet-payment-status.status-awaiting_review{background:var(--accent-soft);color:var(--accent)}
+.wallet-pending-note{color:var(--accent)}
+
+.dashboard-credit-balance{border-color:color-mix(in srgb,var(--accent) 30%,var(--rule));background:linear-gradient(110deg,var(--cc-dark),color-mix(in srgb,var(--accent) 28%,var(--cc-dark)))}
+.dashboard-credit-icon{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
+.credit-estimator-copy>span{color:var(--accent)}
+.credit-estimate-result{background:linear-gradient(125deg,color-mix(in srgb,var(--accent) 24%,#17171e),#17171e);}
+.credit-estimate-result>span{color:#d1d4df}
+
+.command-brief-copy .state-chip{border-color:color-mix(in srgb,var(--cc-accent) 24%,transparent);background:color-mix(in srgb,var(--cc-accent) 12%,var(--cc-dark));color:var(--cc-accent)}
+.command-brief-signal>i b{background:var(--cc-accent)}
+.pipeline-credit-link{color:var(--cc-accent)}
+
+.connection-kicker,.masthead-index,.compose-intro small,.connection-empty>i{color:var(--accent)}
+.connection-form select:focus,.connection-form input:focus{border-color:var(--accent)!important}
+
+.node-topic{background:color-mix(in srgb,var(--accent) 20%,var(--layer));color:var(--accent)}
+.node-entity{background:var(--accent);color:var(--accent-ink)}
+.stage-track .is-complete b,.studio-pipeline .export-all,.pipeline-card .btn{color:var(--accent-ink)}
+
+.connection-page .connection-workspace{position:relative;border:1px solid var(--rule)!important;border-radius:22px!important;background-clip:padding-box}
+.connection-page .connection-workspace .connection-form .platform-select-trigger,
+.connection-page .connection-workspace .connection-form input,
+.connection-page .connection-workspace .connection-form>button{box-sizing:border-box!important;height:48px!important;min-height:48px!important;max-height:48px!important;padding-block:0!important;border-radius:10px!important}
+.connection-page .connection-workspace .connection-form>button{display:flex;align-items:center;}
+.connection-page .connection-workspace .connection-compose,
+.connection-page .connection-workspace .destinations-head{padding-inline:clamp(20px,2.2vw,36px)!important}
+.connection-page .connection-workspace .destination-list{box-sizing:border-box;padding-inline:clamp(14px,1.8vw,28px)!important}
+@media(max-width:760px){
+  .connection-page .connection-workspace .connection-compose,
+  .connection-page .connection-workspace .destinations-head{padding-inline:18px!important}
+  .connection-page .connection-workspace .destination-list{padding-inline:12px!important}
+}

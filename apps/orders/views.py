@@ -15,6 +15,7 @@ from .services import (
 from apps.processing.models import Clip, PipelineRun
 from apps.processing.services.public_media import is_youtube_authentication_error, is_youtube_url
 from apps.processing.services.run_control import cancel_pipeline_run
+from apps.credits.services import available_balance
 
 @login_required
 def dashboard(request):
@@ -102,6 +103,7 @@ def dashboard(request):
         Q(user=request.user)
         | Q(email__iexact=request.user.email)
     ).exists()
+    credit_balance = available_balance(request.user)
     return render(
         request,
         "orders/dashboard.html",
@@ -116,6 +118,7 @@ def dashboard(request):
             "recent_events": recent_events,
             "walkthrough_waitlist_form": waitlist_form,
             "walkthrough_waitlist_joined": waitlist_joined,
+            "credit_balance": credit_balance,
         },
     )
 

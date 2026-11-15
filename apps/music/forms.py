@@ -13,7 +13,7 @@ class StudioUploadForm(forms.ModelForm):
         labels = {
             "reference_audio": "Reference song",
             "source_rights_confirmed": "I own this recording or have permission to analyze it.",
-            "analysis_only_confirmed": "Use this upload only for high-level musical analysis—not copying.",
+            "analysis_only_confirmed": "Use this upload only for high-level musical analysis, not copying.",
         }
 
     def __init__(self, *args, **kwargs):

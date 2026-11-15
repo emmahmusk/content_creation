@@ -14,7 +14,7 @@ ALLOWED_HOSTS = [x.strip() for x in os.getenv("ALLOWED_HOSTS", "localhost,127.0.
 CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if x.strip()]
 
 INSTALLED_APPS = [
-    "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
+    "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes", "django.contrib.humanize",
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
     "rest_framework", "django_filters",
     "apps.core", "apps.accounts", "apps.orders", "apps.deliverables", "apps.processing", "apps.music", "apps.credits",
@@ -36,7 +36,8 @@ TEMPLATES = [{
     "OPTIONS": {"context_processors": [
         "django.template.context_processors.request", "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
-    ]},
+        "apps.credits.context_processors.credit_nav_balance",
+    ], "libraries": {"presentation": "apps.core.templatetags.presentation"}},
 }]
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
@@ -120,6 +121,8 @@ GROQ_API_KEY = os.getenv("groq_api_key", os.getenv("GROQ_API_KEY", ""))
 GROQ_TRANSCRIPTION_MODEL = os.getenv("GROQ_TRANSCRIPTION_MODEL", "whisper-large-v3-turbo")
 GROQ_TEXT_MODEL = os.getenv("GROQ_TEXT_MODEL", "openai/gpt-oss-20b")
 GROQ_MAX_COMPLETION_TOKENS = max(1024, min(int(os.getenv("GROQ_MAX_COMPLETION_TOKENS", "8192")), 16384))
+CLIPPING_CREDIT_RATE_NGN = int(os.getenv("CLIPPING_CREDIT_RATE_NGN", "350"))
+CLIPPING_CREDIT_RATE_USD = os.getenv("CLIPPING_CREDIT_RATE_USD", "0.25")
 PIPELINE_ANALYSIS_ONLY = os.getenv("PIPELINE_ANALYSIS_ONLY", "True").lower() in {"1", "true", "yes"}
 PIPELINE_REQUIRE_APPROVAL = os.getenv("PIPELINE_REQUIRE_APPROVAL", "True").lower() in {"1", "true", "yes"}
 PIPELINE_EXECUTION_MODE = os.getenv("PIPELINE_EXECUTION_MODE", "thread").lower()

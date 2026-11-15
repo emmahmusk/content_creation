@@ -1,52 +1,71 @@
 {% extends 'base.html' %}
-{% block title %}Clipping credit plans — Kraftaa{% endblock %}
+{% load humanize %}
+{% block title %}Clipping credit plans | Kraftaa{% endblock %}
+{% block meta_description %}Compare Kraftaa clipping credit plans in NGN or USD. Estimate credits for your video length and selected clips, then choose a bundle that fits your workflow.{% endblock %}
+{% block og_title %}Clipping credit plans in NGN and USD | Kraftaa{% endblock %}
+{% block og_description %}Estimate the credits for your video and clips, then compare Kraftaa credit bundles in naira or US dollars.{% endblock %}
 {% block body_class %}credits-page{% endblock %}
 {% block content %}
-<section class="credits-hero">
-  <div class="credits-kicker"><span></span> CLIPPING CREDITS</div>
-  <h1>Choose the production capacity that fits your work.</h1>
-  <p>Plans show the credit balance, source size and clip allowance before you pay. Payment opens on Selar; credits are added after a manual payment check.</p>
-  <div class="credits-currency-note"><b>NGN and USD available</b><span>Selar handles checkout and payment methods.</span></div>
+<section class="credit-estimator" aria-labelledby="credit-estimator-title">
+  <div class="credit-estimator-copy">
+    <span>CLIPPING CREDIT PRICING</span>
+    <h1 id="credit-estimator-title">Estimate credits for your next video.</h1>
+    <p>Enter the video length and how many clips you want to make. We’ll estimate the credits and their standard bundle value.</p>
+    <p class="credit-estimator-rule"><b>How credits are counted:</b> 1 credit per started 30 minutes of video, plus 1 credit per clip up to 60 seconds. This estimate assumes each clip is 60 seconds or less.</p>
+  </div>
+  <form class="credit-estimator-form" data-credit-estimator data-rate-ngn="{{ credit_rate_ngn }}" data-rate-usd="{{ credit_rate_usd }}">
+    <label for="estimate-source-minutes">How long is your video?<span>Minutes</span><input id="estimate-source-minutes" type="number" min="1" max="10000" value="30" inputmode="numeric" data-source-minutes></label>
+    <label for="estimate-clip-count">How many clips do you need?<span>Up to 10 per project</span><input id="estimate-clip-count" type="number" min="1" max="10" value="3" inputmode="numeric" data-clip-count></label>
+    <div class="credit-estimate-result" aria-live="polite"><span>Estimated credits</span><strong><b data-estimated-credits>4</b> credits</strong><small>Standard value: <b data-estimated-ngn>₦1,400</b> or <b data-estimated-usd>$1.00</b></small></div>
+  </form>
 </section>
 
-<section class="credit-plans" aria-label="Clipping credit plans">
+<section class="credit-plans-section" aria-labelledby="credit-plans-title">
+  <header class="credit-plans-intro">
+    <div><span>CHOOSE YOUR BUNDLE</span><h2 id="credit-plans-title">Clipping credit plans</h2><p>Every plan works the same way. Choose a bundle size that fits how often you create.</p></div>
+    <p class="credit-standard-batch"><b>One typical batch = 4 credits</b><span>30-minute video analysis + 3 clips up to 60 seconds each.</span></p>
+  </header>
+  <div class="credit-plans" aria-label="Available clipping credit bundles">
   {% for plan in plans %}
   <article class="credit-plan{% if plan.recommended %} is-recommended{% endif %}">
     {% if plan.recommended %}<div class="plan-recommended">RECOMMENDED</div>{% endif %}
-    <div class="plan-heading"><span>{{ plan.name }}</span><h2>{{ plan.credits }} <small>credits</small></h2><p>{{ plan.tagline }}</p></div>
-    {% if plan.description %}<p class="plan-description">{{ plan.description }}</p>{% endif %}
+    <div class="plan-heading"><span>{{ plan.name }}</span><h3>{{ plan.credits|intcomma }} <small>credits</small></h3><p>{{ plan.tagline }}</p></div>
     <ul class="plan-limits">
       <li><b>Source file</b><span>{% if plan.max_source_mb %}Up to {{ plan.max_source_mb }} MB{% else %}Standard upload limit{% endif %}</span></li>
       {% if plan.max_source_minutes %}<li><b>Video duration</b><span>Up to {{ plan.max_source_minutes }} minutes</span></li>{% endif %}
       <li><b>Clips per project</b><span>Up to {{ plan.max_clips_per_order }}</span></li>
     </ul>
     <div class="plan-prices">
-      <div><span>NGN</span><strong>₦{{ plan.price_ngn }}</strong></div>
+      <div><span>NGN</span><strong>₦{{ plan.price_ngn|intcomma }}</strong></div>
       <div><span>USD</span><strong>${{ plan.price_usd }}</strong></div>
     </div>
     {% if plan.qr_code %}<details class="plan-qr"><summary>Pay by QR code</summary><img src="{{ plan.qr_code.url }}" alt="Selar payment QR code for {{ plan.name }}"><small>Scan to open this plan’s Selar checkout.</small></details>{% endif %}
-    {% if user.is_authenticated %}
+    {% if plan.purchasable and user.is_authenticated %}
     <div class="plan-buy-options">
-      <form method="post" action="{% url 'credits:start' plan.slug %}">{% csrf_token %}<input type="hidden" name="currency" value="NGN"><button class="plan-buy-button" type="submit"><span class="selar-wordmark">Selar</span> Pay ₦{{ plan.price_ngn }} <b>↗</b></button></form>
+      <form method="post" action="{% url 'credits:start' plan.slug %}">{% csrf_token %}<input type="hidden" name="currency" value="NGN"><button class="plan-buy-button" type="submit"><span class="selar-wordmark">Selar</span> Pay ₦{{ plan.price_ngn|intcomma }} <b>↗</b></button></form>
       <form method="post" action="{% url 'credits:start' plan.slug %}">{% csrf_token %}<input type="hidden" name="currency" value="USD"><button class="plan-buy-secondary" type="submit">Pay ${{ plan.price_usd }} in USD <b>↗</b></button></form>
     </div>
-    {% else %}
+    {% elif plan.purchasable %}
     <a class="plan-buy-button" href="{% url 'login' %}?next={% url 'credits:pricing' %}">Create an account to continue <b>→</b></a>
+    {% else %}
+    <button class="plan-buy-button is-unavailable" type="button" disabled><span class="selar-wordmark">Selar</span> Checkout opening soon</button>
     {% endif %}
   </article>
   {% empty %}
   <div class="credit-plans-empty"><span>PLANS ARE BEING PREPARED</span><h2>Clipping credit plans will appear here soon.</h2><p>We’re setting up plan limits and Selar checkout details. You can create a Kraftaa account now and return to this page once plans are available.</p><a class="btn btn-lime" href="{% url 'register' %}">Create a Kraftaa account <b>→</b></a></div>
   {% endfor %}
+</div>
 </section>
 
 <section class="payment-steps" id="payment-steps">
-  <header><span>HOW PAYMENT AND CREDITING WORK</span><h2>Clear steps. Manual payment verification.</h2></header>
-  <div class="payment-step-grid">
-    <article><b>1</b><div><h3>Choose a plan</h3><p>Compare credit count, source file limit, and the clip allowance.</p></div></article>
-    <article><b>2</b><div><h3>Pay on Selar</h3><p>Use the Selar product page or scan the plan’s QR code when available. If you do not have a Selar account, create one before checkout.</p><a href="https://help.selar.com/portal/en/kb/articles/how-to-sign-up-on-selar-17-6-2024-1" target="_blank" rel="noopener">Open Selar’s sign-up guide ↗</a></div></article>
-    <article><b>3</b><div><h3>Submit your reference</h3><p>Return to Kraftaa, select “I have made payment,” and provide the Selar transaction reference.</p></div></article>
-    <article><b>4</b><div><h3>We verify and credit</h3><p>An admin checks Selar or the connected bank account. Approved payments automatically add the credits shown on the purchased plan.</p></div></article>
+  <header><span>THREE SIMPLE STEPS</span><h2>From bundle to clips.</h2></header>
+  <div class="payment-step-grid payment-step-grid-compact">
+    <article><b>1</b><div><h3>Choose a bundle</h3><p>Use the estimate above, then pick the amount of credits you need.</p></div></article>
+    <article><b>2</b><div><h3>Pay on Selar</h3><p>Choose NGN or USD and complete checkout securely on Selar. <a href="https://help.selar.com/portal/en/kb/articles/how-to-sign-up-on-selar-17-6-2024-1" target="_blank" rel="noopener">New to Selar? See how to create an account ↗</a></p></div></article>
+    <article><b>3</b><div><h3>Confirm your purchase</h3><p>Return to Kraftaa and submit your payment reference. Your credits appear in your balance after confirmation.</p></div></article>
   </div>
-  <p class="payment-manual-note">Credits remain pending until the payment is manually verified. Do not share your Selar password or banking details with Kraftaa.</p>
 </section>
+<script>
+(()=>{const form=document.querySelector('[data-credit-estimator]');if(!form)return;const minutes=form.querySelector('[data-source-minutes]'),clips=form.querySelector('[data-clip-count]'),credits=form.querySelector('[data-estimated-credits]'),ngn=form.querySelector('[data-estimated-ngn]'),usd=form.querySelector('[data-estimated-usd]'),rateNgn=Number(form.dataset.rateNgn)||350,rateUsd=Number(form.dataset.rateUsd)||.25;const update=()=>{const m=Math.max(1,Number(minutes.value)||1),c=Math.max(1,Math.min(10,Number(clips.value)||1)),units=Math.ceil(m/30)+c;credits.textContent=String(units);ngn.textContent='₦'+new Intl.NumberFormat('en-NG',{maximumFractionDigits:0}).format(units*rateNgn);usd.textContent='$'+new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(units*rateUsd)};minutes.addEventListener('input',update);clips.addEventListener('input',update);update()})();
+</script>
 {% endblock %}

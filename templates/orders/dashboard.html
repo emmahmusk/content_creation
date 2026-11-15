@@ -1,5 +1,5 @@
-{% extends 'base.html' %}
-{% block title %}Command center — Kraftaa{% endblock %}
+{% extends 'base.html' %}{% load presentation %}
+{% block title %}Command center | Kraftaa{% endblock %}
 {% block body_class %}app-page command-center-page{% endblock %}
 {% block content %}
 <section class="dashboard workspace-dashboard command-dashboard">
@@ -12,6 +12,13 @@
     <a class="btn btn-lime command-new" href="{% url 'orders:create' %}">New project <span>+</span></a>
   </header>
 
+  <section class="dashboard-credit-balance" aria-label="Clipping credit balance">
+    <div class="dashboard-credit-icon" aria-hidden="true">✦</div>
+    <div class="dashboard-credit-summary"><span>AVAILABLE CLIPPING CREDITS</span><strong data-credit-value data-balance="{{ credit_balance }}">{{ credit_balance }}</strong><small>credits ready to use</small></div>
+    <button class="dashboard-credit-toggle" type="button" data-credit-visibility aria-pressed="false"><span aria-hidden="true">◉</span><span data-credit-toggle-label>Hide balance</span></button>
+    <a href="{% url 'credits:pricing' %}">Get credits <b>+</b></a>
+  </section>
+
   <section class="command-brief" aria-labelledby="priority-title">
     <div class="command-brief-label">
       <span>01</span>
@@ -21,12 +28,12 @@
       {% if priority_kind == 'review' and priority_order %}
         <span class="state-chip state-recommended"><i></i>Recommended</span>
         <h2 id="priority-title">Review {{ priority_order.clip_total }} ranked moment{{ priority_order.clip_total|pluralize }}.</h2>
-        <p>The engine found {{ priority_order.high_potential_total }} high-potential signal{{ priority_order.high_potential_total|pluralize }} in <strong>{{ priority_order.title }}</strong>. Approve only what deserves production spend.</p>
+        <p>The engine found {{ priority_order.high_potential_total }} high-potential signal{{ priority_order.high_potential_total|pluralize }} in <strong>{{ priority_order.title|display_title }}</strong>. Approve only what deserves production spend.</p>
         <a href="{% url 'orders:detail' priority_order.pk %}">Open review queue <span>→</span></a>
       {% elif priority_kind == 'processing' and priority_order %}
         <span class="state-chip state-processing"><i></i>Processing</span>
         <h2 id="priority-title">The engine is reading your latest source.</h2>
-        <p><strong>{{ priority_order.title }}</strong> is moving through transcription, clip discovery, and ranking. Your team can keep working elsewhere.</p>
+        <p><strong>{{ priority_order.title|display_title }}</strong> is moving through transcription, clip discovery, and ranking. Your team can keep working elsewhere.</p>
         <a href="{% url 'orders:detail' priority_order.pk %}">View live progress <span>→</span></a>
       {% else %}
         <span class="state-chip state-ready"><i></i>Ready</span>
@@ -90,7 +97,7 @@
         <div class="command-table-head" aria-hidden="true"><span>Production batch</span><span>Moments</span><span>Stage</span><span></span></div>
         {% for order in orders %}
         <a class="command-project-row" role="listitem" href="{% url 'orders:detail' order.pk %}">
-          <div class="command-project-name"><i>{{ order.title|first|upper }}</i><div><small>PROJECT {{ order.project_number|stringformat:'02d' }}</small><h3>{{ order.title }}</h3><p>{{ order.created_at|date:"M j · g:i A" }} · {{ order.target_platforms|length }} destination{{ order.target_platforms|length|pluralize }}</p></div></div>
+          <div class="command-project-name"><i>{{ order.title|first|upper }}</i><div><small>PROJECT {{ order.project_number|stringformat:'02d' }}</small><h3>{{ order.title|display_title }}</h3><p>{{ order.created_at|date:"M j · g:i A" }} · {{ order.target_platforms|length }} destination{{ order.target_platforms|length|pluralize }}</p></div></div>
           <div class="command-project-intel"><strong>{{ order.clip_total|stringformat:'02d' }}</strong><span>moments</span>{% if order.high_potential_total %}<b>{{ order.high_potential_total }} high potential</b>{% endif %}</div>
           <div class="command-project-stage"><span class="state-chip state-{{ order.status }}"><i></i>{{ order.get_status_display }}</span><div><b style="width:{% if order.status == 'delivered' %}100{% elif order.status == 'quality_check' %}88{% elif order.status == 'in_progress' %}72{% elif order.status == 'reviewing' %}32{% else %}12{% endif %}%"></b></div></div>
           <span class="command-row-arrow">↗</span>
@@ -107,7 +114,7 @@
       {% if recent_events %}
       <ol>
         {% for event in recent_events %}
-        <li><i></i><div><p>{{ event.message }}</p><a href="{% url 'orders:detail' event.order.pk %}">{{ event.order.title }}</a><time>{{ event.created_at|timesince }} ago</time></div></li>
+        <li><i></i><div><p>{{ event.message }}</p><a href="{% url 'orders:detail' event.order.pk %}">{{ event.order.title|display_title }}</a><time>{{ event.created_at|timesince }} ago</time></div></li>
         {% endfor %}
       </ol>
       {% else %}

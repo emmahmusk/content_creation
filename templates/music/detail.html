@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{{ project.title }} — AfroFusion Studio{% endblock %}
+{% block title %}{{ project.title }} | AfroFusion Studio{% endblock %}
 {% block body_class %}app-page music-page{% endblock %}
 {% block content %}
 <section class="music-detail-shell"><a class="music-back" href="{% url 'music:home' %}">← All studio sessions</a><header class="music-project-head"><div><span>AFROFUSION SESSION · {{ project.id|stringformat:'s'|slice:':8' }}</span><h1>{{ project.title }}</h1><p>{{ project.original_filename }}</p></div><div class="music-project-state"><span>{{ project.get_status_display }}</span><strong>{{ project.progress }}%</strong></div></header>

@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 from django.db import transaction
 
-from .models import CreditLedgerEntry, CreditPlan, PaymentRequest
+from .models import CreditLedgerEntry, CreditPlan, CreditReservation, PaymentRequest
 
 
 @admin.register(CreditPlan)
@@ -52,6 +52,18 @@ class CreditLedgerEntryAdmin(admin.ModelAdmin):
     list_display = ("created_at", "user", "entry_type", "amount", "description", "payment_request", "created_by")
     list_filter = ("entry_type", "created_at")
     search_fields = ("user__username", "user__email", "description")
-    readonly_fields = ("user", "payment_request", "entry_type", "amount", "description", "created_by", "created_at")
+    readonly_fields = ("user", "payment_request", "reservation", "entry_type", "amount", "description", "created_by", "created_at")
     def has_add_permission(self, request):
         return request.user.is_superuser
+
+
+@admin.register(CreditReservation)
+class CreditReservationAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "pipeline", "kind", "attempt", "credits", "charged_credits", "status", "settled_at")
+    list_filter = ("kind", "status", "created_at")
+    search_fields = ("pipeline__order__title", "pipeline__order__customer__username", "pipeline__order__customer__email")
+    readonly_fields = ("pipeline", "kind", "attempt", "credits", "charged_credits", "usage_items", "status", "created_at", "settled_at")
+    def has_add_permission(self, request):
+        return False
+    def has_change_permission(self, request, obj=None):
+        return False

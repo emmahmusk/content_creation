@@ -48,6 +48,16 @@ class SourceAssetForm(forms.ModelForm):
     class Meta:
         model = SourceAsset
         fields = ["file", "external_url", "rights_confirmed"]
+
+    def clean_file(self):
+        uploaded = self.cleaned_data.get("file")
+        if uploaded and uploaded.size > settings.PUBLIC_MEDIA_MAX_BYTES:
+            limit_mb = settings.PUBLIC_MEDIA_MAX_BYTES // (1024 * 1024)
+            raise forms.ValidationError(
+                f"This source exceeds the {limit_mb} MB upload limit. Choose a smaller file or contact us for help."
+            )
+        return uploaded
+
     def clean(self):
         cleaned = super().clean()
         if not cleaned.get("file") and not cleaned.get("external_url"):

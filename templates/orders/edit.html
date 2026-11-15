@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load presentation %}
 
-{% block title %}Edit {{ order.title }} — Kraftaa{% endblock %}
+{% block title %}Edit {{ order.title|display_title }} | Kraftaa{% endblock %}
 {% block body_class %}app-page project-edit-page{% endblock %}
 
 {% block content %}

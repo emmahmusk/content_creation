@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Kraftaa API documentation for developers | Coming soon{% endblock %}
+{% block meta_description %}Kraftaa API documentation for developers building integrations with our video clipping and content production platform. Documentation is coming soon.{% endblock %}
+{% block og_title %}Kraftaa API for developers | Documentation coming soon{% endblock %}
+{% block og_description %}Developer guides for connecting tools and workflows to Kraftaa are coming soon.{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/api-docs.css' %}?v=20261115b">{% endblock %}
+{% block body_class %}api-docs-page{% endblock %}
+{% block content %}
+<section class="api-coming-soon" aria-labelledby="api-coming-title">
+  <div class="api-coming-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="api-coming-copy">
+    <p class="api-coming-kicker"><span></span> FOR DEVELOPERS</p>
+    <h1 id="api-coming-title">Build with Kraftaa.</h1>
+    <p class="api-coming-lead">Kraftaa API documentation is coming soon.</p>
+    <p class="api-coming-description">We’re preparing clear guides for developers who want to connect their tools and workflows to Kraftaa. Check back soon for integration details, endpoints, and examples.</p>
+    <a class="api-coming-back" href="{% url 'home' %}">Back to Kraftaa <span aria-hidden="true">→</span></a>
+  </div>
+  <aside class="api-coming-note" aria-label="Documentation status"><span>DOCUMENTATION STATUS</span><strong>In the works</strong><p>Integration resources are on the way.</p></aside>
+</section>
+{% endblock %}

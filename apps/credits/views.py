@@ -1,9 +1,9 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
-from django.db.models import Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -11,15 +11,16 @@ from django.views.decorators.http import require_http_methods
 
 from .forms import PaymentConfirmationForm
 from .models import CreditPlan, PaymentRequest
-
-
-def _balance(user):
-    return user.credit_ledger_entries.aggregate(total=Sum("amount"))["total"] or 0
+from .services import available_balance
 
 
 def pricing(request):
-    plans = [plan for plan in CreditPlan.objects.filter(is_active=True) if plan.purchasable]
-    return render(request, "credits/pricing.html", {"plans": plans})
+    plans = CreditPlan.objects.filter(is_active=True)
+    return render(request, "credits/pricing.html", {
+        "plans": plans,
+        "credit_rate_ngn": settings.CLIPPING_CREDIT_RATE_NGN,
+        "credit_rate_usd": settings.CLIPPING_CREDIT_RATE_USD,
+    })
 
 
 @require_http_methods(["POST"])
@@ -70,7 +71,7 @@ def wallet(request):
     entries = request.user.credit_ledger_entries.select_related("created_by", "payment_request")[:30]
     payments = request.user.credit_payment_requests.select_related("plan")[:20]
     return render(request, "credits/wallet.html", {
-        "balance": _balance(request.user),
+        "balance": available_balance(request.user),
         "entries": entries,
         "payments": payments,
         "now": timezone.now(),

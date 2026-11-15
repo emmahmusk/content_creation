@@ -1,5 +1,5 @@
-{% extends 'base.html' %}{% load static %}
-{% block title %}{{ order.title }} — Kraftaa Studio{% endblock %}
+{% extends 'base.html' %}{% load static presentation %}
+{% block title %}{{ order.title|display_title }} | Kraftaa Studio{% endblock %}
 {% block body_class %}app-page review-page{% endblock %}
 {% block content %}
 <main class="studio-shell review-studio">
@@ -8,7 +8,7 @@
   <header class="studio-head">
     <div>
       <div class="eyebrow">REVIEW WORKSPACE · {{ order.id|stringformat:'s'|slice:':8'|upper }}</div>
-      <h1>{{ order.title }}</h1>
+      <h1>{{ order.title|display_title }}</h1>
       <p>Review the suggestions, choose the strongest moments, and edit only the clips you plan to use.</p>
       <div class="studio-context-line"><span>{{ clip_count|stringformat:'02d' }} moments found</span><i></i><span>{{ approved_count|stringformat:'02d' }} selected</span><i></i><span>{{ order.target_platforms|length|stringformat:'02d' }} destinations</span></div>
     </div>
@@ -60,7 +60,8 @@
     </aside>
     <div class="pipeline-error{% if not pipeline.error %} hidden{% endif %}" role="alert">
       <strong>We hit a snag, but your project and brief are safe.</strong>
-      <span>{{ pipeline.error }}</span>
+      <span data-pipeline-error-text>{{ pipeline.error }}</span>
+      <a class="pipeline-credit-link hidden" data-pipeline-credit-link href="{% url 'credits:pricing' %}">Get clipping credits <span>→</span></a>
       {% if source_recovery_required %}
       <div class="source-recovery">
         <div>

@@ -1,0 +1,61 @@
+.dashboard-credit-balance{display:flex;align-items:center;gap:17px;margin:0 0 25px;padding:17px 20px;border:1px solid #dcdeea;border-radius:19px;background:linear-gradient(100deg,#14151c,#242b50);color:#fff;box-shadow:0 18px 48px #10122116}.dashboard-credit-icon{display:grid;place-items:center;flex:0 0 42px;height:42px;border:1px solid #ffffff24;border-radius:14px;background:#ffffff0d;color:#b5c2ff;font-size:19px}.dashboard-credit-summary{display:flex;align-items:baseline;gap:9px;flex:1;flex-wrap:wrap}.dashboard-credit-summary>span{width:100%;color:#b8bbcc;font-size:9px;font-weight:900;letter-spacing:.15em}.dashboard-credit-summary strong{font-size:32px;line-height:1;letter-spacing:-.05em}.dashboard-credit-summary small{color:#b8bbcc;font-size:11px}.dashboard-credit-toggle{padding:8px 10px;border:1px solid #ffffff2c;border-radius:999px;background:#ffffff0a;color:#f2f3f8;font:700 11px inherit;cursor:pointer}.dashboard-credit-balance>a{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:#fff;color:#1b1b23;text-decoration:none;font-size:12px;font-weight:800}.dashboard-credit-balance>a b{font-size:17px}.credit-estimator{display:grid;grid-template-columns:minmax(230px,.9fr) minmax(400px,1.1fr);align-items:center;gap:34px;width:min(1280px,calc(100% - 56px));margin:-12px auto 24px;padding:24px 28px;border:1px solid #dfdfe3;border-radius:22px;background:linear-gradient(120deg,#f2f2ef,#fafaf8)}.credit-estimator-copy>span{font-size:10px;font-weight:900;letter-spacing:.15em;color:#777985}.credit-estimator-copy h2{margin:9px 0;font-size:clamp(24px,3vw,34px);line-height:1.05;letter-spacing:-.05em}.credit-estimator-copy p{max-width:470px;margin:0;color:#737783;font-size:12px;line-height:1.55}.credit-estimator-form{display:grid;grid-template-columns:1fr 1fr 1.15fr;align-items:end;gap:12px}.credit-estimator-form>label{display:grid;gap:6px;color:#272730;font-size:12px;font-weight:800}.credit-estimator-form>label>span{font-size:10px;color:#777985;font-weight:600}.credit-estimator-form input{width:100%;min-width:0;min-height:44px;padding:9px 11px;border:1px solid #d9d9df;border-radius:10px;background:#fff;color:#1b1a20;font:600 14px inherit}.credit-estimate-result{display:grid;gap:5px;min-height:74px;padding:10px 12px;border-radius:12px;background:#17171e;color:#fff}.credit-estimate-result>span{font-size:9px;color:#b6b7c2;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.credit-estimate-result>strong{font-size:16px}.credit-estimate-result>small{font-size:9px;color:#c1c2cb}.credit-estimate-result>small b{color:#fff}.is-unavailable{opacity:.56;cursor:not-allowed}.payment-manual-note{color:#737783}
+@media(max-width:900px){.credit-estimator{grid-template-columns:1fr;gap:20px}.credit-estimator-form{grid-template-columns:1fr 1fr 1.2fr}}@media(max-width:650px){.dashboard-credit-balance{gap:10px;flex-wrap:wrap;padding:15px}.dashboard-credit-icon{display:none}.dashboard-credit-summary{flex:1 1 55%}.dashboard-credit-summary strong{font-size:27px}.dashboard-credit-toggle{padding:7px 8px}.dashboard-credit-balance>a{flex:1 1 100%;justify-content:center}.credit-estimator{width:calc(100% - 32px);margin:0 auto 20px;padding:20px 16px}.credit-estimator-form{grid-template-columns:1fr 1fr}.credit-estimate-result{grid-column:1/-1}}.dashboard-credit-toggle{font-family:inherit;font-size:11px;font-weight:700}.credit-estimator-form input{font-family:inherit;font-size:14px;font-weight:600}.payment-account-note{margin:18px 0 0;color:#737783;font-size:12px}
+
+.credit-plan .plan-prices>div{border:1px solid var(--rule-soft);background:var(--canvas-soft);color:var(--text-primary)}
+.credit-plan .plan-prices span{color:var(--text-secondary)}
+.credit-plan .plan-prices strong{color:var(--text-primary);font-weight:800}
+.credit-estimator{width:min(1280px,calc(100% - 56px));margin:38px auto 30px;background:var(--canvas-soft);border-color:var(--rule);color:var(--text-primary)}
+.credit-estimator-copy>span{color:var(--accent)}
+.credit-estimator-copy h1{margin:9px 0 12px;color:var(--text-primary);font-size:clamp(30px,4vw,48px);line-height:1.04;letter-spacing:-.055em}
+.credit-estimator-copy p{color:var(--text-secondary)}
+.credit-estimator-rule{margin-top:13px!important;font-size:12px!important}
+.credit-estimator-rule b{color:var(--text-primary)}
+.credit-estimator-form>label{color:var(--text-primary)}
+.credit-estimator-form>label>span{color:var(--text-secondary)}
+.credit-estimator-form input{border-color:var(--rule);background:var(--layer);color:var(--text-primary)}
+.credit-estimator-form input:focus{border-color:var(--accent);outline:2px solid color-mix(in srgb,var(--accent) 25%,transparent)}
+.credit-plans-section{width:min(1280px,calc(100% - 56px));margin:0 auto;padding-bottom:78px}
+.credit-plans-section .credit-plans{width:100%;margin:0;padding:10px 0 0}
+.credit-plans-section .plan-heading h3{margin:22px 0 4px;font-size:42px;letter-spacing:-.06em;color:var(--text-primary)}
+.credit-plans-section .plan-heading h3 small{font-size:14px;letter-spacing:0;color:var(--text-secondary)}
+.credit-plans-intro{display:flex;align-items:end;justify-content:space-between;gap:25px}
+.credit-plans-intro>div>span{font-size:10px;font-weight:900;letter-spacing:.15em;color:var(--accent)}
+.credit-plans-intro h2{margin:8px 0;font-size:clamp(28px,3.5vw,42px);letter-spacing:-.05em;color:var(--text-primary)}
+.credit-plans-intro>div>p{margin:0;color:var(--text-secondary);font-size:14px}
+.credit-standard-batch{display:grid;gap:5px;max-width:340px;margin:0;padding:14px 16px;border:1px solid var(--rule);border-radius:14px;background:var(--layer);color:var(--text-primary)}
+.credit-standard-batch b{font-size:12px}
+.credit-standard-batch span{color:var(--text-secondary);font-size:11px;line-height:1.45}
+.payment-step-grid-compact{grid-template-columns:repeat(3,minmax(0,1fr))}
+.payment-step-grid-compact article{background:var(--layer);border-color:var(--rule)}
+.payment-step-grid-compact article>b{background:var(--text-primary);color:var(--canvas)}
+.payment-step-grid-compact h3{color:var(--text-primary)}
+.payment-step-grid-compact p,.payment-step-grid-compact a{color:var(--text-secondary)}
+.payment-step-grid-compact a{color:var(--accent);font-weight:700}
+@media(max-width:1000px){.credit-plans-section .credit-plans{grid-template-columns:repeat(2,minmax(0,1fr))}.payment-step-grid-compact{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.credit-estimator,.credit-plans-section{width:calc(100% - 32px)}.credit-estimator{margin:24px auto}.credit-estimator-form{grid-template-columns:1fr}.credit-plans-intro{align-items:flex-start;flex-direction:column}.credit-standard-batch{max-width:none;width:100%}.credit-plans-section .credit-plans{grid-template-columns:1fr;padding-bottom:0}.payment-step-grid-compact{grid-template-columns:1fr}.credit-plans-section{padding-bottom:55px}}
+.nav-credit-balance{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;border:1px solid var(--rule);border-radius:13px;background:var(--layer);color:var(--text-primary)}
+.nav-credit-summary{display:grid;grid-template-columns:auto auto;align-items:baseline;column-gap:5px;line-height:1;text-decoration:none}
+.nav-credit-summary>span{grid-column:1/-1;margin-bottom:4px;color:var(--text-secondary);font-size:8px;font-weight:900;letter-spacing:.12em}
+.nav-credit-summary>strong{font-size:15px;font-weight:800}
+.nav-credit-summary>small{color:var(--text-secondary);font-size:9px}
+.nav-credit-toggle{display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid var(--rule);border-radius:9px;background:var(--canvas-soft);color:var(--text-secondary);font-size:13px;cursor:pointer}
+.nav-credit-toggle:hover,.nav-credit-toggle:focus-visible{border-color:var(--accent);color:var(--text-primary)}
+.nav-credit-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wallet-heading>div>span{color:var(--accent)}
+.wallet-heading .btn-lime{background:var(--accent);color:var(--accent-ink)}
+.credit-balance-value{font-variant-numeric:tabular-nums}
+.wallet-balance-card>p{max-width:680px;line-height:1.55}
+.credit-ledger article>strong small{font-size:10px;font-weight:600}
+@media(min-width:761px){.nav-links{gap:clamp(11px,1.4vw,20px)}}
+@media(max-width:760px){.nav-links .nav-credit-balance{width:100%;justify-content:space-between;margin:6px 0;padding:13px 14px;border-radius:14px}.nav-credit-summary{display:flex;align-items:baseline;gap:7px}.nav-credit-summary>span{width:auto;margin:0;font-size:9px}.nav-credit-summary>strong{font-size:19px}.nav-credit-summary>small{font-size:11px}.nav-credit-toggle{width:36px;height:36px}}
+.clipping-path-section{background:var(--canvas-soft);color:var(--text-primary)}
+.clipping-path-head>span{color:var(--accent)}
+.clipping-path-head h2,.clipping-path-grid article b{color:var(--text-primary)}
+.clipping-path-head p,.clipping-path-grid article p,.clipping-path-footer p{color:var(--text-secondary)}
+.clipping-path-grid article{border-color:var(--rule);background:var(--layer);color:var(--text-primary)}
+.clipping-path-grid article>span{border-color:var(--rule);background:var(--canvas-soft);color:var(--accent)}
+.clipping-path-footer{border-color:var(--rule)}
+.payment-request-summary{border-color:var(--rule);background:var(--canvas-soft);color:var(--text-primary)}
+.payment-request-summary>span,.payment-request-summary>strong{color:var(--text-primary)}
+.studio-empty{border-color:var(--rule);background:var(--layer);color:var(--text-primary)}
+.intelligence-page .intel-jump{background:color-mix(in srgb,var(--cc-canvas) 94%,transparent);color:var(--cc-ink)}

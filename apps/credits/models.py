@@ -52,10 +52,10 @@ class CreditPlan(models.Model):
 
 class PaymentRequest(models.Model):
     class Status(models.TextChoices):
-        AWAITING_PAYMENT = "awaiting_payment", "Awaiting payment"
-        AWAITING_REVIEW = "awaiting_review", "Awaiting admin review"
-        APPROVED = "approved", "Approved"
-        DECLINED = "declined", "Declined"
+        AWAITING_PAYMENT = "awaiting_payment", "Checkout started"
+        AWAITING_REVIEW = "awaiting_review", "Payment submitted"
+        APPROVED = "approved", "Credits added"
+        DECLINED = "declined", "Payment needs attention"
 
     class Currency(models.TextChoices):
         NGN = "NGN", "NGN"
@@ -129,6 +129,43 @@ class PaymentRequest(models.Model):
         return True
 
 
+class CreditReservation(models.Model):
+    class Kind(models.TextChoices):
+        ANALYSIS = "analysis", "Source analysis"
+        RENDER = "render", "Clip rendering"
+
+    class Status(models.TextChoices):
+        RESERVED = "reserved", "Reserved"
+        CAPTURED = "captured", "Charged"
+        RELEASED = "released", "Released"
+
+    pipeline = models.ForeignKey(
+        "processing.PipelineRun",
+        on_delete=models.CASCADE,
+        related_name="credit_reservations",
+    )
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    attempt = models.PositiveSmallIntegerField(default=1)
+    credits = models.PositiveIntegerField()
+    charged_credits = models.PositiveIntegerField(default=0)
+    usage_items = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.RESERVED, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    settled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["pipeline", "kind", "attempt"],
+                name="unique_pipeline_credit_reservation",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.kind} · {self.credits} credits · {self.get_status_display()}"
+
+
 class CreditLedgerEntry(models.Model):
     class Type(models.TextChoices):
         PURCHASE = "purchase", "Purchase"
@@ -138,6 +175,7 @@ class CreditLedgerEntry(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="credit_ledger_entries")
     payment_request = models.ForeignKey(PaymentRequest, on_delete=models.PROTECT, related_name="ledger_entries", null=True, blank=True)
+    reservation = models.OneToOneField(CreditReservation, on_delete=models.PROTECT, related_name="ledger_entry", null=True, blank=True)
     entry_type = models.CharField(max_length=16, choices=Type.choices)
     amount = models.IntegerField(help_text="Positive adds credits; negative spends credits.")
     description = models.CharField(max_length=180)

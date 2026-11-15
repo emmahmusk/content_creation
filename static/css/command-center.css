@@ -1,4 +1,4 @@
-/* Kraftaa command-center layer — dense intelligence, restrained materials, explicit states. */
+/* Kraftaa command-center layer: dense intelligence, restrained materials, explicit states. */
 :root{
   --cc-canvas:#f4f4f1;
   --cc-surface:#fbfbf9;
@@ -71,7 +71,7 @@ body.app-page :is(a,button,input,select,textarea,summary):focus-visible{outline:
 .command-dashboard{width:min(1450px,100%);padding:56px clamp(24px,4vw,64px) 100px}
 .command-header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:40px;padding-bottom:36px}
 .command-kicker{display:flex;align-items:center;gap:10px;margin-bottom:18px;color:var(--cc-muted);font:700 9px/1 Manrope,sans-serif;letter-spacing:.18em}
-.command-kicker i{width:22px;height:1px;background:var(--cc-line-strong)}
+.command-kicker i{display:none}
 .command-kicker b{display:flex;align-items:center;gap:7px;color:var(--cc-success);font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 .command-kicker b:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--cc-success);box-shadow:0 0 0 4px color-mix(in srgb,var(--cc-success) 11%,transparent)}
 .command-header h1{max-width:880px;margin:0;color:var(--cc-ink);font-size:clamp(40px,4.4vw,68px);line-height:.98;letter-spacing:-.065em;text-wrap:balance}
@@ -299,6 +299,8 @@ body.app-page :is(.status-revision,.status-failed,.status-cancelled){
 .review-studio .clip-decision.primary{border-color:var(--cc-ink);background:var(--cc-ink);color:var(--cc-canvas)}
 .pipeline-error{display:grid;gap:4px;margin:18px 0 0;padding:13px 15px;border:1px solid #68332f;border-radius:8px;background:#2b1b1a;color:#f3c4c0;font-size:10px}
 .pipeline-error strong{color:#fff;font-size:11px}
+.pipeline-credit-link{justify-self:start;margin-top:8px;color:#aebaff;font-weight:700;text-decoration:none}
+.pipeline-credit-link:hover{text-decoration:underline}
 .youtube-auth-prompt{display:grid;grid-template-columns:minmax(180px,1fr) auto auto auto;align-items:center;gap:12px;margin:18px 0 0;padding:16px;border:1px solid color-mix(in srgb,var(--cc-accent) 45%,transparent);border-radius:12px;background:color-mix(in srgb,var(--cc-accent) 11%,var(--cc-surface));color:var(--cc-ink)}
 .youtube-auth-prompt>div>span{color:var(--cc-accent);font-size:8px;font-weight:800;letter-spacing:.13em}
 .youtube-auth-prompt h3{margin:4px 0;font:700 14px Manrope}

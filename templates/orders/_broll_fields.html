@@ -24,7 +24,7 @@
   </div>
   {{ form.broll_mode.errors }}
   <div class="broll-intensity">
-    <div><strong>{{ form.broll_intensity.label }}</strong><small>Controls how often B-roll replaces the main camera—not the quality of the clip.</small></div>
+    <div><strong>{{ form.broll_intensity.label }}</strong><small>Controls how often B-roll replaces the main camera, not the quality of the clip.</small></div>
     <div class="broll-intensity-options">
       {% for option in form.broll_intensity %}
         <label>{{ option.tag }}<span>{{ option.choice_label }}</span></label>

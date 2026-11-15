@@ -5,6 +5,8 @@ from django.utils import timezone
 
 from apps.orders.models import ContentOrder, OrderEvent
 from apps.processing.models import PipelineRun, StageRun
+from apps.credits.models import CreditReservation
+from apps.credits.services import settle_render_reservation
 
 
 class PipelineCancelled(Exception):
@@ -41,6 +43,21 @@ def cancel_pipeline_run(run, *, actor=None, reason="Project settings need to be 
         finished_at=now,
         metadata={"reason": reason},
     )
+    locked.credit_reservations.filter(
+        status=CreditReservation.Status.RESERVED,
+        kind=CreditReservation.Kind.ANALYSIS,
+    ).update(
+        status=CreditReservation.Status.RELEASED,
+        charged_credits=0,
+        settled_at=now,
+    )
+    for reservation in locked.credit_reservations.filter(
+        status=CreditReservation.Status.RESERVED,
+        kind=CreditReservation.Kind.RENDER,
+    ):
+        # A queued render task may be revoked before a worker can settle it.
+        # Charge any clips already completed and release the unused reservation.
+        settle_render_reservation(reservation)
 
     order = locked.order
     order.status = ContentOrder.Status.REVISION

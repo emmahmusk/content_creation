@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Publishing destinations — Kraftaa{% endblock %}
+{% block title %}Publishing destinations | Kraftaa{% endblock %}
 {% block body_class %}app-page connection-page{% endblock %}
 {% block content %}
 <main class="connections-shell">
@@ -20,21 +20,21 @@
 
   <section class="connection-workspace" data-api-url="/api/v1/social-handles/" data-icon-sprite="{% static 'images/social-platforms.svg' %}">
     <div class="connection-compose">
-      <div class="compose-intro"><span>01</span><div><small>ADD A DESTINATION</small><h2>Where should your<br>content travel next?</h2><p>Connect a public handle or profile URL. You can update or remove it at any time.</p></div></div>
+      <div class="compose-intro"><div><small>ADD A DESTINATION</small><h2>Where should your<br>content travel next?</h2><p>Connect a public handle or profile URL. You can update or remove it at any time.</p></div></div>
       <form class="social-handle-form connection-form">
-        <div><label for="social-platform">Platform</label><select id="social-platform" name="platform" required><option value="">Choose a platform</option>{% for value,label in platforms %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+        <div><label for="social-platform">Platform</label><select id="social-platform" name="platform" required><option value="">Select platform</option>{% for value,label in platforms %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
         <div><label for="social-handle">Handle or profile URL</label><input id="social-handle" name="handle" maxlength="160" placeholder="@yourhandle" required></div>
         <button class="btn btn-lime" type="submit" data-loading-text="Adding social profile…"><span>Add social profile</span><b>+</b></button>
         <p class="social-form-error hidden" role="alert"></p>
       </form>
     </div>
 
-    <div class="destinations-head"><div><span>02</span><h2>Your destinations</h2></div><p>{{ social_handles|length }} connected</p></div>
+    <div class="destinations-head"><div><h2>Your destinations</h2></div><p>{{ social_handles|length }} connected</p></div>
     <div class="social-handle-list destination-list">
       {% for item in social_handles %}
       <article data-id="{{ item.id }}" data-platform="{{ item.platform }}"><div class="platform-avatar">{% include 'shared/_platform_icon.html' with platform=item.platform %}</div><div class="destination-name"><small>PLATFORM</small><strong>{{ item.get_platform_display }}</strong></div><input value="{{ item.handle }}" maxlength="160" aria-label="{{ item.get_platform_display }} handle"><button class="download-chip social-update" type="button">Save changes</button><button class="download-chip social-delete" type="button">Remove</button></article>
       {% empty %}
-      <div class="social-empty connection-empty"><span class="empty-index">00</span><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>
+      <div class="social-empty connection-empty"><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>
       {% endfor %}
     </div>
   </section>

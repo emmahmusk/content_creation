@@ -1,6 +1,7 @@
 const routeStatus=document.querySelector('.route-status');
-const beginRouteTransition=(label='Opening next view…')=>{if(routeStatus){routeStatus.querySelector('b').textContent=label;routeStatus.setAttribute('aria-hidden','false');}document.body.classList.add('is-navigating');};
-const endRouteTransition=()=>{document.body.classList.remove('is-navigating');routeStatus?.setAttribute('aria-hidden','true');};
+let routeStatusTimer;
+const beginRouteTransition=(label='Opening next view…')=>{clearTimeout(routeStatusTimer);document.body.classList.add('is-navigating');if(routeStatus){routeStatus.querySelector('b').textContent=label;routeStatus.setAttribute('aria-hidden','true');routeStatusTimer=setTimeout(()=>{if(document.body.classList.contains('is-navigating'))routeStatus.setAttribute('aria-hidden','false');},180);}};
+const endRouteTransition=()=>{clearTimeout(routeStatusTimer);document.body.classList.remove('is-navigating');routeStatus?.setAttribute('aria-hidden','true');};
 const setButtonBusy=(button,busy,label='Working…')=>{
   if(!button)return;
   if(busy){
@@ -21,6 +22,32 @@ const setButtonBusy=(button,busy,label='Working…')=>{
 window.addEventListener('pageshow',endRouteTransition);
 document.addEventListener('click',event=>{const link=event.target.closest('a[href]');if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.target==='_blank'||link.hasAttribute('download')||link.dataset.noTransition!==undefined)return;let target;try{target=new URL(link.href,location.href);}catch(error){return;}if(target.origin!==location.origin)return;const sameDocument=target.pathname===location.pathname&&target.search===location.search;if(sameDocument&&(!target.hash||target.hash===location.hash||document.querySelector(target.hash)))return;beginRouteTransition(link.dataset.loadingText||'Opening next view…');});
 document.addEventListener('submit',event=>{if(event.defaultPrevented)return;const form=event.target;if(!(form instanceof HTMLFormElement)||form.dataset.noTransition!==undefined)return;const button=form.querySelector('button:not([type]),button[type="submit"],input[type="submit"]');const label=button?.dataset.loadingText||'Saving and opening the next step…';setButtonBusy(button,true,label);beginRouteTransition(label);});
+
+(()=>{
+  const values=[...document.querySelectorAll('[data-credit-value]')];
+  const buttons=[...document.querySelectorAll('[data-credit-visibility]')];
+  if(!values.length)return;
+  let hidden=localStorage.getItem('kraftaa-credit-balance-hidden')==='true';
+  const draw=()=>{
+    values.forEach(value=>{
+      const amount=Number(value.dataset.balance||0);
+      value.textContent=hidden?'••••':new Intl.NumberFormat('en-US').format(amount);
+    });
+    buttons.forEach(button=>{
+      button.setAttribute('aria-pressed',String(hidden));
+      button.setAttribute('aria-label',hidden?'Show clip balance':'Hide clip balance');
+      button.title=hidden?'Show balance':'Hide balance';
+      const label=button.querySelector('[data-credit-toggle-label]');
+      if(label)label.textContent=hidden?'Show balance':'Hide balance';
+    });
+  };
+  draw();
+  buttons.forEach(button=>button.addEventListener('click',()=>{
+    hidden=!hidden;
+    localStorage.setItem('kraftaa-credit-balance-hidden',String(hidden));
+    draw();
+  }));
+})();
 
 document.querySelectorAll('.copy-button').forEach(button=>button.addEventListener('click',async()=>{await navigator.clipboard.writeText(button.dataset.copy);const old=button.textContent;button.textContent='Copied';setTimeout(()=>button.textContent=old,1600)}));
 const navToggle=document.querySelector('.nav-toggle');navToggle?.addEventListener('click',()=>{const open=document.body.classList.toggle('nav-open');navToggle.setAttribute('aria-expanded',String(open));navToggle.setAttribute('aria-label',open?'Close menu':'Open menu');});
@@ -133,6 +160,9 @@ if(pipeline){
   const companionMessage=companion?.querySelector('[data-pipeline-message]');
   const companionDetail=companion?.querySelector('[data-pipeline-detail]');
   const pipelineHelp=pipeline.querySelector('.pipeline-help');
+  const pipelineErrorText=errorBox?.querySelector('[data-pipeline-error-text]');
+  const pipelineCreditLink=errorBox?.querySelector('[data-pipeline-credit-link]');
+  pipelineCreditLink?.classList.toggle('hidden',!(/available balance|clipping credit/i.test(pipelineErrorText?.textContent||'')));
   let progressFailures=0;
   let companionIndex=0;
   let companionStage='';
@@ -141,7 +171,7 @@ if(pipeline){
   const companionStories={
     ingest:[
       ['YOUR SOURCE IS CHECKING IN','Bringing every frame into the kitchen.','You can leave this page while we prepare the recording. Your progress is saved.'],
-      ['BACKGROUND MODE: ON','Go make coffee. We’ve got the timeline.','Closing this tab won’t stop the work—Kraftaa will keep moving behind the scenes.']
+      ['BACKGROUND MODE: ON','Go make coffee. We’ve got the timeline.','Closing this tab won’t stop the work. Kraftaa will keep moving behind the scenes.']
     ],
     transcribe:[
       ['LISTENING BETWEEN THE LINES','Turning every word into a useful map.','Take a call, answer a message, or get back to your day. We’ll keep listening.'],
@@ -149,16 +179,16 @@ if(pipeline){
     ],
     strategy:[
       ['MOMENT RADAR: ACTIVE','Finding the parts people will replay.','Your brief is directing the search while Kraftaa ranks hooks, clarity, and audience fit.'],
-      ['YOUR BRIEF IS DIRECTING','Ideas are becoming an approval queue.','Go chase another idea—we’ll keep sorting signal from filler in the background.'],
+      ['YOUR BRIEF IS DIRECTING','Ideas are becoming an approval queue.','Go chase another idea. We’ll keep sorting signal from filler in the background.'],
       ['NO NEED TO BABYSIT THIS','We’re shaping ten small sparks from one big conversation.','Close the tab or head back to your workspace. Your analysis will keep cooking.']
     ],
     render:[
       ['THE EDIT SUITE IS MOVING','Your exports are cooking.','Frames, captions, audio, and thumbnails are being prepared for your approved moments.'],
       ['BACKGROUND MODE: ON','Go stretch, take a call, or chase another idea.','You can close this tab. Kraftaa will keep rendering, and your progress is safely saved.'],
-      ['POLISH IN PROGRESS','Everything is lining up for publish.','Come back whenever you like—we’re handling the repetitive bits behind the scenes.']
+      ['POLISH IN PROGRESS','Everything is lining up for publish.','Come back whenever you like. We’re handling the repetitive bits behind the scenes.']
     ],
     broll:[
-      ['VISUAL STORYBOARD: ACTIVE','Building cutaways for the clips you approved.','The AI is matching each spoken beat with useful visual context—nothing unapproved is being generated.'],
+      ['VISUAL STORYBOARD: ACTIVE','Building cutaways for the clips you approved.','The AI is matching each spoken beat with useful visual context. Nothing unapproved is being generated.'],
       ['B-ROLL IS COOKING','Your approved clips are getting visual rhythm.','You can close this tab. Kraftaa will keep sourcing and generating in the background.']
     ],
     package:[
@@ -202,7 +232,9 @@ if(pipeline){
     pipeline.querySelector('.pipeline-status').textContent=humanize(data.status);
     pipeline.querySelector('.pipeline-stage').textContent=humanize(data.current_stage||data.status);
     pipeline.querySelector('.progress-track i').style.width=`${data.progress}%`;
-    errorBox.textContent=data.error||'';errorBox.classList.toggle('hidden',!data.error);
+    if(pipelineErrorText)pipelineErrorText.textContent=data.error||'';
+    pipelineCreditLink?.classList.toggle('hidden',!(/available balance|clipping credit/i.test(data.error||'')));
+    errorBox.classList.toggle('hidden',!data.error);
     if(youtubeAuthPrompt){
       const prompt=data.youtube_auth_prompt;
       youtubeAuthPrompt.classList.toggle('hidden',!prompt||data.status!=='running');
@@ -244,9 +276,9 @@ if(pipeline){
     try{
       const response=await fetch(url,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
       const data=await response.json();
-      if(!response.ok)throw new Error(data.detail||'Could not start this job.');
+      if(!response.ok){if(pipelineErrorText)pipelineErrorText.textContent=data.detail||'Could not start this job.';pipelineCreditLink?.classList.toggle('hidden',response.status!==402);errorBox.classList.remove('hidden');throw new Error(data.detail||'Could not start this job.');}
       render(data);setTimeout(refresh,1000);
-    }catch(error){errorBox.textContent=error.message;errorBox.classList.remove('hidden');setButtonBusy(button,false);button.disabled=false;button.textContent='Try again';}
+    }catch(error){if(pipelineErrorText)pipelineErrorText.textContent=error.message;errorBox.classList.remove('hidden');setButtonBusy(button,false);button.disabled=false;button.textContent='Try again';}
   };
   analyzeButton?.addEventListener('click',()=>start(analyzeButton,pipeline.dataset.startUrl,'Finding moments…'));
   renderButton?.addEventListener('click',()=>start(renderButton,pipeline.dataset.renderUrl,'Creating clips…'));
@@ -297,13 +329,33 @@ const socialManager=document.querySelector('.connection-workspace[data-api-url],
 if(socialManager){
   const form=socialManager.querySelector('.social-handle-form'),list=socialManager.querySelector('.social-handle-list'),errorBox=socialManager.querySelector('.social-form-error');
   const iconSprite=socialManager.dataset.iconSprite||'/static/images/social-platforms.svg',connectedCount=document.querySelector('.destinations-head>p');
+  const platformSelect=form?.querySelector('select[name="platform"]');
+  if(platformSelect){
+    const field=platformSelect.closest('div'),trigger=document.createElement('button'),menu=document.createElement('div');
+    const fieldLabel=field?.querySelector('label');if(fieldLabel&&!fieldLabel.id)fieldLabel.id='social-platform-label';
+    const iconFor=value=>{if(!value)return null;const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),use=document.createElementNS('http://www.w3.org/2000/svg','use');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.classList.add('platform-icon');use.setAttribute('href',`${iconSprite}#${value}`);svg.append(use);return svg;};
+    const selectedOption=()=>platformSelect.options[platformSelect.selectedIndex];
+    const wrapper=document.createElement('div');wrapper.className='platform-select-control';
+    trigger.type='button';trigger.className='platform-select-trigger';trigger.setAttribute('role','combobox');trigger.setAttribute('aria-haspopup','listbox');trigger.setAttribute('aria-expanded','false');trigger.setAttribute('aria-required','true');trigger.setAttribute('aria-controls','social-platform-options');
+    menu.id='social-platform-options';menu.className='platform-select-menu';menu.setAttribute('role','listbox');menu.setAttribute('aria-label','Social media platforms');menu.hidden=true;
+    const refreshSelection=()=>{const option=selectedOption();trigger.replaceChildren();trigger.dataset.platform=option?.value||'';const label=option?.textContent.trim()||'Select platform';trigger.setAttribute('aria-label',`Platform: ${label}`);const icon=iconFor(option?.value);if(icon)trigger.append(icon);const text=document.createElement('span');text.textContent=label;trigger.append(text);menu.querySelectorAll('[role="option"]').forEach(item=>item.setAttribute('aria-selected',String(item.dataset.value===platformSelect.value)));};
+    [...platformSelect.options].forEach(option=>{const item=document.createElement('button');item.type='button';item.className='platform-select-option';item.setAttribute('role','option');item.dataset.value=option.value;item.dataset.platform=option.value;item.setAttribute('aria-selected','false');if(option.value)item.append(iconFor(option.value));const text=document.createElement('span');text.textContent=option.textContent.trim();item.append(text);item.tabIndex=-1;item.addEventListener('click',()=>{platformSelect.value=option.value;platformSelect.dispatchEvent(new Event('change',{bubbles:true}));refreshSelection();menu.hidden=true;trigger.setAttribute('aria-expanded','false');trigger.focus();});menu.append(item);});
+    const openMenu=(focusCurrent=false)=>{menu.hidden=false;trigger.setAttribute('aria-expanded','true');if(focusCurrent){const current=menu.querySelector(`[data-value="${CSS.escape(platformSelect.value)}"]`)||menu.querySelector('[role="option"]');current?.focus();}};
+    trigger.addEventListener('click',()=>menu.hidden?openMenu(true):(menu.hidden=true,trigger.setAttribute('aria-expanded','false')));
+    trigger.addEventListener('keydown',event=>{if(['ArrowDown','ArrowUp','Enter',' '].includes(event.key)){event.preventDefault();openMenu(true);}});
+    menu.addEventListener('keydown',event=>{const options=[...menu.querySelectorAll('[role="option"]')],index=options.indexOf(document.activeElement);let next=index;if(event.key==='ArrowDown')next=(index+1)%options.length;else if(event.key==='ArrowUp')next=(index-1+options.length)%options.length;else if(event.key==='Home')next=0;else if(event.key==='End')next=options.length-1;else if(event.key==='Escape'){event.preventDefault();menu.hidden=true;trigger.setAttribute('aria-expanded','false');trigger.focus();return;}else if(event.key==='Tab'){menu.hidden=true;trigger.setAttribute('aria-expanded','false');return;}else return;event.preventDefault();options[next]?.focus();});
+    document.addEventListener('click',event=>{if(!wrapper.contains(event.target)){menu.hidden=true;trigger.setAttribute('aria-expanded','false');}});
+    platformSelect.classList.add('platform-native-select');platformSelect.removeAttribute('required');platformSelect.setAttribute('aria-hidden','true');platformSelect.tabIndex=-1;
+    wrapper.append(trigger,menu);platformSelect.insertAdjacentElement('afterend',wrapper);refreshSelection();platformSelect.addEventListener('change',refreshSelection);form.addEventListener('reset',()=>setTimeout(refreshSelection,0));
+    form.addEventListener('submit',event=>{if(!platformSelect.value){event.preventDefault();event.stopImmediatePropagation();trigger.focus();openMenu(true);errorBox.textContent='Choose a social platform to continue.';errorBox.classList.remove('hidden');}} ,true);
+  }
   const syncConnectedCount=()=>{if(connectedCount){const total=list.querySelectorAll('article').length;connectedCount.textContent=`${total} connected`;}};
   const cookie=name=>document.cookie.split('; ').find(row=>row.startsWith(`${name}=`))?.split('=')[1]||'';
   const request=async(url,method,body)=>{const response=await fetch(url,{method,headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json','Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const data=response.status===204?{}:await response.json();if(!response.ok)throw new Error(data.detail||data.platform?.[0]||data.handle?.[0]||Object.values(data).flat().join(' ')||'Could not save this profile.');return data;};
   const showError=error=>{errorBox.textContent=error.message;errorBox.classList.remove('hidden');};
   const bind=row=>{
     row.querySelector('.social-update').addEventListener('click',async()=>{const button=row.querySelector('.social-update');setButtonBusy(button,true,'Saving…');try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'PATCH',{handle:row.querySelector('input').value});button.textContent='Saved';setTimeout(()=>button.textContent='Save changes',1200);}catch(error){showError(error);}finally{setButtonBusy(button,false);button.disabled=false;}});
-    row.querySelector('.social-delete').addEventListener('click',async()=>{if(!confirm('Remove this social profile?'))return;const button=row.querySelector('.social-delete');setButtonBusy(button,true,'Removing…');try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'DELETE');row.remove();syncConnectedCount();if(!list.querySelector('article'))list.innerHTML='<div class="social-empty connection-empty"><span class="empty-index">00</span><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>';}catch(error){showError(error);setButtonBusy(button,false);button.disabled=false;}});
+    row.querySelector('.social-delete').addEventListener('click',async()=>{if(!confirm('Remove this social profile?'))return;const button=row.querySelector('.social-delete');setButtonBusy(button,true,'Removing…');try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'DELETE');row.remove();syncConnectedCount();if(!list.querySelector('article'))list.innerHTML='<div class="social-empty connection-empty"><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>';}catch(error){showError(error);setButtonBusy(button,false);button.disabled=false;}});
   };
   list.querySelectorAll('article').forEach(bind);
   form.addEventListener('submit',async event=>{event.preventDefault();errorBox.classList.add('hidden');const button=form.querySelector('button[type="submit"]');setButtonBusy(button,true,'Adding profile…');try{const data=await request(socialManager.dataset.apiUrl,'POST',{platform:form.platform.value,handle:form.handle.value});list.querySelector('.social-empty')?.remove();const row=document.createElement('article');row.classList.add('social-row-entering');row.dataset.id=data.id;row.dataset.platform=data.platform;row.innerHTML='<div class="platform-avatar"><svg class="platform-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use></use></svg></div><div class="destination-name"><small>PLATFORM</small><strong></strong></div><input maxlength="160"><button class="download-chip social-update" type="button">Save changes</button><button class="download-chip social-delete" type="button">Remove</button>';row.querySelector('use').setAttribute('href',`${iconSprite}#${data.platform}`);row.querySelector('.destination-name strong').textContent=data.platform_label;const handleInput=row.querySelector('input');handleInput.value=data.handle;handleInput.setAttribute('aria-label',`${data.platform_label} handle`);list.appendChild(row);requestAnimationFrame(()=>requestAnimationFrame(()=>row.classList.remove('social-row-entering')));bind(row);syncConnectedCount();form.reset();}catch(error){showError(error);}finally{setButtonBusy(button,false);button.disabled=false;}});

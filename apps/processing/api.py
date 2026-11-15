@@ -3,8 +3,19 @@ import shutil
 import zipfile
 from pathlib import Path
 from django.conf import settings
+from django.db import transaction
 from django.http import FileResponse
 from apps.orders.models import ContentOrder
+from apps.credits.models import CreditReservation
+from apps.credits.services import (
+    InsufficientCredits,
+    analysis_credit_cost,
+    available_balance,
+    next_reservation_attempt,
+    release_reservation,
+    reserve_render_credits,
+    settle_render_reservation,
+)
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -16,16 +27,29 @@ from .services.run_control import cancel_pipeline_run
 class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class=PipelineRunSerializer
     def get_queryset(self):
-        qs=PipelineRun.objects.select_related("order").prefetch_related("stages")
+        qs=PipelineRun.objects.select_related("order","order__customer").prefetch_related("stages")
         return qs if self.request.user.is_staff else qs.filter(order__customer=self.request.user)
     @action(detail=True,methods=["post"])
     def start(self,request,pk=None):
         run=self.get_object()
-        if run.status not in [PipelineRun.Status.FAILED,PipelineRun.Status.QUEUED]: return Response({"detail":"Only queued or failed runs can be started."},status=409)
-        run.status=PipelineRun.Status.RUNNING; run.error=""; run.progress=0; run.current_stage="starting"; run.finished_at=None
-        run.youtube_auth_url=""; run.youtube_auth_code=""; run.youtube_auth_confirmed=False
-        run.save()
-        run.order.status=ContentOrder.Status.IN_PROGRESS;run.order.save(update_fields=["status","updated_at"])
+        with transaction.atomic():
+            run=PipelineRun.objects.select_for_update().select_related("order","order__customer").get(pk=run.pk)
+            if run.status not in [PipelineRun.Status.FAILED,PipelineRun.Status.QUEUED]: return Response({"detail":"Only queued or failed runs can be started."},status=409)
+            # Recover credit holds left behind if a previous web/worker process was killed.
+            for reservation in run.credit_reservations.filter(status=CreditReservation.Status.RESERVED):
+                if reservation.kind == CreditReservation.Kind.RENDER:
+                    settle_render_reservation(reservation)
+                else:
+                    release_reservation(reservation)
+            asset=run.order.source_assets.order_by("-uploaded_at").first()
+            required=analysis_credit_cost((asset.duration_seconds or 0)*1000) if asset and asset.duration_seconds else 1
+            available=available_balance(run.order.customer)
+            if available < required:
+                return Response({"detail":f"This source needs {required} clipping credit{'s' if required != 1 else ''} for analysis, but your available balance is {available}. Add credits and try again.","required_credits":required,"available_credits":available},status=402)
+            run.status=PipelineRun.Status.RUNNING; run.error=""; run.progress=0; run.current_stage="starting"; run.finished_at=None
+            run.youtube_auth_url=""; run.youtube_auth_code=""; run.youtube_auth_confirmed=False
+            run.save()
+            run.order.status=ContentOrder.Status.IN_PROGRESS;run.order.save(update_fields=["status","updated_at"])
         try:
             dispatch_pipeline(run.id)
         except Exception as exc:
@@ -58,18 +82,29 @@ class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True,methods=["post"],url_path="render-exports")
     def render_exports(self,request,pk=None):
         run=self.get_object()
-        if run.status == PipelineRun.Status.RUNNING:
-            return Response({"detail":"This job is already running."},status=409)
-        if not run.order.clips.filter(status=Clip.Status.APPROVED).exists():
-            return Response({"detail":"Approve at least one suggested clip before rendering exports."},status=409)
         missing=[binary for binary in (settings.FFMPEG_BINARY,settings.FFPROBE_BINARY) if not (Path(binary).exists() or shutil.which(binary))]
         if missing:
             return Response({"detail":f"Media rendering is unavailable because {', '.join(missing)} is not installed. Install FFmpeg and FFprobe or run the Docker stack."},status=424)
-        run.status=PipelineRun.Status.RUNNING; run.error=""; run.progress=50; run.current_stage="broll"; run.finished_at=None; run.save()
-        run.order.status=ContentOrder.Status.IN_PROGRESS;run.order.save(update_fields=["status","updated_at"])
+        with transaction.atomic():
+            run=PipelineRun.objects.select_for_update().select_related("order","order__customer").get(pk=run.pk)
+            if run.status == PipelineRun.Status.RUNNING:
+                return Response({"detail":"This job is already running."},status=409)
+            approved=list(run.order.clips.filter(status=Clip.Status.APPROVED))
+            if not approved:
+                return Response({"detail":"Approve at least one suggested clip before rendering exports."},status=409)
+            for previous in run.credit_reservations.filter(kind=CreditReservation.Kind.RENDER,status=CreditReservation.Status.RESERVED):
+                settle_render_reservation(previous)
+            attempt=next_reservation_attempt(run,CreditReservation.Kind.RENDER)
+            try:
+                reservation=reserve_render_credits(run,approved,attempt)
+            except InsufficientCredits as exc:
+                return Response({"detail":str(exc),"required_credits":exc.required,"available_credits":exc.available},status=402)
+            run.status=PipelineRun.Status.RUNNING; run.error=""; run.progress=50; run.current_stage="broll"; run.finished_at=None; run.save()
+            run.order.status=ContentOrder.Status.IN_PROGRESS;run.order.save(update_fields=["status","updated_at"])
         try:
             dispatch_render(run.id)
         except Exception as exc:
+            release_reservation(reservation)
             run.status=PipelineRun.Status.FAILED; run.error=f"Could not dispatch export job: {exc}"; run.save()
             run.order.status=ContentOrder.Status.QUALITY_CHECK;run.order.save(update_fields=["status","updated_at"])
             return Response({"detail":run.error},status=503)

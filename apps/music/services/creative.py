@@ -19,7 +19,7 @@ FORBIDDEN_PATTERNS = [
 def enforce_originality(direction):
     text = " ".join(str(value) for value in direction.values()).lower()
     if any(re.search(pattern, text) for pattern in FORBIDDEN_PATTERNS):
-        raise CreativeSafetyError("Describe musical qualities—not an artist, celebrity, cloned voice, or identifiable performance style.")
+        raise CreativeSafetyError("Describe musical qualities without naming an artist, celebrity, cloned voice, or identifiable performance style.")
 
 
 def _groq_json(instructions, prompt, schema, name):

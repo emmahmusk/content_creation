@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% load static %}
-{% block title %}Clip review — {{ clip.title }}{% endblock %}
+{% block title %}Clip review | {{ clip.title }}{% endblock %}
 {% block body_class %}app-page intelligence-page{% endblock %}
 {% block content %}
 <main class="intel-shell clipper-intel" data-status="{{ intelligence.status }}" data-start-url="/api/v1/clips/{{ clip.id }}/analyze-intelligence/" data-intelligence-url="/api/v1/content-intelligence/{{ intelligence.id }}/" data-publication-url="/api/v1/publication-jobs/" data-learning-url="/api/v1/learning-signals/">
@@ -15,7 +15,7 @@
         </div>
       </div>
       <aside class="intel-header-score" aria-label="Performance score">
-        <div class="clipper-score-top"><span>Clip potential</span><strong>{% if intelligence.status == 'ready' %}{{ intelligence.content_dna.overall_quality_score }}{% else %}—{% endif %}</strong></div>
+        <div class="clipper-score-top"><span>Clip potential</span><strong>{% if intelligence.status == 'ready' %}{{ intelligence.content_dna.overall_quality_score }}{% else %}N/A{% endif %}</strong></div>
         <div class="clipper-score-track" aria-hidden="true"><i style="--score:{% if intelligence.status == 'ready' %}{{ intelligence.content_dna.overall_quality_score }}{% else %}0{% endif %}%"></i></div>
         <p>AI estimate for a faster first review.</p>
       </aside>
@@ -41,10 +41,10 @@
         <h2>{{ intelligence.content_dna.overall_recommendation }}</h2>
         <p class="clipper-lead">{{ intelligence.content_dna.primary_takeaway }}</p>
         <div class="clipper-metrics" aria-label="Performance snapshot">
-          <article><strong>{{ intelligence.content_dna.virality_potential|default:'—' }}</strong><span>Viral potential</span></article>
-          <article><strong>{{ intelligence.content_dna.estimated_completion_rate|default:'—' }}</strong><span>Watch-through</span></article>
-          <article><strong>{{ intelligence.business_impact.comment_potential.score|default:'—' }}</strong><span>Comments</span></article>
-          <article><strong>{{ intelligence.business_impact.share_potential.score|default:'—' }}</strong><span>Shares</span></article>
+          <article><strong>{{ intelligence.content_dna.virality_potential|default:'N/A' }}</strong><span>Viral potential</span></article>
+          <article><strong>{{ intelligence.content_dna.estimated_completion_rate|default:'N/A' }}</strong><span>Watch-through</span></article>
+          <article><strong>{{ intelligence.business_impact.comment_potential.score|default:'N/A' }}</strong><span>Comments</span></article>
+          <article><strong>{{ intelligence.business_impact.share_potential.score|default:'N/A' }}</strong><span>Shares</span></article>
         </div>
         <div class="clipper-decision-bar">
           <div><span>Your decision</span><strong class="intel-decision-state">{% if clip.status == 'approved' %}Selected{% elif clip.status == 'rejected' %}Skipped{% elif clip.status == 'rendered' %}Produced{% else %}Planned{% endif %}</strong></div>
@@ -82,7 +82,7 @@
         <summary><div><span>OPTIONAL</span><strong>Open captions and publishing tools</strong></div><b>+</b></summary>
         <div class="intel-advanced-body">
           <section id="repurpose" class="clipper-tools-section"><h2>Ready-to-edit copy</h2><div class="repurpose-list">{% for asset in clip.repurpose_assets.all %}<article data-asset-id="{{ asset.id }}"><header><div><span>{{ asset.get_kind_display }}</span><h3>{{ asset.title }}</h3></div><button class="text-button asset-copy" type="button">Copy</button></header><textarea>{{ asset.content }}</textarea><footer><button data-operation="regenerate">Regenerate</button><button data-operation="improve">Improve</button><button data-operation="shorten">Shorten</button><button class="asset-save">Save edits</button></footer></article>{% endfor %}</div></section>
-          <section id="publish" class="clipper-tools-section publishing-panel"><h2>Save a publishing plan</h2><form class="publication-form"><div class="destination-list">{% for handle in social_handles %}<label data-platform="{{ handle.platform }}"><input type="checkbox" name="destination" value="{{ handle.id }}"><span class="publishing-destination-logo">{% include 'shared/_platform_icon.html' with platform=handle.platform %}</span><span>{{ handle.get_platform_display }}</span><b>{{ handle.handle }}</b></label>{% empty %}<a href="{% url 'profile' %}">Add your first social profile →</a>{% endfor %}</div><div class="publish-customization"><label>Title<input name="title" value="{{ clip.title }}"></label><label>Caption<textarea name="caption">{{ clip.caption }}</textarea></label><label>Action<select name="action"><option value="draft">Save as draft</option><option value="queue">Add to queue</option><option value="schedule">Schedule for later</option><option value="publish">Publish now — connect account first</option></select></label><label class="schedule-field hidden">Publish time<input type="datetime-local" name="scheduled_for"></label></div><button class="btn" type="submit">Save publishing plan</button><p class="publish-result"></p></form></section>
+          <section id="publish" class="clipper-tools-section publishing-panel"><h2>Save a publishing plan</h2><form class="publication-form"><div class="destination-list">{% for handle in social_handles %}<label data-platform="{{ handle.platform }}"><input type="checkbox" name="destination" value="{{ handle.id }}"><span class="publishing-destination-logo">{% include 'shared/_platform_icon.html' with platform=handle.platform %}</span><span>{{ handle.get_platform_display }}</span><b>{{ handle.handle }}</b></label>{% empty %}<a href="{% url 'profile' %}">Add your first social profile →</a>{% endfor %}</div><div class="publish-customization"><label>Title<input name="title" value="{{ clip.title }}"></label><label>Caption<textarea name="caption">{{ clip.caption }}</textarea></label><label>Action<select name="action"><option value="draft">Save as draft</option><option value="queue">Add to queue</option><option value="schedule">Schedule for later</option><option value="publish">Publish now. Connect your account first.</option></select></label><label class="schedule-field hidden">Publish time<input type="datetime-local" name="scheduled_for"></label></div><button class="btn" type="submit">Save publishing plan</button><p class="publish-result"></p></form></section>
         </div>
       </details>
     </div>
