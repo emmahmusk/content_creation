@@ -117,7 +117,7 @@
         <p>Select the moments you want to turn into clips. Skip anything you do not need before editing begins.</p>
       </div>
       {% if exports_ready %}<a class="btn btn-small" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/">Download all files</a>{% endif %}
-      {% if can_restore_exports and pipeline.status != 'running' %}<form method="post" action="{% url 'orders:restore-exports' order.pk %}">{% csrf_token %}<button class="btn btn-small" type="submit">Restore missing clips</button></form>{% endif %}
+      {% if can_restore_exports and pipeline.status != 'running' %}<form method="post" action="{% url 'orders:restore-exports' order.pk %}">{% csrf_token %}<button class="btn btn-small" type="submit">{% if missing_rendered_count %}Restore missing clips{% else %}Refresh clips with captions{% endif %}</button></form>{% endif %}
     </div>
 
     <div class="clip-list">

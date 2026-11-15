@@ -13,7 +13,7 @@ from .services import (
     prepare_analysis_restart,
     prepare_render_restart,
 )
-from apps.processing.models import Clip, PipelineRun
+from apps.processing.models import CAPTION_RENDER_VERSION, Clip, PipelineRun
 from apps.processing.tasks import dispatch_render
 from apps.processing.services.cloudinary_media import configured as cloudinary_configured
 from apps.processing.services.public_media import is_youtube_authentication_error, is_youtube_url
@@ -151,6 +151,7 @@ def order_detail(request, pk):
     clips=list(order.clips.all())
     rendered=sum(bool(clip.video_url) for clip in clips)
     missing_rendered=sum(clip.status == Clip.Status.RENDERED and not clip.video_url for clip in clips)
+    stale_caption_count=sum(clip.status == Clip.Status.RENDERED and clip.caption_version < CAPTION_RENDER_VERSION for clip in clips)
     approved=sum(clip.status == "approved" for clip in clips)
     source_asset = order.source_assets.order_by("-uploaded_at").first()
     source_recovery_required = bool(
@@ -166,8 +167,9 @@ def order_detail(request, pk):
         "clip_count": len(clips),
         "rendered_count": rendered,
         "missing_rendered_count": missing_rendered,
+        "stale_caption_count": stale_caption_count,
         "can_restore_exports": bool(
-            missing_rendered
+            (missing_rendered or stale_caption_count)
             and source_asset
             and source_asset.cloudinary_public_id
             and cloudinary_configured()
@@ -198,7 +200,10 @@ def restore_missing_exports(request, pk):
     if pipeline.status == PipelineRun.Status.RUNNING:
         messages.info(request, "This project already has a production run in progress.")
         return redirect("orders:detail", pk=order.pk)
-    missing = [clip for clip in order.clips.filter(status=Clip.Status.RENDERED) if not clip.video_url]
+    missing = [
+        clip for clip in order.clips.filter(status=Clip.Status.RENDERED)
+        if not clip.video_url or clip.caption_version < CAPTION_RENDER_VERSION
+    ]
     if not missing:
         messages.info(request, "All rendered clips are already available.")
         return redirect("orders:detail", pk=order.pk)
@@ -236,7 +241,7 @@ def restore_missing_exports(request, pk):
         order.save(update_fields=["status", "updated_at"])
         messages.error(request, "We could not start the recovery. Please try again in a moment.")
         return redirect("orders:detail", pk=order.pk)
-    messages.success(request, "Restoring your missing clips from the saved source. This will not use additional credits.")
+    messages.success(request, "Refreshing your clips with captions from the saved source. This will not use additional credits.")
     return redirect("orders:detail", pk=order.pk)
 
 

@@ -1,6 +1,8 @@
 import uuid
 from django.db import models
 
+CAPTION_RENDER_VERSION = 1
+
 class PipelineRun(models.Model):
     class Status(models.TextChoices):
         QUEUED="queued","Queued"; RUNNING="running","Running"; REVIEW="review","Awaiting review"; COMPLETED="completed","Completed"; FAILED="failed","Failed"; CANCELLED="cancelled","Cancelled"
@@ -71,6 +73,7 @@ class Clip(models.Model):
     cloudinary_subtitle_url = models.URLField(blank=True, max_length=1000)
     cloudinary_thumbnail_public_id = models.CharField(max_length=255, blank=True)
     cloudinary_thumbnail_url = models.URLField(blank=True, max_length=1000)
+    caption_version = models.PositiveSmallIntegerField(default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:

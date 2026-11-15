@@ -18,7 +18,7 @@ from apps.credits.services import (
     reserve_render_credits,
     settle_render_reservation,
 )
-from .models import Clip, PipelineRun, StageRun, TranscriptSegment
+from .models import CAPTION_RENDER_VERSION, Clip, PipelineRun, StageRun, TranscriptSegment
 from .services import broll, media, nvidia, groq_provider, cloudinary_media, public_media
 from .services.run_control import PipelineCancelled, assert_pipeline_active
 from .services.thumbnails import create_thumbnail
@@ -123,6 +123,8 @@ def _render_clip_files(order, source, work, run=None, broll_assets=None, clips_o
         frame=work/f"clip-{clip.rank:02}.jpg"
         thumb=work/f"clip-{clip.rank:02}-thumbnail.jpg"
         media.write_srt(segments,render_start_ms,clip.end_ms,srt)
+        if not srt.read_text(encoding="utf-8").strip():
+            raise ValueError(f"No transcript captions overlap clip {clip.rank:02}. The clip was not exported without captions.")
         media.render_vertical(
             source,
             render_start_ms,
@@ -141,6 +143,7 @@ def _render_clip_files(order, source, work, run=None, broll_assets=None, clips_o
         if cloudinary_media.configured():
             for kind, path in (("video", video), ("audio", audio), ("subtitle", srt), ("thumbnail", thumb)):
                 cloudinary_media.upload_clip_file(clip, kind, path)
+        clip.caption_version = CAPTION_RENDER_VERSION
         clip.status=Clip.Status.RENDERED
         clip.save()
     return len(clips)
@@ -158,7 +161,10 @@ def render_existing_clips(run_id):
         approved_clips = list(order.clips.filter(pk__in=recovery_ids)) if recovery_ids else list(order.clips.filter(status=Clip.Status.APPROVED))
         if not approved_clips: raise ValueError("Approve at least one suggested clip before rendering exports.")
         stage=_stage(run,"broll")
-        broll_assets,broll_report=broll.prepare_order_broll(order,approved_clips,work,run)
+        if run.storage_recovery:
+            broll_assets,broll_report={}, {"clips":0,"enabled":False,"reason":"Export recovery"}
+        else:
+            broll_assets,broll_report=broll.prepare_order_broll(order,approved_clips,work,run)
         _complete(run,stage,broll_report)
         stage=_stage(run,"render")
         render_reservation=None if run.storage_recovery else CreditReservation.objects.filter(
