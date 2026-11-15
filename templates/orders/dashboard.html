@@ -1,7 +1,9 @@
-{% extends 'base.html' %}{% load presentation %}
+{% extends 'base.html' %}{% load presentation static %}
 {% block title %}Command center | Kraftaa{% endblock %}
 {% block body_class %}app-page command-center-page{% endblock %}
+{% block extra_head %}{% if show_welcome_credits_celebration %}<link rel="stylesheet" href="{% static 'css/welcome-credits.css' %}?v=20261116a"><script defer src="{% static 'js/welcome-credits.js' %}?v=20261116a"></script>{% endif %}{% endblock %}
 {% block content %}
+{% if show_welcome_credits_celebration %}<div class="welcome-balloon-field" aria-hidden="true"></div><aside class="welcome-credit-toast" role="status" aria-live="polite"><button class="welcome-credit-dismiss" type="button" aria-label="Dismiss welcome message">×</button><span class="welcome-credit-kicker">A little something to get you started</span><h2>🎉 Your first 4 clip credits are on us!</h2><p>That’s enough to analyze a 30-minute video and render up to 3 clips under 60 seconds.</p><a href="{% url 'orders:create' %}">Create your first clip batch <span aria-hidden="true">→</span></a></aside>{% endif %}
 <section class="dashboard workspace-dashboard command-dashboard">
   <header class="command-header">
     <div>

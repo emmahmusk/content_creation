@@ -119,6 +119,9 @@ def dashboard(request):
             "walkthrough_waitlist_form": waitlist_form,
             "walkthrough_waitlist_joined": waitlist_joined,
             "credit_balance": credit_balance,
+            "show_welcome_credits_celebration": request.session.pop(
+                "welcome_credits_celebration", False
+            ),
         },
     )
 

@@ -2,6 +2,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.shortcuts import redirect, render
+from apps.credits.models import CreditLedgerEntry
 from .forms import MAX_REGISTRATION_SOCIAL_PROFILES, RegistrationForm, RegistrationSocialHandleFormSet
 from .models import SocialHandle
 
@@ -19,7 +20,14 @@ def register(request):
                 if item and not item.get("DELETE") and item.get("platform")
             ]
             SocialHandle.objects.bulk_create(handles)
+            CreditLedgerEntry.objects.create(
+                user=user,
+                entry_type=CreditLedgerEntry.Type.WELCOME,
+                amount=4,
+                description="Welcome gift · 4 free clip credits",
+            )
         login(request, user)
+        request.session["welcome_credits_celebration"] = True
         return redirect("orders:dashboard")
     return render(request, "account/register.html", {
         "form": form,

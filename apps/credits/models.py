@@ -169,6 +169,7 @@ class CreditReservation(models.Model):
 class CreditLedgerEntry(models.Model):
     class Type(models.TextChoices):
         PURCHASE = "purchase", "Purchase"
+        WELCOME = "welcome", "Welcome credits"
         ADJUSTMENT = "adjustment", "Admin adjustment"
         SPEND = "spend", "Usage"
         REFUND = "refund", "Refund"
@@ -186,6 +187,11 @@ class CreditLedgerEntry(models.Model):
         ordering = ["-created_at", "-pk"]
         constraints = [
             models.UniqueConstraint(fields=["payment_request", "entry_type"], name="unique_credit_purchase_per_payment"),
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=models.Q(entry_type="welcome"),
+                name="unique_welcome_credit_grant_per_user",
+            ),
         ]
 
     def __str__(self):
