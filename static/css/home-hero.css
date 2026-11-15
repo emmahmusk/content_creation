@@ -1,5 +1,6 @@
 /* Homepage hero: clear story, quiet photographic moment, then the workflow. */
 .landing-page .hero{
+  position:relative;
   height:auto;
   min-height:100svh;
   padding:clamp(154px,18vh,184px) clamp(24px,5vw,76px) 48px;
@@ -16,25 +17,25 @@
 /* The later global calm-display rule centers hero titles; anchor it to this content column. */
 .landing-page .hero h1.calm-display{max-width:1080px;margin:0 0 22px;text-align:left;font-size:clamp(54px,5.5vw,92px);line-height:.99;letter-spacing:-.067em}
 .landing-page .hero h1.calm-display>span:first-child{color:#f2f2f4}
-.landing-page .hero h1.calm-display>span:last-child{color:var(--lime-2)}
+.landing-page .hero h1.calm-display>span:last-child{margin-top:.16em;color:var(--lime-2);font-size:clamp(30px,3.3vw,56px);line-height:1.12;letter-spacing:-.045em}
 .landing-page .hero-copy{max-width:760px;margin:0;color:#b4b7c0;font-size:clamp(16px,1.35vw,19px);line-height:1.65;text-align:left;text-wrap:pretty}
-.landing-page .hero-actions{justify-content:flex-start;gap:14px;flex-wrap:wrap;margin-top:24px}
-.landing-page .hero-actions .btn{min-height:58px;min-width:0;padding-inline:25px;font-size:14px}
+.landing-page .hero-actions{width:min(100%,1040px);justify-content:flex-start;gap:14px;flex-wrap:wrap;margin-top:24px}
+.landing-page .hero-actions .btn{box-sizing:border-box;min-width:0;height:52px;min-height:52px;max-height:52px;padding:0 20px;font-size:13px;line-height:1;white-space:nowrap}
 .landing-page .hero-image{position:absolute;z-index:0;top:0;right:-4%;bottom:0;width:min(76%,1120px);height:auto;margin:0;overflow:hidden;border:0;border-radius:0;background:transparent;box-shadow:none;pointer-events:none;opacity:.72;mask-image:linear-gradient(90deg,transparent 0%,#000 28%,#000 74%,transparent 100%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 28%,#000 74%,transparent 100%)}
 .landing-page .hero-image:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#0b0c10 0%,#0b0c10b8 18%,#0b0c1033 55%,#08090c52 100%),linear-gradient(0deg,#08090c 0%,transparent 38%,#08090c66 100%);pointer-events:none}
 .landing-page .hero-image img{display:block;width:100%;height:100%;object-fit:cover;object-position:54% 57%;filter:saturate(.66) brightness(.72) contrast(1.06)}
-.landing-page .hero-quick-flow{display:flex;align-items:center;flex-wrap:wrap;gap:12px;width:max-content;max-width:100%;margin-top:22px;padding-top:16px;border-top:1px solid #ffffff18}
-.landing-page .hero-quick-flow span{color:#d1d4dc;font-size:12px;font-weight:650;line-height:1.4}
-.landing-page .hero-quick-flow b{margin-right:5px;color:var(--lime-2);font-size:9px;letter-spacing:.04em}
-.landing-page .hero-quick-flow i{color:var(--lime-2);font-size:13px;font-style:normal}
+.landing-page .hero-quick-flow{position:absolute;z-index:3;right:clamp(20px,2.5vw,48px);bottom:clamp(18px,2.5vh,30px);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;width:min(620px,calc(100% - 40px));margin:0;padding:11px 14px;border:1px solid #ffffff20;border-radius:13px;background:linear-gradient(125deg,#11141be8,#0b0d12f2);box-shadow:0 14px 36px #0003;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.landing-page .hero-quick-flow span{color:#d1d4dc;font-size:9px;font-weight:650;line-height:1.35}
+.landing-page .hero-quick-flow b{display:block;margin:0 0 3px;color:var(--lime-2);font-size:8px;letter-spacing:.08em}
 .landing-page .hero-scroll{display:none}
 
 @media(max-height:760px) and (min-width:761px){
-  .landing-page .hero{padding-top:clamp(108px,15vh,132px);padding-bottom:32px}
+  .landing-page .hero{height:auto;min-height:100svh;flex-direction:column;align-items:stretch;padding-top:clamp(108px,15vh,132px);padding-bottom:32px}
+  .landing-page .hero-inner{margin-inline:auto}
   .landing-page .hero-badge{margin-bottom:18px}
   .landing-page .hero h1.calm-display{font-size:clamp(48px,5vw,72px);margin-bottom:14px}
   .landing-page .hero-copy{font-size:16px;line-height:1.5}
-  .landing-page .hero-quick-flow{margin-top:17px;padding-top:13px}
+  .landing-page .hero-quick-flow{position:relative;left:auto;right:auto;bottom:auto;width:min(620px,100%);margin:20px 0 0 auto}
   .landing-page .hero-actions{margin-top:18px}
 }
 
@@ -45,19 +46,19 @@
   .landing-page .hero-actions .btn{padding-inline:19px}
 }
 @media(max-width:760px){
-  .landing-page .hero{min-height:100svh;padding:112px 18px 42px}
-  .landing-page .hero-inner{transform:none}
+  .landing-page .hero{height:auto;min-height:100svh;flex-direction:column;align-items:stretch;padding:112px 18px 42px}
+  .landing-page .hero-inner{width:100%;margin:0;transform:none}
   .landing-page .hero-image{top:0;right:-38%;bottom:34%;width:105%;opacity:.38;mask-image:linear-gradient(90deg,transparent 0%,#000 42%,#000 100%);-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 42%,#000 100%)}
   .landing-page .hero-image:after{background:linear-gradient(90deg,#0b0c10 0%,#0b0c1066 45%,#08090c33 100%),linear-gradient(0deg,#08090c 0%,transparent 48%,#08090c66 100%)}
   .landing-page .hero-lead-copy{max-width:640px}
   .landing-page .hero-badge{margin:0 0 22px;padding-left:14px}
   .landing-page .hero-badge span{font-size:9px}
   .landing-page .hero h1{max-width:640px;margin:0 0 18px;font-size:clamp(43px,11vw,66px);line-height:1;letter-spacing:-.06em}
+  .landing-page .hero h1.calm-display>span:last-child{margin-top:.2em;font-size:clamp(27px,7vw,38px);line-height:1.15;letter-spacing:-.04em}
   .landing-page .hero-copy{font-size:16px;line-height:1.6}
-  .landing-page .hero-actions{gap:10px}
-  .landing-page .hero-actions .btn{min-height:52px;padding-inline:18px;font-size:13px}
-  .landing-page .hero-quick-flow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 10px;width:100%;margin-top:20px;padding-top:14px}
-  .landing-page .hero-quick-flow>i{display:none}
+  .landing-page .hero-actions{width:100%;justify-content:center;gap:10px}
+  .landing-page .hero-actions .btn{height:48px;min-height:48px;max-height:48px;padding-inline:17px;font-size:12px}
+  .landing-page .hero-quick-flow{position:relative;left:auto;right:auto;bottom:auto;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;width:100%;margin:22px 0 0;padding:14px;border-radius:14px}
   .landing-page .hero-quick-flow span{font-size:10px}
   .landing-page .hero-quick-flow b{display:block;margin:0 0 3px;font-size:8px}
 }
