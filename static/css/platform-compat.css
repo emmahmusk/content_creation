@@ -1,0 +1,72 @@
+/* Reliable desktop navigation and viewport sizing across Safari, Chrome, and Edge. */
+html,
+body {
+  width: 100%;
+  min-width: 320px;
+}
+
+html {
+  overflow-x: clip;
+  scroll-padding-top: 88px;
+}
+
+body {
+  overflow-x: clip;
+}
+
+main {
+  width: 100%;
+  min-width: 0;
+}
+
+/* The fixed desktop rail avoids relying on the scroll listener to pin the landing nav. */
+.landing-page .site-header,
+.landing-page .site-header.is-scrolled {
+  position: fixed;
+  z-index: 100;
+  inset: 10px clamp(10px, 2vw, 28px) auto;
+  width: auto;
+  background: transparent;
+  border: 0;
+}
+
+.nav {
+  width: min(1560px, 100%);
+  max-width: 1560px;
+}
+
+.landing-page .nav {
+  width: min(1560px, 100%);
+  max-width: 1560px;
+}
+
+.landing-page .hero {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+.landing-page .hero-inner {
+  width: min(1560px, 100%);
+  max-width: 1560px;
+}
+
+@media (min-width: 1440px) {
+  .command-dashboard,
+  .review-studio,
+  .intelligence-page .intel-shell,
+  .clipper-intel {
+    width: min(1580px, 100%);
+    max-width: 1580px;
+  }
+}
+
+@media (max-width: 760px) {
+  html {
+    scroll-padding-top: 72px;
+  }
+
+  .landing-page .site-header,
+  .landing-page .site-header.is-scrolled {
+    inset: 7px 8px auto;
+  }
+}

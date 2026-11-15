@@ -13,6 +13,8 @@ class PipelineRun(models.Model):
     youtube_auth_url = models.URLField(blank=True)
     youtube_auth_code = models.CharField(max_length=32, blank=True)
     youtube_auth_confirmed = models.BooleanField(default=False)
+    storage_recovery = models.BooleanField(default=False)
+    recovery_clip_ids = models.JSONField(default=list, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -61,6 +63,14 @@ class Clip(models.Model):
     audio = models.FileField(upload_to="clips/%Y/%m/", blank=True)
     subtitle = models.FileField(upload_to="clips/%Y/%m/", blank=True)
     thumbnail = models.ImageField(upload_to="thumbnails/%Y/%m/", blank=True)
+    cloudinary_video_public_id = models.CharField(max_length=255, blank=True)
+    cloudinary_video_url = models.URLField(blank=True, max_length=1000)
+    cloudinary_audio_public_id = models.CharField(max_length=255, blank=True)
+    cloudinary_audio_url = models.URLField(blank=True, max_length=1000)
+    cloudinary_subtitle_public_id = models.CharField(max_length=255, blank=True)
+    cloudinary_subtitle_url = models.URLField(blank=True, max_length=1000)
+    cloudinary_thumbnail_public_id = models.CharField(max_length=255, blank=True)
+    cloudinary_thumbnail_url = models.URLField(blank=True, max_length=1000)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
@@ -68,6 +78,25 @@ class Clip(models.Model):
         constraints=[models.UniqueConstraint(fields=["order","rank"], name="unique_clip_rank")]
     @property
     def duration_seconds(self): return round((self.end_ms-self.start_ms)/1000, 1)
+    def asset_url(self, kind):
+        remote_url = getattr(self, f"cloudinary_{kind}_url", "")
+        if remote_url:
+            return remote_url
+        field = getattr(self, kind, None)
+        if not field or not field.name:
+            return ""
+        try:
+            return field.url if field.storage.exists(field.name) else ""
+        except (OSError, ValueError, NotImplementedError):
+            return ""
+    @property
+    def video_url(self): return self.asset_url("video")
+    @property
+    def audio_url(self): return self.asset_url("audio")
+    @property
+    def subtitle_url(self): return self.asset_url("subtitle")
+    @property
+    def thumbnail_url(self): return self.asset_url("thumbnail")
     @staticmethod
     def _timecode(milliseconds):
         seconds=max(0,milliseconds//1000); minutes,seconds=divmod(seconds,60); hours,minutes=divmod(minutes,60)

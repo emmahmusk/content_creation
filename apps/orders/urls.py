@@ -7,5 +7,6 @@ urlpatterns = [
     path("<uuid:pk>/", views.order_detail, name="detail"),
     path("<uuid:pk>/edit/", views.edit_order, name="edit"),
     path("<uuid:pk>/replace-source/", views.replace_blocked_source, name="replace-source"),
+    path("<uuid:pk>/restore-exports/", views.restore_missing_exports, name="restore-exports"),
     path("<uuid:pk>/stop-analysis/", views.stop_analysis_for_edit, name="stop-analysis"),
 ]

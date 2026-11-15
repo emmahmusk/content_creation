@@ -117,21 +117,22 @@
         <p>Select the moments you want to turn into clips. Skip anything you do not need before editing begins.</p>
       </div>
       {% if exports_ready %}<a class="btn btn-small" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/">Download all files</a>{% endif %}
+      {% if can_restore_exports and pipeline.status != 'running' %}<form method="post" action="{% url 'orders:restore-exports' order.pk %}">{% csrf_token %}<button class="btn btn-small" type="submit">Restore missing clips</button></form>{% endif %}
     </div>
 
     <div class="clip-list">
       {% for clip in order.clips.all %}
-      <article class="clip-card{% if clip.video %} is-rendered{% endif %}">
+      <article class="clip-card{% if clip.video_url %} is-rendered{% endif %}">
         <div class="clip-media">
-          {% if clip.video %}
-            <video controls preload="metadata" poster="{% if clip.thumbnail %}{{ clip.thumbnail.url }}{% endif %}">
-              <source src="{{ clip.video.url }}" type="video/mp4">
+          {% if clip.video_url %}
+            <video controls preload="metadata" poster="{{ clip.thumbnail_url }}">
+              <source src="{{ clip.video_url }}" type="video/mp4">
               Your browser does not support video playback.
             </video>
           {% elif clip.preview_url %}
             <video controls preload="metadata"><source src="{{ clip.preview_url }}" type="video/mp4">Your browser does not support video playback.</video>
-          {% elif clip.thumbnail %}
-            <img src="{{ clip.thumbnail.url }}" alt="Preview for {{ clip.title }}">
+          {% elif clip.thumbnail_url %}
+            <img src="{{ clip.thumbnail_url }}" alt="Preview for {{ clip.title }}">
           {% else %}
             <div class="clip-placeholder"><span>{{ clip.rank|stringformat:'02d' }}</span><p>Selected moment</p><small>Render to preview</small></div>
           {% endif %}
@@ -157,19 +158,19 @@
             <div><span>WHAT THE ENGINE NOTICED</span><p>{{ clip.rationale }}</p></div>
           </details>
 
-          {% if clip.audio %}
+          {% if clip.audio_url %}
           <div class="audio-preview">
             <span>Audio cut</span>
-            <audio controls preload="none"><source src="{{ clip.audio.url }}" type="audio/mpeg"></audio>
+            <audio controls preload="none"><source src="{{ clip.audio_url }}" type="audio/mpeg"></audio>
           </div>
           {% endif %}
 
           <div class="clip-actions">
             <a class="download-chip intelligence-link" href="{% url 'processing:intelligence-review' clip.id %}">Why this clip? <span>→</span></a>
-            {% if clip.video %}<a class="download-chip primary" href="{{ clip.video.url }}" download>Download video <span>↓</span></a>{% endif %}
-            {% if clip.audio %}<a class="download-chip" href="{{ clip.audio.url }}" download>Download audio <span>↓</span></a>{% endif %}
-            {% if clip.subtitle %}<a class="download-chip" href="{{ clip.subtitle.url }}" download>Download captions <span>↓</span></a>{% endif %}
-            {% if not clip.video %}
+            {% if clip.video_url %}<a class="download-chip primary" href="{{ clip.video_url }}" download>Download video <span>↓</span></a>{% endif %}
+            {% if clip.audio_url %}<a class="download-chip" href="{{ clip.audio_url }}" download>Download audio <span>↓</span></a>{% endif %}
+            {% if clip.subtitle_url %}<a class="download-chip" href="{{ clip.subtitle_url }}" download>Download captions <span>↓</span></a>{% endif %}
+            {% if not clip.video_url %}
               <button class="download-chip clip-decision{% if clip.status == 'approved' %} primary{% endif %}" type="button" aria-pressed="{% if clip.status == 'approved' %}true{% else %}false{% endif %}" data-url="/api/v1/clips/{{ clip.id }}/approve/" data-state="approved">{% if clip.status == 'approved' %}Selected{% else %}Select clip{% endif %}</button>
               <button class="download-chip clip-decision{% if clip.status == 'rejected' %} primary{% endif %}" type="button" aria-pressed="{% if clip.status == 'rejected' %}true{% else %}false{% endif %}" data-url="/api/v1/clips/{{ clip.id }}/reject/" data-state="rejected">Skip clip</button>
               <span class="awaiting-export clip-state">{{ clip.get_status_display }}</span>

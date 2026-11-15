@@ -15,7 +15,11 @@ class BrollPlanSerializer(serializers.ModelSerializer):
 class ClipSerializer(serializers.ModelSerializer):
     duration_seconds=serializers.FloatField(read_only=True)
     broll_plan=BrollPlanSerializer(read_only=True)
-    class Meta: model=Clip; fields=["id","order","rank","title","hook","caption","start_ms","end_ms","duration_seconds","score","rationale","preview_url","editing_instructions","broll_plan","video","audio","subtitle","thumbnail","status"]
+    video_url=serializers.CharField(read_only=True)
+    audio_url=serializers.CharField(read_only=True)
+    subtitle_url=serializers.CharField(read_only=True)
+    thumbnail_url=serializers.CharField(read_only=True)
+    class Meta: model=Clip; fields=["id","order","rank","title","hook","caption","start_ms","end_ms","duration_seconds","score","rationale","preview_url","editing_instructions","broll_plan","video","audio","subtitle","thumbnail","video_url","audio_url","subtitle_url","thumbnail_url","status"]
 class TranscriptSegmentSerializer(serializers.ModelSerializer):
     class Meta: model=TranscriptSegment; fields=["id","order","start_ms","end_ms","text","words","speaker"]
 

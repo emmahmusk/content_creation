@@ -108,10 +108,10 @@ def _deliver(order,kind,title,content="",file_path=None,creator=None):
         with open(file_path,"rb") as handle: item.file.save(Path(file_path).name,File(handle),save=False)
     item.save(); return item
 
-def _render_clip_files(order, source, work, run=None, broll_assets=None):
+def _render_clip_files(order, source, work, run=None, broll_assets=None, clips_override=None):
     """Render every approved AI range into video, audio, captions and artwork."""
     segments=list(order.transcript_segments.all())
-    clips=list(order.clips.filter(status=Clip.Status.APPROVED))
+    clips=list(clips_override) if clips_override is not None else list(order.clips.filter(status=Clip.Status.APPROVED))
     if not clips: raise ValueError("Approve at least one suggested clip before rendering exports.")
     for clip in clips:
         if run: assert_pipeline_active(run)
@@ -138,6 +138,9 @@ def _render_clip_files(order, source, work, run=None, broll_assets=None):
         with open(audio,"rb") as handle: clip.audio.save(audio.name,File(handle),save=False)
         with open(srt,"rb") as handle: clip.subtitle.save(srt.name,File(handle),save=False)
         with open(thumb,"rb") as handle: clip.thumbnail.save(thumb.name,File(handle),save=False)
+        if cloudinary_media.configured():
+            for kind, path in (("video", video), ("audio", audio), ("subtitle", srt), ("thumbnail", thumb)):
+                cloudinary_media.upload_clip_file(clip, kind, path)
         clip.status=Clip.Status.RENDERED
         clip.save()
     return len(clips)
@@ -151,28 +154,34 @@ def render_existing_clips(run_id):
         assert_pipeline_active(run)
         run.started_at=run.started_at or timezone.now(); run.error=""; run.progress=50; run.save(update_fields=["started_at","error","progress","updated_at"])
         source=_source(order,work,run)
-        approved_clips=list(order.clips.filter(status=Clip.Status.APPROVED))
+        recovery_ids = run.recovery_clip_ids if run.storage_recovery else []
+        approved_clips = list(order.clips.filter(pk__in=recovery_ids)) if recovery_ids else list(order.clips.filter(status=Clip.Status.APPROVED))
         if not approved_clips: raise ValueError("Approve at least one suggested clip before rendering exports.")
         stage=_stage(run,"broll")
         broll_assets,broll_report=broll.prepare_order_broll(order,approved_clips,work,run)
         _complete(run,stage,broll_report)
         stage=_stage(run,"render")
-        render_reservation=CreditReservation.objects.filter(
+        render_reservation=None if run.storage_recovery else CreditReservation.objects.filter(
             pipeline=run,
             kind=CreditReservation.Kind.RENDER,
             status=CreditReservation.Status.RESERVED,
         ).order_by("-attempt").first()
-        if render_reservation is None:
+        if render_reservation is None and not run.storage_recovery:
             attempt=next_reservation_attempt(run,CreditReservation.Kind.RENDER)
             render_reservation=reserve_render_credits(run,approved_clips,attempt)
-        rendered=_render_clip_files(order,source,work,run,broll_assets)
-        settle_render_reservation(render_reservation)
+        rendered=_render_clip_files(order,source,work,run,broll_assets,clips_override=approved_clips if run.storage_recovery else None)
+        if render_reservation:
+            settle_render_reservation(render_reservation)
         render_reservation=None
+        if run.storage_recovery:
+            run.storage_recovery=False
+            run.recovery_clip_ids=[]
+            run.save(update_fields=["storage_recovery", "recovery_clip_ids", "updated_at"])
         _complete(run,stage,{"rendered":rendered,"formats":["mp4","mp3","srt","jpg"],"broll":broll_report})
         _finish(run,order,"quality_review")
         OrderEvent.objects.create(order=order,event_type="exports_ready",message=f"{rendered} approved clip exports are ready to download.")
     except PipelineCancelled:
-        if render_reservation is None:
+        if render_reservation is None and not run.storage_recovery:
             render_reservation=CreditReservation.objects.filter(
                 pipeline=run,
                 kind=CreditReservation.Kind.RENDER,
@@ -180,12 +189,16 @@ def render_existing_clips(run_id):
             ).order_by("-attempt").first()
         if render_reservation:
             settle_render_reservation(render_reservation)
+        if run.storage_recovery:
+            Clip.objects.filter(pk__in=run.recovery_clip_ids).update(status=Clip.Status.RENDERED)
+            run.storage_recovery=False; run.recovery_clip_ids=[]
+            run.save(update_fields=["storage_recovery", "recovery_clip_ids", "updated_at"])
         _acknowledge_cancelled(run)
         return
     except Exception as exc:
         if render_reservation:
             settle_render_reservation(render_reservation)
-        else:
+        elif not run.storage_recovery:
             render_reservation=CreditReservation.objects.filter(
                 pipeline=run,
                 kind=CreditReservation.Kind.RENDER,
@@ -195,6 +208,9 @@ def render_existing_clips(run_id):
                 settle_render_reservation(render_reservation)
         run.refresh_from_db()
         if run.status == PipelineRun.Status.CANCELLED: return
+        if run.storage_recovery:
+            Clip.objects.filter(pk__in=run.recovery_clip_ids).update(status=Clip.Status.RENDERED)
+            run.storage_recovery=False; run.recovery_clip_ids=[]
         current=run.stages.filter(status=StageRun.Status.RUNNING).last()
         if current: current.status=StageRun.Status.FAILED; current.error=str(exc); current.finished_at=timezone.now(); current.save()
         run.status=PipelineRun.Status.FAILED; run.error=str(exc); run.finished_at=timezone.now()

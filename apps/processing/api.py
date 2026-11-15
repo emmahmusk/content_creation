@@ -2,6 +2,7 @@ import io
 import shutil
 import zipfile
 from pathlib import Path
+import requests
 from django.conf import settings
 from django.db import transaction
 from django.http import FileResponse
@@ -113,16 +114,42 @@ class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True,methods=["get"],url_path="download-exports")
     def download_exports(self,request,pk=None):
         run=self.get_object(); clips=list(run.order.clips.all())
-        if not any(clip.video or clip.audio or clip.subtitle for clip in clips):
+        assets=[]
+        unavailable=[]
+        for clip in clips:
+            for kind, label in (("video", "video"), ("audio", "audio"), ("subtitle", "subtitles"), ("thumbnail", "thumbnail")):
+                url=clip.asset_url(kind)
+                if not url:
+                    if clip.status == Clip.Status.RENDERED and kind in {"video", "audio", "subtitle"}:
+                        unavailable.append(f"clip-{clip.rank:02}-{label}")
+                    continue
+                field=getattr(clip,kind)
+                suffix=Path(field.name or url.split("?",1)[0]).suffix or {"video":".mp4","audio":".mp3","subtitle":".srt","thumbnail":".jpg"}[kind]
+                assets.append((clip,kind,label,suffix,url))
+        if not assets:
+            if any(clip.status == Clip.Status.RENDERED for clip in clips):
+                return Response({"detail":"These exports are missing from temporary storage. Restore them from the saved source, then download again."},status=410)
             return Response({"detail":"No rendered exports are available yet."},status=404)
         archive=io.BytesIO()
         with zipfile.ZipFile(archive,"w",zipfile.ZIP_DEFLATED) as bundle:
-            for clip in clips:
-                for label,field in (("video",clip.video),("audio",clip.audio),("subtitles",clip.subtitle),("thumbnail",clip.thumbnail)):
-                    if not field: continue
-                    suffix=Path(field.name).suffix
-                    with field.open("rb") as source:
-                        bundle.writestr(f"clip-{clip.rank:02}-{label}{suffix}",source.read())
+            for clip,kind,label,suffix,url in assets:
+                field=getattr(clip,kind)
+                try:
+                    if field.name and field.storage.exists(field.name):
+                        with field.open("rb") as source:
+                            data=source.read()
+                    else:
+                        with requests.get(url,timeout=(15,180),stream=True) as response:
+                            response.raise_for_status()
+                            data=b"".join(response.iter_content(1024*1024))
+                    if data:
+                        bundle.writestr(f"clip-{clip.rank:02}-{label}{suffix}",data)
+                    else:
+                        unavailable.append(f"clip-{clip.rank:02}-{label}")
+                except (OSError, ValueError, requests.RequestException):
+                    unavailable.append(f"clip-{clip.rank:02}-{label}")
+        if unavailable:
+            return Response({"detail":"Some export files could not be retrieved from storage.","unavailable":unavailable},status=502)
         archive.seek(0)
         filename=f"{run.order.title[:60].strip().replace(' ','-') or 'kraftaa'}-clips.zip"
         return FileResponse(archive,as_attachment=True,filename=filename,content_type="application/zip")

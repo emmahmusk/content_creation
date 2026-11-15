@@ -45,6 +45,38 @@ def ensure_uploaded(asset, source_path):
     return result
 
 
+def upload_clip_file(clip, kind, source_path):
+    """Persist a rendered clip artifact in Cloudinary and save its durable URL."""
+    _configure()
+    import cloudinary.uploader
+
+    path = Path(source_path)
+    resource_type = {
+        "video": "video",
+        "audio": "video",
+        "subtitle": "raw",
+        "thumbnail": "image",
+    }[kind]
+    public_id = f"recast/exports/{clip.order_id}/clip-{clip.rank:02d}-{kind}"
+    options = {
+        "resource_type": resource_type,
+        "public_id": public_id,
+        "overwrite": True,
+        "unique_filename": False,
+        "use_filename": False,
+        "invalidate": True,
+    }
+    if path.stat().st_size > 95 * 1024 * 1024:
+        result = cloudinary.uploader.upload_large(
+            str(path), chunk_size=10 * 1024 * 1024, **options
+        )
+    else:
+        result = cloudinary.uploader.upload(str(path), **options)
+    setattr(clip, f"cloudinary_{kind}_public_id", result["public_id"])
+    setattr(clip, f"cloudinary_{kind}_url", result.get("secure_url", ""))
+    return result
+
+
 def audio_url(public_id):
     _configure()
     import cloudinary.utils

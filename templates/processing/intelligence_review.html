@@ -27,7 +27,7 @@
   {% else %}
   <div class="intel-layout clipper-intel-layout">
     <aside class="intel-source clipper-source">
-      <div class="intel-video">{% if clip.video %}<video controls preload="metadata" poster="{% if clip.thumbnail %}{{ clip.thumbnail.url }}{% endif %}"><source src="{{ clip.video.url }}"></video>{% elif clip.preview_url %}<video controls preload="metadata"><source src="{{ clip.preview_url }}"></video>{% else %}<div class="intel-video-placeholder">Preview becomes available after rendering</div>{% endif %}</div>
+      <div class="intel-video">{% if clip.video_url %}<video controls preload="metadata" poster="{{ clip.thumbnail_url }}"><source src="{{ clip.video_url }}"></video>{% elif clip.preview_url %}<video controls preload="metadata"><source src="{{ clip.preview_url }}"></video>{% else %}<div class="intel-video-placeholder">Preview becomes available after rendering</div>{% endif %}</div>
       <div class="waveform" aria-label="Audio waveform">{% for segment in segments %}<i style="--h:{% cycle '32' '62' '44' '78' '52' '88' '40' '70' %}%"></i>{% empty %}{% for i in '123456789012345678901234567890' %}<i style="--h:{% cycle '38' '72' '48' '82' '58' %}%"></i>{% endfor %}{% endfor %}</div>
       <div class="timeline-ruler"><span>{{ clip.start_timecode }}</span><b></b><span>{{ clip.end_timecode }}</span></div>
       <details class="clipper-transcript"><summary>View clip transcript <span>+</span></summary><div>{% for segment in segments %}<p><time>{{ segment.start_ms }}</time>{{ segment.text }}</p>{% empty %}<p>No timestamped transcript is available for this range.</p>{% endfor %}</div></details>

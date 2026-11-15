@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from .forms import ContentOrderForm, SourceAssetForm, SourceRecoveryUploadForm, WalkthroughWaitlistForm
 from .models import ContentOrder, OrderEvent, WalkthroughWaitlist
 from .services import (
@@ -13,6 +14,8 @@ from .services import (
     prepare_render_restart,
 )
 from apps.processing.models import Clip, PipelineRun
+from apps.processing.tasks import dispatch_render
+from apps.processing.services.cloudinary_media import configured as cloudinary_configured
 from apps.processing.services.public_media import is_youtube_authentication_error, is_youtube_url
 from apps.processing.services.run_control import cancel_pipeline_run
 from apps.credits.services import available_balance
@@ -146,9 +149,10 @@ def order_detail(request, pk):
     pipeline = order.pipeline_runs.first()
     if pipeline is None: pipeline = PipelineRun.objects.create(order=order)
     clips=list(order.clips.all())
-    rendered=sum(bool(clip.video) for clip in clips)
+    rendered=sum(bool(clip.video_url) for clip in clips)
+    missing_rendered=sum(clip.status == Clip.Status.RENDERED and not clip.video_url for clip in clips)
     approved=sum(clip.status == "approved" for clip in clips)
-    source_asset = order.source_assets.first()
+    source_asset = order.source_assets.order_by("-uploaded_at").first()
     source_recovery_required = bool(
         source_asset
         and source_asset.external_url
@@ -161,12 +165,79 @@ def order_detail(request, pk):
         "pipeline": pipeline,
         "clip_count": len(clips),
         "rendered_count": rendered,
+        "missing_rendered_count": missing_rendered,
+        "can_restore_exports": bool(
+            missing_rendered
+            and source_asset
+            and source_asset.cloudinary_public_id
+            and cloudinary_configured()
+            and order.transcript_segments.exists()
+        ),
         "approved_count": approved,
         "exports_ready": rendered > 0 and approved == 0,
         "source_asset": source_asset,
         "source_recovery_required": source_recovery_required,
         "source_recovery_form": SourceRecoveryUploadForm(),
     })
+
+
+@login_required
+def restore_missing_exports(request, pk):
+    if request.method != "POST":
+        return redirect("orders:detail", pk=pk)
+    order = get_object_or_404(
+        ContentOrder.objects.prefetch_related("source_assets", "pipeline_runs"),
+        pk=pk,
+        customer=request.user,
+    )
+    pipeline = order.pipeline_runs.first()
+    asset = order.source_assets.order_by("-uploaded_at").first()
+    if not pipeline or not asset or not asset.cloudinary_public_id or not cloudinary_configured():
+        messages.error(request, "This project has no available Cloudinary source copy to restore from.")
+        return redirect("orders:detail", pk=order.pk)
+    if pipeline.status == PipelineRun.Status.RUNNING:
+        messages.info(request, "This project already has a production run in progress.")
+        return redirect("orders:detail", pk=order.pk)
+    missing = [clip for clip in order.clips.filter(status=Clip.Status.RENDERED) if not clip.video_url]
+    if not missing:
+        messages.info(request, "All rendered clips are already available.")
+        return redirect("orders:detail", pk=order.pk)
+    if not order.transcript_segments.exists():
+        messages.error(request, "The transcript needed to rebuild these clips is unavailable.")
+        return redirect("orders:detail", pk=order.pk)
+
+    with transaction.atomic():
+        run = PipelineRun.objects.select_for_update().get(pk=pipeline.pk)
+        if run.status == PipelineRun.Status.RUNNING:
+            messages.info(request, "This project already has a production run in progress.")
+            return redirect("orders:detail", pk=order.pk)
+        run.storage_recovery = True
+        run.recovery_clip_ids = [clip.pk for clip in missing]
+        run.status = PipelineRun.Status.RUNNING
+        run.current_stage = "render"
+        run.progress = 70
+        run.error = ""
+        run.finished_at = None
+        run.save(update_fields=["storage_recovery", "recovery_clip_ids", "status", "current_stage", "progress", "error", "finished_at", "updated_at"])
+        Clip.objects.filter(pk__in=run.recovery_clip_ids).update(status=Clip.Status.APPROVED)
+        order.status = ContentOrder.Status.IN_PROGRESS
+        order.save(update_fields=["status", "updated_at"])
+    try:
+        dispatch_render(run.id)
+    except Exception as exc:
+        Clip.objects.filter(pk__in=run.recovery_clip_ids).update(status=Clip.Status.RENDERED)
+        run.storage_recovery = False
+        run.recovery_clip_ids = []
+        run.status = PipelineRun.Status.FAILED
+        run.error = f"Could not start export recovery: {exc}"
+        run.finished_at = timezone.now()
+        run.save(update_fields=["storage_recovery", "recovery_clip_ids", "status", "error", "finished_at", "updated_at"])
+        order.status = ContentOrder.Status.QUALITY_CHECK
+        order.save(update_fields=["status", "updated_at"])
+        messages.error(request, "We could not start the recovery. Please try again in a moment.")
+        return redirect("orders:detail", pk=order.pk)
+    messages.success(request, "Restoring your missing clips from the saved source. This will not use additional credits.")
+    return redirect("orders:detail", pk=order.pk)
 
 
 @login_required
