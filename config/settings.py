@@ -137,7 +137,12 @@ _subtitle_font_size = int(os.getenv("SUBTITLE_FONT_SIZE", "8"))
 if _subtitle_font_size > 12:
     _subtitle_font_size = round(_subtitle_font_size / 6)
 SUBTITLE_FONT_SIZE = max(6, min(_subtitle_font_size, 12))
-SUBTITLE_MARGIN_V = max(12, min(int(os.getenv("SUBTITLE_MARGIN_V", "24")), 32))
+_subtitle_margin_v = int(os.getenv("SUBTITLE_MARGIN_V", "440"))
+# Older configs used a small margin scale (12-32). Convert it to output-frame
+# units so captions sit in the lower-middle safe area of a 9:16 export.
+if _subtitle_margin_v <= 64:
+    _subtitle_margin_v *= 18
+SUBTITLE_MARGIN_V = max(300, min(_subtitle_margin_v, 650))
 SUBTITLE_MAX_WORDS = max(2, min(int(os.getenv("SUBTITLE_MAX_WORDS", "4")), 8))
 SUBTITLE_MAX_CHARS = max(16, min(int(os.getenv("SUBTITLE_MAX_CHARS", "30")), 48))
 PUBLIC_MEDIA_MAX_BYTES = int(os.getenv("PUBLIC_MEDIA_MAX_BYTES", str(2 * 1024 * 1024 * 1024)))
