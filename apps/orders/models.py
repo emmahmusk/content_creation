@@ -83,8 +83,11 @@ class SourceAsset(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     def clean(self):
         from django.core.exceptions import ValidationError
+        from apps.processing.services.public_media import is_youtube_url
         if not self.file and not self.external_url:
             raise ValidationError("Upload a file or provide an external video URL.")
+        if not self.file and self.external_url and is_youtube_url(self.external_url):
+            raise ValidationError({"external_url": "Upload the original video file instead of a YouTube link."})
         if self.external_url and not self.rights_confirmed:
             raise ValidationError({"rights_confirmed": "Confirm that you own this content or have permission to repurpose it."})
     def __str__(self):

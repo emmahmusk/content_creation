@@ -1,7 +1,9 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Count, Q
+from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from .forms import ContentOrderForm, SourceAssetForm, SourceRecoveryUploadForm, WalkthroughWaitlistForm
@@ -16,9 +18,81 @@ from .services import (
 from apps.processing.models import CAPTION_RENDER_VERSION, Clip, PipelineRun
 from apps.processing.tasks import dispatch_render
 from apps.processing.services.cloudinary_media import configured as cloudinary_configured
-from apps.processing.services.public_media import is_youtube_authentication_error, is_youtube_url
+from apps.processing.services.public_media import is_youtube_import_error, is_youtube_url
 from apps.processing.services.run_control import cancel_pipeline_run
 from apps.credits.services import available_balance
+from apps.processing.services.groq_provider import GroqConfigurationError, generate_json
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@login_required
+@require_POST
+def suggest_clipping_brief(request):
+    """Draft editable project-brief fields from a user's short topic/context."""
+    try:
+        payload = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Please try again. The request could not be read."}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({"error": "Please provide a title or a short topic first."}, status=400)
+
+    title = str(payload.get("title", "")).strip()[:300]
+    brief = str(payload.get("content_brief", "")).strip()[:3000]
+    importance = str(payload.get("importance_definition", "")).strip()[:1200]
+    avoid = str(payload.get("moments_to_avoid", "")).strip()[:1200]
+    voice = str(payload.get("brand_voice", "")).strip()[:1200]
+    filename = str(payload.get("source_name", "")).strip().replace("\\", "/").split("/")[-1][:180]
+    if not any((title, brief, filename)):
+        return JsonResponse({"error": "Add a title or a few words about the video first, then ask for suggestions."}, status=400)
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "content_brief": {"type": "string"},
+            "importance_definition": {"type": "string"},
+            "moments_to_avoid": {"type": "string"},
+            "brand_voice": {"type": "string"},
+        },
+        "required": ["title", "content_brief", "importance_definition", "moments_to_avoid", "brand_voice"],
+        "additionalProperties": False,
+    }
+    context = {
+        "project_title": title,
+        "audience_and_project_brief": brief,
+        "worthwhile_moments": importance,
+        "moments_to_avoid": avoid,
+        "voice_and_style": voice,
+        "uploaded_file_name": filename,
+    }
+    try:
+        suggestions = generate_json(
+            "You help video creators write a clear, useful clipping brief. Return concise, editable copy for each field. "
+            "Use only details supported by the supplied context; do not invent facts, audience demographics, outcomes, "
+            "or claims about the video. If details are sparse, keep the guidance broad and practical. Do not mention AI.",
+            "Draft these project fields from the user's context. Keep the title short, the audience brief to 1-2 sentences, "
+            "and each direction field to one concise sentence. Avoid generic hype.\n\n"
+            + json.dumps(context, ensure_ascii=False),
+            schema=schema,
+            name="clipping_brief_suggestions",
+        )
+    except GroqConfigurationError:
+        return JsonResponse({"error": "AI suggestions are temporarily unavailable. Please fill in the brief manually."}, status=503)
+    except Exception:
+        logger.exception("Could not generate a clipping brief suggestion for user %s", request.user.pk)
+        return JsonResponse({"error": "We couldn't create suggestions right now. Please try again in a moment."}, status=502)
+
+    if not isinstance(suggestions, dict):
+        logger.warning("Groq returned an unexpected clipping brief shape for user %s", request.user.pk)
+        return JsonResponse({"error": "We couldn't create suggestions right now. Please try again in a moment."}, status=502)
+
+    # Bound response size even if the provider ignores the requested style.
+    for key, limit in (("title", 180), ("content_brief", 1200), ("importance_definition", 600), ("moments_to_avoid", 600), ("brand_voice", 600)):
+        suggestions[key] = str(suggestions.get(key, "")).strip()[:limit]
+    return JsonResponse({"suggestions": suggestions})
 
 @login_required
 def dashboard(request):
@@ -159,7 +233,7 @@ def order_detail(request, pk):
         and source_asset.external_url
         and is_youtube_url(source_asset.external_url)
         and pipeline.status == PipelineRun.Status.FAILED
-        and is_youtube_authentication_error(pipeline.error)
+        and is_youtube_import_error(pipeline.error)
     )
     return render(request, "orders/detail.html", {
         "order": order,

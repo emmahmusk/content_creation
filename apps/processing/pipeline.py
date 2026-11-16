@@ -87,12 +87,16 @@ def _source(order,work,run):
         destination=work/"source-video"
         _download(asset.external_url,destination)
         return destination
+    if public_media.is_youtube_url(asset.external_url):
+        raise public_media.PublicMediaError(public_media.YOUTUBE_RECOVERY_MESSAGE)
     if asset.file:
         raise ValueError(
             "The uploaded source is no longer available on this Render instance, and no Cloudinary copy exists. "
             "Please re-upload the original video or audio file."
         )
-    return public_media.download_with_pytubefix(asset.external_url,work,run)
+    raise public_media.PublicMediaError(
+        "This link does not point directly to a downloadable media file. Upload the recording or provide a direct media URL."
+    )
 
 def _transcript_text(order):
     return "\n".join(f"[{s.start_ms}-{s.end_ms}] {s.text}" for s in order.transcript_segments.all())

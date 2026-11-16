@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import ContentOrder, OrderEvent, SourceAsset
+from apps.processing.services.public_media import is_youtube_url
 
 class SourceAssetSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,6 +12,8 @@ class SourceAssetSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A file or external_url is required.")
         if attrs.get("external_url") and not attrs.get("rights_confirmed"):
             raise serializers.ValidationError({"rights_confirmed": "Confirm that you own this content or have permission to repurpose it."})
+        if attrs.get("external_url") and not attrs.get("file") and not getattr(self.instance, "file", None) and is_youtube_url(attrs["external_url"]):
+            raise serializers.ValidationError({"external_url": "Upload the original video file instead of a YouTube link."})
         return attrs
 
 class OrderEventSerializer(serializers.ModelSerializer):

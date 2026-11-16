@@ -2,6 +2,7 @@ from django import forms
 from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from .models import ContentOrder, SourceAsset, WalkthroughWaitlist
+from apps.processing.services.public_media import is_youtube_url
 
 PLATFORMS = [("linkedin", "LinkedIn"), ("x", "X / Twitter"), ("instagram", "Instagram"), ("youtube", "YouTube"), ("newsletter", "Newsletter / article")]
 class ContentOrderForm(forms.ModelForm):
@@ -64,6 +65,12 @@ class SourceAssetForm(forms.ModelForm):
             raise forms.ValidationError("Upload a video/audio file or provide a link.")
         if cleaned.get("external_url") and not cleaned.get("rights_confirmed"):
             self.add_error("rights_confirmed", "You must confirm your rights before importing a public URL.")
+        if cleaned.get("external_url") and not cleaned.get("file") and is_youtube_url(cleaned["external_url"]):
+            self.add_error(
+                "external_url",
+                "YouTube links cannot be imported reliably. Upload the original video file instead. "
+                "If it is your channel, download your upload from YouTube Studio first.",
+            )
         return cleaned
 
 

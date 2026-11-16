@@ -47,6 +47,9 @@
 .connection-page .connection-workspace .connection-compose,
 .connection-page .connection-workspace .destinations-head{padding-inline:clamp(20px,2.2vw,36px)!important}
 .connection-page .connection-workspace .destination-list{box-sizing:border-box;padding-inline:clamp(14px,1.8vw,28px)!important}
+.connection-page .connection-workspace .connection-empty>div{display:block!important;width:auto!important;height:auto!important;min-width:0;background:transparent!important;border-radius:0!important;font-size:inherit!important;place-items:initial!important}
+.connection-page .connection-workspace .connection-empty h3{max-width:none;line-height:1.2}
+.connection-page .connection-workspace .connection-empty p{max-width:42rem;line-height:1.6}
 @media(max-width:760px){
   .connection-page .connection-workspace .connection-compose,
   .connection-page .connection-workspace .destinations-head{padding-inline:18px!important}

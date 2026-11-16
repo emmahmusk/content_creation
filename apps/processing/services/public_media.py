@@ -1,12 +1,7 @@
 import ipaddress
 import socket
-import time
 from pathlib import Path
 from urllib.parse import urlparse
-
-from django.conf import settings
-from apps.processing.services.run_control import PipelineCancelled
-
 
 class PublicMediaError(RuntimeError):
     pass
@@ -15,9 +10,9 @@ class PublicMediaError(RuntimeError):
 DIRECT_MEDIA_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".ogv", ".ogg", ".mp3", ".wav", ".m4a"}
 YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be"}
 YOUTUBE_RECOVERY_MESSAGE = (
-    "YouTube could not verify this server. Your project is safe. Upload the original "
-    "video or audio file to continue; if this is your channel, download the source from "
-    "YouTube Studio first."
+    "Kraftaa cannot import YouTube links reliably because YouTube may block or rate-limit "
+    "app-based downloads. Upload the original video or audio file instead. If it is your "
+    "channel, download your upload from YouTube Studio first."
 )
 
 
@@ -59,86 +54,16 @@ def is_youtube_authentication_error(message):
     )
 
 
-def download_with_pytubefix(url, work_directory, run):
-    """Download one authorized YouTube source, using the owner's device approval."""
-    assert_public_url(url)
-    if not is_youtube_url(url):
-        raise PublicMediaError("This downloader accepts YouTube video links only.")
-    try:
-        from pytubefix import YouTube
-    except ImportError as exc:
-        raise PublicMediaError("YouTube importing is unavailable because pytubefix is not installed.") from exc
-    work = Path(work_directory)
-    work.mkdir(parents=True, exist_ok=True)
-    token_file = work / "youtube-oauth-tokens.json"
-    oauth_timeout_seconds = 10 * 60
-
-    def request_user_approval(verification_url, user_code):
-        from apps.processing.models import PipelineRun
-
-        PipelineRun.objects.filter(pk=run.pk).update(
-            youtube_auth_url=verification_url,
-            youtube_auth_code=user_code,
-            youtube_auth_confirmed=False,
+def is_youtube_import_error(message):
+    normalized = (message or "").lower()
+    return is_youtube_authentication_error(normalized) or any(
+        phrase in normalized
+        for phrase in (
+            "429",
+            "too many requests",
+            "rate limit",
+            "rate-limited",
+            "cannot import youtube links reliably",
+            "youtube may block app-based imports",
         )
-        deadline = time.monotonic() + oauth_timeout_seconds
-        while time.monotonic() < deadline:
-            current = PipelineRun.objects.only("status", "youtube_auth_confirmed").get(pk=run.pk)
-            if current.status == PipelineRun.Status.CANCELLED:
-                raise PipelineCancelled("Analysis stopped by the customer.")
-            if current.youtube_auth_confirmed:
-                return
-            time.sleep(2)
-        raise PublicMediaError(
-            "YouTube sign-in expired before approval. Start the analysis again and complete the sign-in prompt."
-        )
-
-    try:
-        video = YouTube(
-            url,
-            use_oauth=True,
-            allow_oauth_cache=True,
-            token_file=str(token_file),
-            oauth_verifier=request_user_approval,
-        )
-        streams = video.streams.filter(progressive=True, file_extension="mp4")
-        eligible = []
-        for stream in streams:
-            try:
-                height = int(str(stream.resolution or "").rstrip("p"))
-            except (TypeError, ValueError):
-                continue
-            size = getattr(stream, "filesize", None) or getattr(stream, "filesize_approx", None)
-            if height <= 1080 and (not size or size <= settings.PUBLIC_MEDIA_MAX_BYTES):
-                eligible.append((height, stream))
-        if not eligible:
-            raise PublicMediaError(
-                "YouTube did not offer a progressive MP4 within the configured import limits. "
-                "Upload the original recording to continue."
-            )
-        _, selected_stream = max(eligible, key=lambda item: item[0])
-        downloaded = selected_stream.download(
-            output_path=str(work),
-            filename="public-source-youtube.mp4",
-        )
-    except Exception as exc:
-        if isinstance(exc, PipelineCancelled):
-            raise
-        if isinstance(exc, PublicMediaError):
-            raise
-        message = str(exc).strip()
-        normalized = message.lower()
-        if any(token in normalized for token in ("bot", "403", "forbidden", "loginrequired")):
-            message = YOUTUBE_RECOVERY_MESSAGE
-        raise PublicMediaError(f"The YouTube video could not be imported: {message}") from exc
-    finally:
-        # Device-flow access tokens are scoped to this import and must not survive in
-        # failed work directories that are retained for debugging or retries.
-        token_file.unlink(missing_ok=True)
-    downloaded_path = Path(downloaded)
-    if not downloaded_path.is_file():
-        raise PublicMediaError("YouTube did not return a local video file.")
-    if downloaded_path.stat().st_size > settings.PUBLIC_MEDIA_MAX_BYTES:
-        downloaded_path.unlink(missing_ok=True)
-        raise PublicMediaError("This YouTube video exceeds the configured import size limit.")
-    return downloaded_path
+    )

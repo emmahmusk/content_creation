@@ -19,6 +19,59 @@ const setButtonBusy=(button,busy,label='Working…')=>{
     button.removeAttribute('aria-busy');
   }
 };
+
+document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
+  const button=toolbar.querySelector('[data-brief-suggest-button]');
+  const status=toolbar.querySelector('[data-brief-suggest-status]');
+  const replaceExisting=toolbar.querySelector('[data-brief-replace]');
+  const form=toolbar.closest('form');
+  if(!button||!status||!form)return;
+  button.addEventListener('click',async()=>{
+    status.textContent='';
+    const field=name=>form.querySelector(`[name="${name}"]`);
+    const values={
+      title:field('title')?.value.trim()||'',
+      content_brief:field('content_brief')?.value.trim()||'',
+      importance_definition:field('importance_definition')?.value.trim()||'',
+      moments_to_avoid:field('moments_to_avoid')?.value.trim()||'',
+      brand_voice:field('brand_voice')?.value.trim()||'',
+      source_name:form.querySelector('[name="file"]')?.files?.[0]?.name||''
+    };
+    const fields=['title','content_brief','importance_definition','moments_to_avoid','brand_voice'].map(field);
+    if(!replaceExisting?.checked&&fields.every(target=>target?.value.trim())){
+      status.textContent='All fields already have text. Clear a field or choose “Replace text already entered” to get a fresh draft.';
+      return;
+    }
+    setButtonBusy(button,true,'Drafting your brief…');
+    try{
+      const csrf=form.querySelector('[name="csrfmiddlewaretoken"]')?.value||'';
+      const response=await fetch(toolbar.dataset.suggestUrl,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRFToken':csrf},
+        body:JSON.stringify(values)
+      });
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||'Suggestions are unavailable right now.');
+      let filled=0,kept=0;
+      Object.entries(data.suggestions||{}).forEach(([name,value])=>{
+        const target=field(name);
+        if(!target||!String(value||'').trim())return;
+        if(target.value.trim()&&!replaceExisting?.checked){kept++;return;}
+        target.value=String(value).trim();
+        target.dispatchEvent(new Event('input',{bubbles:true}));
+        filled++;
+      });
+      if(filled&&replaceExisting?.checked){
+        status.textContent='Fresh suggestions added. Edit any field to make the brief yours.';
+      }else if(filled){
+        const keptNote=kept?` ${kept} field${kept===1?' was':'s were'} left unchanged.`:'';
+        status.textContent=`Draft added to ${filled} empty field${filled===1?'':'s'}. Edit any suggestion to make it yours.${keptNote}`;
+      }else status.textContent='Your fields already have text, so nothing was replaced. Clear a field to add a fresh suggestion there.';
+    }catch(error){status.textContent=error.message||'We could not create suggestions. Please try again.';}
+    finally{setButtonBusy(button,false);button.disabled=false;}
+  });
+});
+
 window.addEventListener('pageshow',endRouteTransition);
 document.addEventListener('click',event=>{const link=event.target.closest('a[href]');if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.target==='_blank'||link.hasAttribute('download')||link.dataset.noTransition!==undefined)return;let target;try{target=new URL(link.href,location.href);}catch(error){return;}if(target.origin!==location.origin)return;const sameDocument=target.pathname===location.pathname&&target.search===location.search;if(sameDocument&&(!target.hash||target.hash===location.hash||document.querySelector(target.hash)))return;beginRouteTransition(link.dataset.loadingText||'Opening next view…');});
 document.addEventListener('submit',event=>{if(event.defaultPrevented)return;const form=event.target;if(!(form instanceof HTMLFormElement)||form.dataset.noTransition!==undefined)return;const button=form.querySelector('button:not([type]),button[type="submit"],input[type="submit"]');const label=button?.dataset.loadingText||'Saving and opening the next step…';setButtonBusy(button,true,label);beginRouteTransition(label);});

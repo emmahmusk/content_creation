@@ -11,4 +11,3 @@ openai==1.93.0
 requests==2.32.4
 Pillow==11.3.0
 cloudinary>=1.44,<2
-pytubefix>=11.2.1,<12
