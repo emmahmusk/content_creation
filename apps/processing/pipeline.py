@@ -126,9 +126,10 @@ def _render_clip_files(order, source, work, run=None, broll_assets=None, clips_o
         audio=work/f"clip-{clip.rank:02}.mp3"
         frame=work/f"clip-{clip.rank:02}.jpg"
         thumb=work/f"clip-{clip.rank:02}-thumbnail.jpg"
-        media.write_srt(segments,render_start_ms,clip.end_ms,srt)
-        if not srt.read_text(encoding="utf-8").strip():
-            raise ValueError(f"No transcript captions overlap clip {clip.rank:02}. The clip was not exported without captions.")
+        if order.include_captions:
+            media.write_srt(segments,render_start_ms,clip.end_ms,srt)
+            if not srt.read_text(encoding="utf-8").strip():
+                raise ValueError(f"No transcript captions overlap clip {clip.rank:02}. Turn off on-video captions or review the transcript before exporting.")
         media.render_vertical(
             source,
             render_start_ms,
@@ -136,16 +137,25 @@ def _render_clip_files(order, source, work, run=None, broll_assets=None, clips_o
             srt,
             video,
             broll_segments=(broll_assets or {}).get(clip.pk, []),
+            include_captions=order.include_captions,
         )
         media.render_audio_clip(source,render_start_ms,clip.end_ms,audio)
         media.extract_frame(source,render_start_ms+min(2000,(clip.end_ms-render_start_ms)//2),frame)
         create_thumbnail(frame,clip.title,thumb)
         with open(video,"rb") as handle: clip.video.save(video.name,File(handle),save=False)
         with open(audio,"rb") as handle: clip.audio.save(audio.name,File(handle),save=False)
-        with open(srt,"rb") as handle: clip.subtitle.save(srt.name,File(handle),save=False)
+        if order.include_captions:
+            with open(srt,"rb") as handle: clip.subtitle.save(srt.name,File(handle),save=False)
+        else:
+            clip.subtitle = ""
+            clip.cloudinary_subtitle_public_id = ""
+            clip.cloudinary_subtitle_url = ""
         with open(thumb,"rb") as handle: clip.thumbnail.save(thumb.name,File(handle),save=False)
         if cloudinary_media.configured():
-            for kind, path in (("video", video), ("audio", audio), ("subtitle", srt), ("thumbnail", thumb)):
+            uploads = [("video", video), ("audio", audio), ("thumbnail", thumb)]
+            if order.include_captions:
+                uploads.append(("subtitle", srt))
+            for kind, path in uploads:
                 cloudinary_media.upload_clip_file(clip, kind, path)
         clip.caption_version = CAPTION_RENDER_VERSION
         clip.status=Clip.Status.RENDERED

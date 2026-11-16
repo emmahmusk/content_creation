@@ -36,6 +36,7 @@ class ContentOrder(models.Model):
     min_clip_seconds = models.PositiveSmallIntegerField(default=20)
     max_clip_seconds = models.PositiveSmallIntegerField(default=60)
     target_platforms = models.JSONField(default=list, blank=True)
+    include_captions = models.BooleanField(default=True)
     include_audio_cleanup = models.BooleanField(default=False)
     broll_mode = models.CharField(
         max_length=20,

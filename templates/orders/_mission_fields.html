@@ -74,6 +74,15 @@
   <fieldset class="enhancement-picker mission-field-wide">
     <legend>Finishing touches</legend>
     <div class="option-group-head"><p>Optional production polish for a cleaner final package.</p><span>OPTIONAL</span></div>
+    <label class="enhancement-choice" for="{{ form.include_captions.id_for_label }}">
+      {{ form.include_captions }}
+      <span class="enhancement-choice-ui">
+        <span class="enhancement-glyph" aria-hidden="true">CC</span>
+        <span class="enhancement-copy"><strong>Burn captions into the video</strong><small>Show readable, timed subtitles on each exported clip, up to 4 words at a time.</small></span>
+        <span class="enhancement-toggle" aria-hidden="true"><i></i></span>
+      </span>
+    </label>
+    {{ form.include_captions.errors }}
     <label class="enhancement-choice" for="{{ form.include_audio_cleanup.id_for_label }}">
       {{ form.include_audio_cleanup }}
       <span class="enhancement-choice-ui">

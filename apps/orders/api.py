@@ -3,7 +3,7 @@ from .models import ContentOrder, SourceAsset
 from .serializers import ContentOrderSerializer, SourceAssetSerializer, StaffContentOrderSerializer
 
 class ContentOrderViewSet(viewsets.ModelViewSet):
-    filterset_fields = ["status", "include_audio_cleanup", "broll_mode", "broll_intensity"]
+    filterset_fields = ["status", "include_captions", "include_audio_cleanup", "broll_mode", "broll_intensity"]
     search_fields = ["title", "content_brief"]
     ordering_fields = ["created_at", "due_at", "updated_at"]
     def get_queryset(self):

@@ -17,7 +17,7 @@ ANALYSIS_INPUT_FIELDS = frozenset(
 )
 
 RENDER_INPUT_FIELDS = frozenset(
-    {"broll_mode", "broll_intensity", "include_audio_cleanup"}
+    {"broll_mode", "broll_intensity", "include_audio_cleanup", "include_captions"}
 )
 
 

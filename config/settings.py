@@ -131,7 +131,12 @@ CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
 CLOUDINARY_FALLBACK_ENABLED = os.getenv("CLOUDINARY_FALLBACK_ENABLED", "True").lower() in {"1", "true", "yes"}
 MEDIA_PIPELINE_PRIMARY = os.getenv("MEDIA_PIPELINE_PRIMARY", "cloudinary").lower()
-SUBTITLE_FONT_SIZE = max(4, min(int(os.getenv("SUBTITLE_FONT_SIZE", "4")), 8))
+_subtitle_font_size = int(os.getenv("SUBTITLE_FONT_SIZE", "48"))
+# Earlier deployments used a small 4-8 scale. Convert those legacy values to
+# readable ASS font sizes (4 -> 48) while accepting explicit font sizes too.
+if _subtitle_font_size <= 8:
+    _subtitle_font_size *= 12
+SUBTITLE_FONT_SIZE = max(36, min(_subtitle_font_size, 72))
 SUBTITLE_MARGIN_V = max(12, min(int(os.getenv("SUBTITLE_MARGIN_V", "24")), 32))
 SUBTITLE_MAX_WORDS = max(2, min(int(os.getenv("SUBTITLE_MAX_WORDS", "4")), 8))
 SUBTITLE_MAX_CHARS = max(16, min(int(os.getenv("SUBTITLE_MAX_CHARS", "30")), 48))

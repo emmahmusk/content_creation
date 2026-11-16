@@ -15,7 +15,7 @@ class ContentOrderForm(forms.ModelForm):
 
     class Meta:
         model = ContentOrder
-        fields = ["title", "content_brief", "importance_definition", "moments_to_avoid", "desired_clip_count", "min_clip_seconds", "max_clip_seconds", "brand_voice", "target_platforms", "broll_mode", "broll_intensity", "include_audio_cleanup"]
+        fields = ["title", "content_brief", "importance_definition", "moments_to_avoid", "desired_clip_count", "min_clip_seconds", "max_clip_seconds", "brand_voice", "target_platforms", "broll_mode", "broll_intensity", "include_captions", "include_audio_cleanup"]
         labels = {
             "content_brief": "Audience and project brief",
             "importance_definition": "What makes a moment worth clipping?",
@@ -27,6 +27,10 @@ class ContentOrderForm(forms.ModelForm):
             "broll_mode": "B-roll direction",
             "broll_intensity": "B-roll frequency",
             "include_audio_cleanup": "Professional audio cleanup",
+            "include_captions": "Burn captions into the video",
+        }
+        help_texts = {
+            "include_captions": "Show timed subtitles on the exported video. Captions use up to 4 words at a time.",
         }
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "e.g. The founder's playbook: episode 12"}),

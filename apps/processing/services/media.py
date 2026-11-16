@@ -158,9 +158,9 @@ def normalize_broll_asset(source, destination, duration_ms):
     return destination
 
 
-def render_vertical(source, start_ms, end_ms, subtitle, destination, broll_segments=None):
+def render_vertical(source, start_ms, end_ms, subtitle, destination, broll_segments=None, include_captions=True):
     Path(destination).parent.mkdir(parents=True, exist_ok=True)
-    escaped=str(subtitle).replace("\\","/").replace(":","\\:").replace("'","\\'")
+    escaped=str(subtitle).replace("\\","/").replace(":","\\:").replace("'","\\'") if subtitle else ""
     duration=max(1.0,(end_ms-start_ms)/1000)
     info=probe(source)
     has_video=any(stream.get("codec_type")=="video" for stream in info.get("streams",[]))
@@ -187,11 +187,16 @@ def render_vertical(source, start_ms, end_ms, subtitle, destination, broll_segme
         filters.append(f"[{input_index}:v]setpts=PTS-STARTPTS+{start:.3f}/TB[b{index}]")
         filters.append(f"[{current}][b{index}]overlay=0:0:eof_action=pass:enable='between(t,{start:.3f},{end:.3f})'[mix{index}]")
         current=f"mix{index}"
-    filters.append(
-        f"[{current}]subtitles='{escaped}':force_style='FontName=Arial,FontSize={settings.SUBTITLE_FONT_SIZE},PrimaryColour=&H00FFFFFF,"
-        f"OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,Alignment=2,MarginV={settings.SUBTITLE_MARGIN_V}'[vout]"
-    )
-    command += ["-filter_complex",";".join(filters),"-map","[vout]","-map",f"{audio_index}:a?","-t",f"{duration:.3f}","-c:v","libx264","-preset","ultrafast","-threads",str(settings.FFMPEG_ENCODER_THREADS),"-crf","20","-c:a","aac","-b:a","160k","-movflags","+faststart","-shortest",str(destination)]
+    output_label = current
+    if include_captions:
+        if not escaped or not Path(subtitle).is_file() or not Path(subtitle).stat().st_size:
+            raise MediaError("Captions are enabled, but no subtitle file was available to render.")
+        filters.append(
+            f"[{current}]subtitles='{escaped}':force_style='FontName=Arial,FontSize={settings.SUBTITLE_FONT_SIZE},PrimaryColour=&H00FFFFFF,"
+            f"OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=1,Alignment=2,MarginV={settings.SUBTITLE_MARGIN_V}'[vout]"
+        )
+        output_label = "vout"
+    command += ["-filter_complex",";".join(filters),"-map",f"[{output_label}]","-map",f"{audio_index}:a?","-t",f"{duration:.3f}","-c:v","libx264","-preset","ultrafast","-threads",str(settings.FFMPEG_ENCODER_THREADS),"-crf","20","-c:a","aac","-b:a","160k","-movflags","+faststart","-shortest",str(destination)]
     run(command)
     return destination
 

@@ -117,7 +117,7 @@
         <p>Select the moments you want to turn into clips. Skip anything you do not need before editing begins.</p>
       </div>
       {% if exports_ready %}<a class="btn btn-small" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/">Download all files</a>{% endif %}
-      {% if can_restore_exports and pipeline.status != 'running' %}<form method="post" action="{% url 'orders:restore-exports' order.pk %}">{% csrf_token %}<button class="btn btn-small" type="submit">{% if missing_rendered_count %}Restore missing clips{% else %}Refresh clips with captions{% endif %}</button></form>{% endif %}
+      {% if can_restore_exports and pipeline.status != 'running' %}<form method="post" action="{% url 'orders:restore-exports' order.pk %}">{% csrf_token %}<button class="btn btn-small" type="submit">{% if missing_rendered_count %}Restore missing clips{% elif order.include_captions %}Refresh clips with captions{% else %}Refresh rendered clips{% endif %}</button></form>{% endif %}
     </div>
 
     <div class="clip-list">
@@ -209,7 +209,7 @@
       {% else %}<div class="pending"><div class="pulse"></div><h3>Your package is being prepared.</h3><p>Publishing assets appear here after processing.</p></div>{% endif %}
     </section>
     <aside>
-      <section class="panel"><h3>Production settings</h3><dl><dt>Submitted</dt><dd>{{ order.created_at|date:"M j, g:i A" }}</dd><dt>B-roll</dt><dd>{{ order.get_broll_mode_display }}{% if order.broll_mode != 'none' %} · {{ order.get_broll_intensity_display }}{% endif %}</dd><dt>Audio cleanup</dt><dd>{{ order.include_audio_cleanup|yesno:"Included,Not included" }}</dd><dt>Destinations</dt><dd>{{ order.target_platforms|join:", "|title }}</dd></dl>{% if order.broll_mode == 'hybrid' or order.broll_mode == 'ai_selected' %}<p class="stock-credit"><a href="https://www.pexels.com" target="_blank" rel="noopener">Stock footage provided by Pexels</a></p>{% endif %}</section>
+      <section class="panel"><h3>Production settings</h3><dl><dt>Submitted</dt><dd>{{ order.created_at|date:"M j, g:i A" }}</dd><dt>B-roll</dt><dd>{{ order.get_broll_mode_display }}{% if order.broll_mode != 'none' %} · {{ order.get_broll_intensity_display }}{% endif %}</dd><dt>On-video captions</dt><dd>{{ order.include_captions|yesno:"Included,Off" }}</dd><dt>Audio cleanup</dt><dd>{{ order.include_audio_cleanup|yesno:"Included,Not included" }}</dd><dt>Destinations</dt><dd>{{ order.target_platforms|join:", "|title }}</dd></dl>{% if order.broll_mode == 'hybrid' or order.broll_mode == 'ai_selected' %}<p class="stock-credit"><a href="https://www.pexels.com" target="_blank" rel="noopener">Stock footage provided by Pexels</a></p>{% endif %}</section>
       <section class="panel"><h3>Activity</h3><div class="timeline">{% for event in order.events.all %}<div><i></i><p>{{ event.message }}<small>{{ event.created_at|timesince }} ago</small></p></div>{% endfor %}</div></section>
     </aside>
   </div>
