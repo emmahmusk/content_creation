@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+from django.views.generic import TemplateView
 
 from apps.core.views import home, health, api_docs, robots_txt, sitemap_xml
 from apps.orders.api import ContentOrderViewSet, SourceAssetViewSet
@@ -41,5 +42,15 @@ urlpatterns = [
     path("accounts/", include("apps.accounts.urls")), path("orders/", include("apps.orders.urls")), path("intelligence/",include("apps.processing.urls")), path("music/", include("apps.music.urls")),
     path("api/v1/", include((router.urls, "api"), namespace="v1")), path("api-auth/", include("rest_framework.urls")),
 ]
+
+urlpatterns += [
+    path(
+        'googlee24f61a87be3552f.html',
+        TemplateView.as_view(
+            template_name='googlee24f61a87be3552f.html'
+        ),
+    ),
+]
+
 if DEBUG := settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
