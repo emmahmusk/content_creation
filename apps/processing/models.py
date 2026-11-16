@@ -1,7 +1,7 @@
 import uuid
 from django.db import models
 
-CAPTION_RENDER_VERSION = 2
+CAPTION_RENDER_VERSION = 3
 
 class PipelineRun(models.Model):
     class Status(models.TextChoices):

@@ -193,7 +193,7 @@ def render_vertical(source, start_ms, end_ms, subtitle, destination, broll_segme
             raise MediaError("Captions are enabled, but no subtitle file was available to render.")
         filters.append(
             f"[{current}]subtitles='{escaped}':force_style='FontName=Arial,FontSize={settings.SUBTITLE_FONT_SIZE},PrimaryColour=&H00FFFFFF,"
-            f"OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=1,Alignment=2,MarginV={settings.SUBTITLE_MARGIN_V}'[vout]"
+            f"OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,Alignment=2,MarginV={settings.SUBTITLE_MARGIN_V}'[vout]"
         )
         output_label = "vout"
     command += ["-filter_complex",";".join(filters),"-map",f"[{output_label}]","-map",f"{audio_index}:a?","-t",f"{duration:.3f}","-c:v","libx264","-preset","ultrafast","-threads",str(settings.FFMPEG_ENCODER_THREADS),"-crf","20","-c:a","aac","-b:a","160k","-movflags","+faststart","-shortest",str(destination)]
