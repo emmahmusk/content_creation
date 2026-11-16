@@ -1,7 +1,30 @@
 from django.contrib import admin, messages
 from django.db import transaction
+from django import forms
 
 from .models import CreditLedgerEntry, CreditPlan, CreditReservation, PaymentRequest
+
+
+class CreditGiftAdminForm(forms.ModelForm):
+    amount = forms.IntegerField(
+        min_value=1,
+        label="Credits to gift",
+        help_text="Gifted credits are added to the user’s available clip wallet.",
+    )
+    description = forms.CharField(
+        label="Gift note shown in wallet history",
+        max_length=180,
+        required=False,
+        initial="A gift from Kraftaa",
+        help_text="The user will also see this entry marked as a free gift.",
+    )
+
+    class Meta:
+        model = CreditLedgerEntry
+        fields = ("user", "amount", "description")
+
+    def clean_description(self):
+        return self.cleaned_data.get("description", "").strip() or "A gift from Kraftaa"
 
 
 @admin.register(CreditPlan)
@@ -49,12 +72,44 @@ class PaymentRequestAdmin(admin.ModelAdmin):
 
 @admin.register(CreditLedgerEntry)
 class CreditLedgerEntryAdmin(admin.ModelAdmin):
+    change_list_template = "admin/credits/creditledgerentry/change_list.html"
     list_display = ("created_at", "user", "entry_type", "amount", "description", "payment_request", "created_by")
     list_filter = ("entry_type", "created_at")
     search_fields = ("user__username", "user__email", "description")
+    autocomplete_fields = ("user",)
+    form = CreditGiftAdminForm
     readonly_fields = ("user", "payment_request", "reservation", "entry_type", "amount", "description", "created_by", "created_at")
+
+    def get_fields(self, request, obj=None):
+        if obj is None:
+            return ("user", "amount", "description")
+        return self.readonly_fields
+
+    def get_readonly_fields(self, request, obj=None):
+        return () if obj is None else self.readonly_fields
+
     def has_add_permission(self, request):
         return request.user.is_superuser
+
+    def add_view(self, request, form_url="", extra_context=None):
+        extra_context = {**(extra_context or {}), "title": "Grant clip credits as a gift"}
+        return super().add_view(request, form_url, extra_context)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.entry_type = CreditLedgerEntry.Type.GIFT
+            obj.created_by = request.user
+            obj.description = form.cleaned_data.get("description", "A gift from Kraftaa")[:180]
+        super().save_model(request, obj, form, change)
+        if not change:
+            self.message_user(
+                request,
+                f"Gifted {obj.amount} clipping credits to {obj.user}.",
+                messages.SUCCESS,
+            )
 
 
 @admin.register(CreditReservation)

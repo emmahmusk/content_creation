@@ -170,6 +170,7 @@ class CreditLedgerEntry(models.Model):
     class Type(models.TextChoices):
         PURCHASE = "purchase", "Purchase"
         WELCOME = "welcome", "Welcome credits"
+        GIFT = "gift", "Free gift"
         ADJUSTMENT = "adjustment", "Admin adjustment"
         SPEND = "spend", "Usage"
         REFUND = "refund", "Refund"

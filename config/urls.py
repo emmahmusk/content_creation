@@ -13,6 +13,10 @@ from apps.accounts.api import SocialHandleViewSet
 from apps.accounts.forms import WorkspaceAuthenticationForm
 from apps.music.api import AfroStudioProjectViewSet
 
+admin.site.site_header = "Kraftaa Administration"
+admin.site.site_title = "Kraftaa Administration"
+admin.site.index_title = "Platform operations"
+
 router = DefaultRouter()
 router.register("orders", ContentOrderViewSet, basename="order")
 router.register("assets", SourceAssetViewSet, basename="asset")

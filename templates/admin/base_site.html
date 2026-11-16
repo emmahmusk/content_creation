@@ -1,0 +1,20 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | Kraftaa Administration{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/admin-brand.css' %}?v=20261116a">
+{% endblock %}
+
+{% block branding %}
+  <div id="site-name">
+    <a href="{% url 'admin:index' %}" class="kraftaa-admin-brand" aria-label="Kraftaa Administration home">
+      <img src="{% static 'images/kraftaa-wordmark.png' %}" alt="Kraftaa">
+      <span>Administration</span>
+    </a>
+  </div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

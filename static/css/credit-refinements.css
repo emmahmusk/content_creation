@@ -46,6 +46,7 @@
 .credit-balance-value{font-variant-numeric:tabular-nums}
 .wallet-balance-card>p{max-width:680px;line-height:1.55}
 .credit-ledger article>strong small{font-size:10px;font-weight:600}
+.credit-entry-type{display:inline-block;padding:2px 7px;border:1px solid color-mix(in srgb,var(--accent) 28%,var(--rule));border-radius:999px;color:var(--accent);font-size:9px;font-weight:800;line-height:1.4}
 @media(min-width:761px){.nav-links{gap:clamp(11px,1.4vw,20px)}}
 @media(max-width:760px){.nav-links .nav-credit-balance{width:100%;justify-content:space-between;margin:6px 0;padding:13px 14px;border-radius:14px}.nav-credit-summary{display:flex;align-items:baseline;gap:7px}.nav-credit-summary>span{width:auto;margin:0;font-size:9px}.nav-credit-summary>strong{font-size:19px}.nav-credit-summary>small{font-size:11px}.nav-credit-toggle{width:36px;height:36px}}
 .clipping-path-section{background:var(--canvas-soft);color:var(--text-primary)}

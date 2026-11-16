@@ -3,7 +3,7 @@ from django.db import models
 
 class Deliverable(models.Model):
     class Kind(models.TextChoices):
-        CLIP_PLAN = "clip_plan", "10 clip suggestions"
+        CLIP_PLAN = "clip_plan", "Clip suggestions"
         CAPTIONS_HOOKS = "captions_hooks", "Captions and hooks"
         SOCIAL_POSTS = "social_posts", "Social posts"
         YOUTUBE_PACKAGE = "youtube_package", "YouTube package"
