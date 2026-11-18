@@ -58,7 +58,7 @@ document.querySelectorAll('form[data-direct-upload-url]').forEach(form=>{
     setButtonBusy(button,true,'Uploading recording…');
     try{
       if(!token.value){
-        const response=await fetch(form.dataset.directUploadUrl,{
+        const response=await fetchWithTimeout(form.dataset.directUploadUrl,{
           method:'POST',credentials:'same-origin',
           headers:{'Content-Type':'application/json','X-CSRFToken':form.querySelector('[name="csrfmiddlewaretoken"]').value},
           body:JSON.stringify({filename:file.name,size:file.size,rights_confirmed:true})

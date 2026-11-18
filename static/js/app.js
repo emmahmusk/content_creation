@@ -1,25 +1,3 @@
-const routeStatus=document.querySelector('.route-status');
-let routeStatusTimer;
-const beginRouteTransition=(label='Opening next view…')=>{clearTimeout(routeStatusTimer);document.body.classList.add('is-navigating');if(routeStatus){routeStatus.querySelector('b').textContent=label;routeStatus.setAttribute('aria-hidden','true');routeStatusTimer=setTimeout(()=>{if(document.body.classList.contains('is-navigating'))routeStatus.setAttribute('aria-hidden','false');},180);}};
-const endRouteTransition=()=>{clearTimeout(routeStatusTimer);document.body.classList.remove('is-navigating');routeStatus?.setAttribute('aria-hidden','true');};
-const setButtonBusy=(button,busy,label='Working…')=>{
-  if(!button)return;
-  if(busy){
-    if(!button.hasAttribute('data-original-content'))button.dataset.originalContent=button.innerHTML;
-    button.classList.add('is-loading');
-    button.replaceChildren();
-    const state=document.createElement('span');state.className='button-busy-state';
-    const copy=document.createElement('span');copy.className='button-busy-label';copy.textContent=label;
-    const spinner=document.createElement('span');spinner.className='button-busy-spinner';spinner.setAttribute('aria-hidden','true');
-    state.append(copy,spinner);button.append(state);
-    button.disabled=true;button.setAttribute('aria-busy','true');
-  }else{
-    button.classList.remove('is-loading');
-    if(button.hasAttribute('data-original-content')){button.innerHTML=button.dataset.originalContent;delete button.dataset.originalContent;}
-    button.removeAttribute('aria-busy');
-  }
-};
-
 document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
   const button=toolbar.querySelector('[data-brief-suggest-button]');
   const status=toolbar.querySelector('[data-brief-suggest-status]');
@@ -47,7 +25,7 @@ document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
     setButtonBusy(button,true,values.external_url?'Reading video details…':'Drafting your brief…');
     try{
       const csrf=form.querySelector('[name="csrfmiddlewaretoken"]')?.value||'';
-      const response=await fetch(toolbar.dataset.suggestUrl,{
+      const response=await fetchWithTimeout(toolbar.dataset.suggestUrl,{
         method:'POST',
         headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRFToken':csrf},
         body:JSON.stringify(values)
@@ -75,10 +53,6 @@ document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
     finally{setButtonBusy(button,false);button.disabled=false;}
   });
 });
-
-window.addEventListener('pageshow',endRouteTransition);
-document.addEventListener('click',event=>{const link=event.target.closest('a[href]');if(!link||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||link.target==='_blank'||link.hasAttribute('download')||link.dataset.noTransition!==undefined)return;let target;try{target=new URL(link.href,location.href);}catch(error){return;}if(target.origin!==location.origin)return;const sameDocument=target.pathname===location.pathname&&target.search===location.search;if(sameDocument&&(!target.hash||target.hash===location.hash||document.querySelector(target.hash)))return;beginRouteTransition(link.dataset.loadingText||'Opening next view…');});
-document.addEventListener('submit',event=>{if(event.defaultPrevented)return;const form=event.target;if(!(form instanceof HTMLFormElement)||form.dataset.noTransition!==undefined)return;const button=form.querySelector('button:not([type]),button[type="submit"],input[type="submit"]');const label=button?.dataset.loadingText||'Saving and opening the next step…';setButtonBusy(button,true,label);beginRouteTransition(label);});
 
 (()=>{
   const values=[...document.querySelectorAll('[data-credit-value]')];
@@ -306,12 +280,13 @@ if(pipeline){
   };
   const refresh=async()=>{
     try{
-      const response=await fetch(pipeline.dataset.pipelineUrl,{headers:{Accept:'application/json'}});
-      if(response.status===401||response.status===403){if(connectionBox){connectionBox.querySelector('span').textContent='Your session expired. Refresh this page to continue.';connectionBox.classList.remove('hidden');}return;}
-      if(response.status===404){if(connectionBox){connectionBox.querySelector('span').textContent='This run changed. Refreshing the project…';connectionBox.classList.remove('hidden');}setTimeout(()=>location.reload(),1200);return;}
+      const response=await fetchWithTimeout(pipeline.dataset.pipelineUrl,{headers:{Accept:'application/json'}});
+      if(response.status===401||response.status===403){[analyzeButton,renderButton].forEach(button=>setButtonBusy(button,false));if(connectionBox){connectionBox.querySelector('span').textContent='Your session expired. Refresh this page to continue.';connectionBox.classList.remove('hidden');}return;}
+      if(response.status===404){[analyzeButton,renderButton].forEach(button=>setButtonBusy(button,false));if(connectionBox){connectionBox.querySelector('span').textContent='This run changed. Refreshing the project…';connectionBox.classList.remove('hidden');}setTimeout(()=>location.reload(),1200);return;}
       if(!response.ok)throw new Error('Progress temporarily unavailable.');
       const data=await response.json();render(data);
       if(['queued','running'].includes(data.status)){setTimeout(refresh,2000);return;}
+      [analyzeButton,renderButton].forEach(button=>setButtonBusy(button,false));
       if(data.status==='failed'){
         if(/youtube could not verify this server|sign in to confirm (?:you’re|you're) not a bot/i.test(data.error||'')){
           location.reload();
@@ -331,7 +306,7 @@ if(pipeline){
   const start=async(button,url,busyLabel)=>{
     setButtonBusy(button,true,busyLabel);errorBox.classList.add('hidden');
     try{
-      const response=await fetch(url,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
+      const response=await fetchWithTimeout(url,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
       const data=await response.json();
       if(!response.ok){if(pipelineErrorText)pipelineErrorText.textContent=data.detail||'Could not start this job.';pipelineCreditLink?.classList.toggle('hidden',response.status!==402);errorBox.classList.remove('hidden');throw new Error(data.detail||'Could not start this job.');}
       render(data);setTimeout(refresh,1000);
@@ -343,10 +318,11 @@ if(pipeline){
     const button=event.currentTarget;const note=youtubeAuthPrompt.querySelector('[data-youtube-auth-message]');
     setButtonBusy(button,true,'Confirming…');note.textContent='Checking with YouTube…';
     try{
-      const response=await fetch(youtubeAuthPrompt.dataset.confirmUrl,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
+      const response=await fetchWithTimeout(youtubeAuthPrompt.dataset.confirmUrl,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
       const data=await response.json();if(!response.ok)throw new Error(data.detail||'Could not confirm the sign-in yet.');
       note.textContent='Approved. The video import is resuming.';youtubeAuthPrompt.classList.add('is-approved');
-    }catch(error){note.textContent=error.message;button.disabled=false;setButtonBusy(button,false);}
+    }catch(error){note.textContent=error.message;}
+    finally{setButtonBusy(button,false);button.disabled=youtubeAuthPrompt.classList.contains('is-approved');}
   });
   updateStages({status:pipeline.dataset.status,current_stage:pipeline.dataset.stage});
   updateCompanion(pipeline.dataset.status,pipeline.dataset.stage);
@@ -358,7 +334,7 @@ const musicFile=document.querySelector('.music-file-field input[type="file"]');
 musicFile?.addEventListener('change',()=>{const label=document.querySelector('[data-file-name]');if(label)label.textContent=musicFile.files?.[0]?.name||'Choose an audio file';});
 const studioProgress=document.querySelector('[data-studio-progress]');
 if(studioProgress){
-  const pollStudio=async()=>{try{const response=await fetch(studioProgress.dataset.url,{headers:{Accept:'application/json'}});if(!response.ok)return;const data=await response.json();studioProgress.querySelector('[data-progress-bar]').style.width=`${data.progress}%`;studioProgress.querySelector('[data-progress-label]').textContent=`${data.progress}%`;studioProgress.querySelector('[data-stage-label]').textContent=data.stage_label;if(['direction','review','failed'].includes(data.status)){window.location.reload();return;}}catch(error){}setTimeout(pollStudio,1800);};
+  const pollStudio=async()=>{try{const response=await fetchWithTimeout(studioProgress.dataset.url,{headers:{Accept:'application/json'}});if(!response.ok)return;const data=await response.json();studioProgress.querySelector('[data-progress-bar]').style.width=`${data.progress}%`;studioProgress.querySelector('[data-progress-label]').textContent=`${data.progress}%`;studioProgress.querySelector('[data-stage-label]').textContent=data.stage_label;if(['direction','review','failed'].includes(data.status)){window.location.reload();return;}}catch(error){}setTimeout(pollStudio,1800);};
   setTimeout(pollStudio,1200);
 }
 
@@ -368,7 +344,7 @@ document.querySelectorAll('.clip-decision').forEach(button=>button.addEventListe
   card.querySelectorAll('.clip-decision').forEach(item=>item.disabled=true);
   setButtonBusy(button,true,'Saving choice…');
   try{
-    const response=await fetch(button.dataset.url,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
+    const response=await fetchWithTimeout(button.dataset.url,{method:'POST',headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json'}});
     const data=await response.json();if(!response.ok)throw new Error(data.detail||'Could not update this clip.');
     const stateLabel=data.status==='approved'?'Selected':data.status==='rejected'?'Skipped':data.status.charAt(0).toUpperCase()+data.status.slice(1);
     const stateOutput=card.querySelector('.clip-state');if(stateOutput)stateOutput.textContent=stateLabel;
@@ -408,11 +384,11 @@ if(socialManager){
   }
   const syncConnectedCount=()=>{if(connectedCount){const total=list.querySelectorAll('article').length;connectedCount.textContent=`${total} connected`;}};
   const cookie=name=>document.cookie.split('; ').find(row=>row.startsWith(`${name}=`))?.split('=')[1]||'';
-  const request=async(url,method,body)=>{const response=await fetch(url,{method,headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json','Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const data=response.status===204?{}:await response.json();if(!response.ok)throw new Error(data.detail||data.platform?.[0]||data.handle?.[0]||Object.values(data).flat().join(' ')||'Could not save this profile.');return data;};
+  const request=async(url,method,body)=>{const response=await fetchWithTimeout(url,{method,headers:{'X-CSRFToken':decodeURIComponent(cookie('csrftoken')),Accept:'application/json','Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const data=response.status===204?{}:await response.json();if(!response.ok)throw new Error(data.detail||data.platform?.[0]||data.handle?.[0]||Object.values(data).flat().join(' ')||'Could not save this profile.');return data;};
   const showError=error=>{errorBox.textContent=error.message;errorBox.classList.remove('hidden');};
   const bind=row=>{
     row.querySelector('.social-update').addEventListener('click',async()=>{const button=row.querySelector('.social-update');setButtonBusy(button,true,'Saving…');try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'PATCH',{handle:row.querySelector('input').value});button.textContent='Saved';setTimeout(()=>button.textContent='Save changes',1200);}catch(error){showError(error);}finally{setButtonBusy(button,false);button.disabled=false;}});
-    row.querySelector('.social-delete').addEventListener('click',async()=>{if(!confirm('Remove this social profile?'))return;const button=row.querySelector('.social-delete');setButtonBusy(button,true,'Removing…');try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'DELETE');row.remove();syncConnectedCount();if(!list.querySelector('article'))list.innerHTML='<div class="social-empty connection-empty"><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>';}catch(error){showError(error);setButtonBusy(button,false);button.disabled=false;}});
+    row.querySelector('.social-delete').addEventListener('click',async()=>{if(!confirm('Remove this social profile?'))return;const button=row.querySelector('.social-delete');setButtonBusy(button,true,'Removing…');try{await request(`${socialManager.dataset.apiUrl}${row.dataset.id}/`,'DELETE');row.remove();syncConnectedCount();if(!list.querySelector('article'))list.innerHTML='<div class="social-empty connection-empty"><div><h3>Your publishing network is waiting.</h3><p>Add one destination above. The rest can grow with you.</p></div><i>↗</i></div>';}catch(error){showError(error);}finally{setButtonBusy(button,false);button.disabled=false;}});
   };
   list.querySelectorAll('article').forEach(bind);
   form.addEventListener('submit',async event=>{event.preventDefault();errorBox.classList.add('hidden');const button=form.querySelector('button[type="submit"]');setButtonBusy(button,true,'Adding profile…');try{const data=await request(socialManager.dataset.apiUrl,'POST',{platform:form.platform.value,handle:form.handle.value});list.querySelector('.social-empty')?.remove();const row=document.createElement('article');row.classList.add('social-row-entering');row.dataset.id=data.id;row.dataset.platform=data.platform;row.innerHTML='<div class="platform-avatar"><svg class="platform-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use></use></svg></div><div class="destination-name"><small>PLATFORM</small><strong></strong></div><input maxlength="160"><button class="download-chip social-update" type="button">Save changes</button><button class="download-chip social-delete" type="button">Remove</button>';row.querySelector('use').setAttribute('href',`${iconSprite}#${data.platform}`);row.querySelector('.destination-name strong').textContent=data.platform_label;const handleInput=row.querySelector('input');handleInput.value=data.handle;handleInput.setAttribute('aria-label',`${data.platform_label} handle`);list.appendChild(row);requestAnimationFrame(()=>requestAnimationFrame(()=>row.classList.remove('social-row-entering')));bind(row);syncConnectedCount();form.reset();}catch(error){showError(error);}finally{setButtonBusy(button,false);button.disabled=false;}});
@@ -422,8 +398,8 @@ if(socialManager){
 const intel=document.querySelector('.intel-shell');
 if(intel){
   const cookie=name=>document.cookie.split('; ').find(row=>row.startsWith(`${name}=`))?.split('=')[1]||'';
-  const api=async(url,method='GET',body)=>{const response=await fetch(url,{method,headers:{Accept:'application/json','Content-Type':'application/json','X-CSRFToken':decodeURIComponent(cookie('csrftoken'))},body:body?JSON.stringify(body):undefined});const data=response.status===204?{}:await response.json();if(!response.ok)throw new Error(data.detail||data.action?.[0]||Object.values(data).flat().join(' ')||'Request failed.');return data;};
-  const poll=async()=>{try{const data=await api(intel.dataset.intelligenceUrl);if(data.status==='ready'||data.status==='failed'){location.reload();return;}setTimeout(poll,1800);}catch(error){document.querySelector('.intel-error').textContent=error.message;}};
+  const api=async(url,method='GET',body)=>{const response=await fetchWithTimeout(url,{method,headers:{Accept:'application/json','Content-Type':'application/json','X-CSRFToken':decodeURIComponent(cookie('csrftoken'))},body:body?JSON.stringify(body):undefined});const data=response.status===204?{}:await response.json();if(!response.ok)throw new Error(data.detail||data.action?.[0]||Object.values(data).flat().join(' ')||'Request failed.');return data;};
+  const poll=async()=>{try{const data=await api(intel.dataset.intelligenceUrl);if(data.status==='ready'||data.status==='failed'){setButtonBusy(document.querySelector('.intel-analyze'),false);location.reload();return;}setTimeout(poll,1800);}catch(error){const button=document.querySelector('.intel-analyze');setButtonBusy(button,false);if(button)button.textContent='Try again';document.querySelector('.intel-error').textContent=error.message;}};
   const start=async()=>{const button=document.querySelector('.intel-analyze');if(button)setButtonBusy(button,true,'Reviewing this clip…');try{await api(intel.dataset.startUrl,'POST');setTimeout(poll,1000);}catch(error){if(button){setButtonBusy(button,false);button.disabled=false;button.textContent='Try again';}document.querySelector('.intel-error').textContent=error.message;}};
   document.querySelector('.intel-analyze')?.addEventListener('click',start);
   if(intel.dataset.status==='queued')start();else if(intel.dataset.status==='running')poll();
@@ -444,7 +420,7 @@ if(intel){
     asset.querySelector('.asset-save')?.addEventListener('click',async event=>{const button=event.currentTarget;setButtonBusy(button,true,'Saving edits…');try{await api(`/api/v1/repurpose-assets/${asset.dataset.assetId}/`,'PATCH',{content:textarea.value});button.textContent='Saved';}catch(error){alert(error.message);}finally{setButtonBusy(button,false);button.disabled=false;setTimeout(()=>button.textContent='Save edits',1200);}});
     asset.querySelectorAll('footer button[data-operation]').forEach(button=>button.addEventListener('click',async()=>{const label={regenerate:'Regenerating…',improve:'Improving…',shorten:'Shortening…'}[button.dataset.operation]||'Working…';setButtonBusy(button,true,label);try{const data=await api(`/api/v1/repurpose-assets/${asset.dataset.assetId}/transform/`,'POST',{operation:button.dataset.operation});textarea.value=data.content;}catch(error){alert(error.message);}finally{setButtonBusy(button,false);button.disabled=false;}}));
   });
-  document.querySelectorAll('.editor-accept').forEach(button=>button.addEventListener('click',async()=>{setButtonBusy(button,true,'Saving suggestion…');try{await api(`${intel.dataset.intelligenceUrl}accept-editor-recommendation/`,'POST',{action_id:button.dataset.actionId});button.textContent='Suggestion saved ✓';setButtonBusy(button,false);}catch(error){setButtonBusy(button,false);button.disabled=false;alert(error.message);}}));
+  document.querySelectorAll('.editor-accept').forEach(button=>button.addEventListener('click',async()=>{setButtonBusy(button,true,'Saving suggestion…');try{await api(`${intel.dataset.intelligenceUrl}accept-editor-recommendation/`,'POST',{action_id:button.dataset.actionId});button.textContent='Suggestion saved ✓';setButtonBusy(button,false);button.disabled=true;}catch(error){setButtonBusy(button,false);button.disabled=false;alert(error.message);}}));
   const publicationForm=document.querySelector('.publication-form');
   if(publicationForm){
     const actionField=publicationForm.querySelector('[name="action"]'),scheduleField=publicationForm.querySelector('[name="scheduled_for"]'),titleField=publicationForm.querySelector('[name="title"]'),captionField=publicationForm.querySelector('[name="caption"]');

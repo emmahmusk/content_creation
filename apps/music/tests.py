@@ -104,7 +104,7 @@ class StudioViewTests(TestCase):
             direction_payload("Make this sound like a famous recording artist"),
         )
         self.assertEqual(response.status_code, 400)
-        self.assertContains(response, "not an artist", status_code=400)
+        self.assertContains(response, "Describe musical qualities without naming an artist", status_code=400)
         dispatch.assert_not_called()
 
     def test_review_exports_lyrics_and_structured_project(self):

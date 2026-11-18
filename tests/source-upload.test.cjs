@@ -42,7 +42,7 @@ function setup({failure=false,cancelled=false,valid=true,existingToken=''}={}){
     abort(){this.onabort();}
   }
   vm.runInNewContext(script,{document:{querySelectorAll:()=>[form]},Blob,FormData:Body,XMLHttpRequest:Xhr,
-    fetch:async()=>{state.fetches++;return {ok:true,json:async()=>({params:{public_id:'recast/source/incoming/1/id',timestamp:1,overwrite:'false'},
+    fetchWithTimeout:async()=>{state.fetches++;return {ok:true,json:async()=>({params:{public_id:'recast/source/incoming/1/id',timestamp:1,overwrite:'false'},
       signature:'signed',api_key:'public',upload_url:'https://api.cloudinary.com/test/video/upload',chunk_bytes:6_000_000,token:'verified-ticket'})};},
     setButtonBusy:(target,busy)=>{target.disabled=busy;}});
   return {form,input,token,status,progress,cancel,button,state,submit:()=>form.submit(event())};

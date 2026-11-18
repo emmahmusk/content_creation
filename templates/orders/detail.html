@@ -93,7 +93,7 @@
         <button class="btn pipeline-render" type="button" data-approved-count="{{ approved_count }}" {% if pipeline.status == 'running' or not approved_count %}disabled{% endif %}>Create {{ approved_count }} selected clip{{ approved_count|pluralize }}</button>
         <span class="pipeline-help">{% if pipeline.status == 'running' %}Your choices are locked in. We’re applying {% if order.broll_mode != 'none' %}AI-planned B-roll, {% endif %}captions, hooks, reframing and export polish now.{% else %}Select the clips you want first. Editing{% if order.broll_mode != 'none' %} and B-roll generation{% endif %} runs only for your selections.{% endif %}</span>
       {% else %}
-        <a class="btn export-all" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/">Download all files <span>↓</span></a>
+        <a class="btn export-all" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/" download data-no-transition>Download all files <span>↓</span></a>
         <span class="pipeline-help">{{ rendered_count }} of {{ clip_count }} clips ready to publish.</span>
       {% endif %}
     </div>
@@ -116,7 +116,7 @@
         <h2>Your clip choices</h2>
         <p>Select the moments you want to turn into clips. Skip anything you do not need before editing begins.</p>
       </div>
-      {% if exports_ready %}<a class="btn btn-small" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/">Download all files</a>{% endif %}
+      {% if exports_ready %}<a class="btn btn-small" href="/api/v1/pipeline-runs/{{ pipeline.id }}/download-exports/" download data-no-transition>Download all files</a>{% endif %}
       {% if can_restore_exports and pipeline.status != 'running' %}<form method="post" action="{% url 'orders:restore-exports' order.pk %}">{% csrf_token %}<button class="btn btn-small" type="submit">{% if missing_rendered_count %}Restore missing clips{% elif order.include_captions %}Refresh clips with captions{% else %}Refresh rendered clips{% endif %}</button></form>{% endif %}
     </div>
 

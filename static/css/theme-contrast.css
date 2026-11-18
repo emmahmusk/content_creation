@@ -1,0 +1,23 @@
+/* Keep shared actions and notifications readable when the active theme changes. */
+.message {
+  background: var(--text-primary);
+  color: var(--canvas);
+}
+
+.message i {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* These accent surfaces need their paired foreground across every palette. */
+.landing-page .hero-actions .btn-lime,
+.studio-pipeline .export-all,
+.pipeline-card .btn,
+.download-chip.primary,
+.intelligence-link {
+  color: var(--accent-ink);
+}
+
+.btn-lime {
+  color: var(--canvas);
+}
