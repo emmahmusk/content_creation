@@ -1,0 +1,6 @@
+.auth-page .auth-story{position:relative;isolation:isolate}
+.auth-page .auth-story::before{content:"";position:absolute;z-index:-1;inset:0;background:url('../images/auth-studio.svg') center right / min(90%,700px) auto no-repeat;opacity:.8;pointer-events:none}
+.auth-page .auth-story-inner{position:relative}
+.auth-page .auth-story h1,.auth-page .auth-story-inner>p{text-shadow:0 2px 20px #080a0fcc}
+.auth-page .auth-proof{background:#11151dcc;border-color:#ffffff2b}
+@media(max-width:760px){.auth-page .auth-story::before{background-size:min(78%,420px);background-position:right center;opacity:.5}}

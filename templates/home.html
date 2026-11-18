@@ -5,6 +5,7 @@
 {% block og_title %}AI video and stream replay clipper for creators | Kraftaa{% endblock %}
 {% block og_description %}Make short clips for Reels, Shorts, and TikTok from stream replays, podcasts, and videos. Pick the moments you want and export captioned vertical videos with Kraftaa.{% endblock %}
 {% block body_class %}landing-page{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/hero-rotation.css' %}?v=20261118a"><script defer src="{% static 'js/hero-rotation.js' %}?v=20261118a"></script>{% endblock %}
 {% block content %}
 <section class="hero">
   <div class="hero-glow"></div><div class="hero-orb orb-one"></div><div class="hero-orb orb-two"></div>
@@ -12,7 +13,8 @@
   <div class="hero-inner">
     <div class="hero-lead-copy">
       <div class="hero-badge"><span>AI podcast, stream replay &amp; video clipping</span></div>
-      <h1 class="calm-display"><span>Turn long videos into clips.</span><span>Ready for Reels, Shorts, &amp; TikTok.</span></h1>
+      <h1 class="calm-display" data-hero-heading><span data-hero-primary>Turn long videos into clips.</span><span data-hero-secondary>Ready for Reels, Shorts, &amp; TikTok.</span></h1>
+      <button class="hero-motion-toggle" type="button" data-hero-toggle hidden aria-pressed="false">Pause changing headlines</button>
       <p class="hero-copy">Find standout moments in stream replays, podcasts, and videos. Choose your clips and export them with captions.</p>
     </div>
     <div class="hero-actions"><a class="btn btn-lime" href="{% url 'register' %}">Create your first clip batch <span>→</span></a><a class="btn btn-ghost" href="#workflow"><i class="play-icon">▶</i> See how it works</a></div>

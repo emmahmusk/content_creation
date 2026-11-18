@@ -1,0 +1,6 @@
+.landing-page .hero h1[data-hero-heading]>span{transition:opacity .25s ease,transform .25s ease}
+.landing-page .hero h1.hero-caption-changing>span{opacity:0;transform:translateY(5px)}
+.landing-page .hero-motion-toggle{display:inline-block;margin:0 0 12px;padding:5px 0;border:0;background:transparent;color:#c5cad1;font:600 11px/1.3 inherit;text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.landing-page .hero-motion-toggle[hidden]{display:none}
+.landing-page .hero-motion-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+@media(prefers-reduced-motion:reduce){.landing-page .hero h1[data-hero-heading]>span{transition:none}}
