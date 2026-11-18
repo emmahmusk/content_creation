@@ -64,6 +64,13 @@ class SourceAssetForm(forms.ModelForm):
     class Meta:
         model = SourceAsset
         fields = ["file", "external_url", "rights_confirmed"]
+        widgets = {
+            "external_url": forms.URLInput(attrs={
+                "placeholder": "YouTube, Google Drive, Dropbox, or direct media link",
+                "autocomplete": "url",
+                "inputmode": "url",
+            }),
+        }
 
     def clean_file(self):
         uploaded = self.cleaned_data.get("file")

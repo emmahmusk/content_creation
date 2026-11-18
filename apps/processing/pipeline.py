@@ -1,6 +1,6 @@
 import json, shutil
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 import requests
 from django.conf import settings
 from django.core.files import File
@@ -65,19 +65,51 @@ def _acknowledge_cancelled(run):
 
 def _download(url,destination):
     parsed=urlparse(url)
-    if parsed.scheme not in {"http","https"}: raise ValueError("Only HTTP(S) source links are supported.")
-    public_media.assert_public_url(url)
-    with requests.get(url,stream=True,timeout=(15,120),allow_redirects=True) as response:
-        response.raise_for_status()
-        public_media.assert_public_url(response.url)
-        declared=int(response.headers.get("content-length") or 0)
-        if declared > settings.PUBLIC_MEDIA_MAX_BYTES: raise ValueError("This media file exceeds the configured import size limit.")
-        downloaded=0
-        with open(destination,"wb") as output:
-            for chunk in response.iter_content(1024*1024):
-                downloaded+=len(chunk)
-                if downloaded > settings.PUBLIC_MEDIA_MAX_BYTES: raise ValueError("This media file exceeds the configured import size limit.")
-                output.write(chunk)
+    if parsed.scheme not in {"http","https"}: raise public_media.PublicMediaError("Only public HTTP(S) source links are supported.")
+    request_url=public_media.shared_media_download_url(url)
+    response=None
+    with requests.Session() as session:
+        for _ in range(6):
+            public_media.assert_public_url(request_url)
+            try:
+                response=session.get(request_url,stream=True,timeout=(15,120),allow_redirects=False,headers={"User-Agent":"KraftaaMediaImporter/1.0"})
+            except requests.RequestException:
+                raise public_media.PublicMediaError("Could not reach this public media link. Check that it is accessible, or upload the original file.") from None
+            if response.status_code in {301,302,303,307,308}:
+                location=response.headers.get("location")
+                response.close()
+                if not location: raise public_media.PublicMediaError("The media provider returned an incomplete download link.")
+                request_url=urljoin(request_url,location)
+                continue
+            break
+        else:
+            raise public_media.PublicMediaError("The media provider redirected too many times. Try a direct media link or upload the file.")
+
+        with response:
+            if response.status_code in {401,403}:
+                raise public_media.PublicMediaError("This link is not publicly downloadable. Set sharing to anyone with the link, or upload the original file.")
+            try:
+                response.raise_for_status()
+            except requests.RequestException:
+                raise public_media.PublicMediaError("The media provider could not deliver this file. Check the share permissions, or upload the original.") from None
+            content_type=response.headers.get("content-type","").split(";",1)[0].strip().lower()
+            if content_type in {"text/html","application/xhtml+xml","application/json"}:
+                raise public_media.PublicMediaError("This link opens a webpage, not a downloadable video or audio file. Use a public file share link or upload the original.")
+            allowed_types=content_type.startswith(("video/","audio/")) or content_type in {"application/octet-stream","binary/octet-stream","application/force-download","application/x-download","application/ogg","application/mp4","application/mpeg"}
+            known_media_link=public_media.is_direct_media_url(url) or public_media.is_supported_shared_media_url(url)
+            if not allowed_types and not known_media_link:
+                raise public_media.PublicMediaError("This link did not resolve to a downloadable video or audio file. Use a public file share link or upload the original.")
+            try:
+                declared=int(response.headers.get("content-length") or 0)
+            except ValueError:
+                declared=0
+            if declared > settings.PUBLIC_MEDIA_MAX_BYTES: raise public_media.PublicMediaError("This media file exceeds the configured import size limit.")
+            downloaded=0
+            with open(destination,"wb") as output:
+                for chunk in response.iter_content(1024*1024):
+                    downloaded+=len(chunk)
+                    if downloaded > settings.PUBLIC_MEDIA_MAX_BYTES: raise public_media.PublicMediaError("This media file exceeds the configured import size limit.")
+                    output.write(chunk)
 
 def _source(order,work,run):
     asset=order.source_assets.order_by("-uploaded_at").first()
@@ -89,12 +121,14 @@ def _source(order,work,run):
             local_source=None
         if local_source and local_source.is_file(): return local_source
     if public_media.is_youtube_url(asset.external_url) and not asset.file:
+        if not settings.YOUTUBE_IMPORTS_ENABLED:
+            raise public_media.PublicMediaError("YouTube imports are unavailable. Upload the original file instead.")
         return youtube_sources.source(asset, work,
                                       check_active=lambda: assert_pipeline_active(run) if run else None)
     if asset.cloudinary_public_id:
         suffix=Path(asset.original_filename or "").suffix.lower() or ".mp4"
         return cloudinary_media.download_source(asset,work/f"source-original{suffix}")
-    if public_media.is_direct_media_url(asset.external_url):
+    if asset.external_url:
         destination=work/"source-video"
         _download(asset.external_url,destination)
         return destination
@@ -104,7 +138,7 @@ def _source(order,work,run):
             "Please re-upload the original video or audio file."
         )
     raise public_media.PublicMediaError(
-        "This link does not point directly to a downloadable media file. Upload the recording or provide a direct media URL."
+        "This link does not point to a downloadable video or audio file. Make the share link public, use a direct media URL, or upload the recording."
     )
 
 def _transcript_text(order):

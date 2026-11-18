@@ -50,7 +50,7 @@
             <span>OR PASTE A PUBLIC LINK</span>
             {{ asset_form.external_url }}
             {{ asset_form.external_url.errors }}
-            <small>{% if youtube_imports_enabled %}Paste one YouTube video link to get started. We import the recording for analysis and clipping, then remove the downloaded original after your clips are produced. If YouTube denies access, upload the original file.{% else %}YouTube imports are currently disabled. Download your upload from YouTube Studio and add the video file.{% endif %} Direct media links may work when their provider allows server access.</small>
+            <small>{% if youtube_imports_enabled %}Use a public YouTube video, Google Drive or Dropbox file share, or a direct video/audio link. Drive and Dropbox files must be shared with anyone who has the link. Links that require sign-in, point to folders, or open a webpage instead of a media file cannot be imported. If a provider blocks access, upload the original file.{% else %}YouTube imports are currently unavailable. You can still use a public Google Drive or Dropbox file share, or a direct video/audio link. Shared files must be accessible to anyone with the link; otherwise, upload the recording.{% endif %}</small>
           </div>
         </div>
         <div class="rights-notice">
