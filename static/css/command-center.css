@@ -246,6 +246,9 @@ body.app-page :is(.status-revision,.status-failed,.status-cancelled){
 .review-studio .studio-summary{margin-top:14px;border:0;border-top:1px solid var(--cc-line);border-bottom:1px solid var(--cc-line);border-radius:0;box-shadow:none;background:transparent}
 .review-studio .studio-summary>div{padding-block:20px}
 .review-studio .section-title-row{padding-top:72px}
+.review-studio .clip-workspace .section-title-actions{display:flex;flex:0 0 auto;align-items:center;gap:10px}
+.review-studio .clip-workspace .section-title-actions form{flex:0 0 auto;margin:0}
+.review-studio .clip-workspace .section-title-actions .btn{flex:0 0 auto;min-width:max-content;white-space:nowrap}
 .review-studio .clip-list{gap:0;border-top:1px solid var(--cc-line)}
 .review-studio .clip-card{display:grid;grid-template-columns:minmax(330px,.78fr) minmax(0,1.22fr);gap:0;margin:0;padding:30px 0;border:0;border-bottom:1px solid var(--cc-line);border-radius:0;background:transparent;box-shadow:none}
 .review-studio .clip-card:hover{transform:none;box-shadow:none}
@@ -425,6 +428,9 @@ body.app-page :is(.status-revision,.status-failed,.status-cancelled){
   .review-studio .clip-card{grid-template-columns:1fr;padding:24px 0}
   .review-studio .clip-media{min-height:330px}
   .review-studio .clip-body{padding:24px 0 0}
+  .review-studio .clip-workspace .section-title-row{align-items:stretch;flex-direction:column;gap:18px}
+  .review-studio .clip-workspace .section-title-actions{display:grid;width:100%;grid-template-columns:1fr}
+  .review-studio .clip-workspace .section-title-actions form,.review-studio .clip-workspace .section-title-actions .btn{width:100%}
   .clip-intelligence-bar{grid-template-columns:1fr 1fr}
   .review-studio .clip-actions .intelligence-link{width:100%}
   .intelligence-page .intel-header{display:grid;grid-template-columns:1fr;padding-bottom:24px}

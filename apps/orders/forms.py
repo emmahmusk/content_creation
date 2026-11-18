@@ -13,6 +13,7 @@ class ContentOrderForm(forms.ModelForm):
         choices=PLATFORMS,
         widget=forms.CheckboxSelectMultiple,
         label="Publishing destinations",
+        required=False,
         help_text="Choose every channel this project should be prepared for.",
     )
 

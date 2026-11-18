@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block extra_head %}<script defer src="{% static 'js/source-upload.js' %}?v=20261118b"></script>{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/new-project.css' %}?v=20261118a"><script defer src="{% static 'js/source-upload.js' %}?v=20261118b"></script>{% endblock %}
 
 {% block title %}New clip batch | Kraftaa{% endblock %}
 {% block body_class %}app-page create-page{% endblock %}
@@ -15,7 +15,7 @@
       <div class="eyebrow">NEW CLIP PRODUCTION BATCH</div>
       <h1 class="calm-display"><span>Start a new</span><span>clip batch.</span></h1>
     </div>
-    <p>Add the source and tell Kraftaa what matters. You choose the moments that move into production.</p>
+    <p>Start with a recording. Add a little direction or let AI suggest it. You’ll review the moments before making clips.</p>
   </header>
 
   <form method="post" enctype="multipart/form-data" class="order-form" {% if direct_upload_enabled %}data-direct-upload-url="{% url 'orders:source-upload' %}" data-upload-max-bytes="{{ source_upload_max_bytes }}"{% endif %}>
@@ -32,8 +32,8 @@
     <section class="creation-step">
       <div class="step-aside"><span>01</span><i></i><b>SOURCE</b></div>
       <div class="step-content">
-        <h2>Bring in the long-form source.</h2>
-        <p>Upload a podcast, interview, creator video, or audio recording, or paste an authorized public link.</p>
+        <h2>Add your recording.</h2>
+        <p>Upload a video or audio file, or paste a public link to content you’re allowed to use.</p>
         <div class="source-choice">
           <div class="upload-zone">
             <div class="upload-icon">↑</div>
@@ -65,23 +65,30 @@
     <section class="creation-step">
       <div class="step-aside"><span>02</span><i></i><b>CLIPPING BRIEF</b></div>
       <div class="step-content">
-        <h2>What should count as a strong clip?</h2>
-        <p>Give the AI the same direction you would give a senior clipper: audience, outcome, tone, priorities, and exclusions.</p>
+        <h2>Give your clips a direction.</h2>
+        <p>A title and short brief are enough to get started. Write your own, or use the AI suggestion above and review it.</p>
 
         <div class="mission-form">
           <div class="mission-field mission-field-wide">
             {{ form.title.label_tag }}
             {{ form.title }}
+            <small class="field-note">A short name helps you find this batch later.</small>
             {{ form.title.errors }}
           </div>
 
           <div class="mission-field mission-field-wide">
             {{ form.content_brief.label_tag }}
             {{ form.content_brief }}
-            {% if form.content_brief.help_text %}<small class="field-note">{{ form.content_brief.help_text }}</small>{% endif %}
+            <small class="field-note">One sentence is fine: who is this for, and what should they take away?</small>
             {{ form.content_brief.errors }}
           </div>
 
+          <details class="advanced-options mission-field-wide" {% if form.errors %}open{% endif %}>
+            <summary>
+              <span><strong>Fine-tune your clips</strong><small>Optional. The defaults are ready for a first run.</small></span>
+              <i aria-hidden="true"></i>
+            </summary>
+            <div class="advanced-options-body mission-form">
           <div class="mission-field">
             {{ form.importance_definition.label_tag }}
             {{ form.importance_definition }}
@@ -188,16 +195,18 @@
             </label>
             {{ form.include_audio_cleanup.errors }}
           </fieldset>
+            </div>
+          </details>
         </div>
       </div>
     </section>
 
     <footer class="submit-bar">
       <div>
-        <span>WHAT HAPPENS NEXT</span>
-        <p>Transcribe → discover → explain → approve → B-roll &amp; finishing → batch export</p>
+        <span>YOU’RE IN CONTROL</span>
+        <p>Review suggested moments first. Only the clips you choose move on to production.</p>
       </div>
-      <button class="btn btn-lime" type="submit" data-loading-text="Starting clip discovery…">Start finding clips <span>→</span></button>
+      <button class="btn btn-lime" type="submit" data-loading-text="Finding clip moments…">Find clip moments <span>→</span></button>
     </footer>
   </form>
 </section>

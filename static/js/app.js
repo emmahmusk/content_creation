@@ -2,8 +2,14 @@ document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
   const button=toolbar.querySelector('[data-brief-suggest-button]');
   const status=toolbar.querySelector('[data-brief-suggest-status]');
   const replaceExisting=toolbar.querySelector('[data-brief-replace]');
+  const replaceLabel=replaceExisting?.closest('label');
   const form=toolbar.closest('form');
   if(!button||!status||!form)return;
+  const suggestionFieldNames=['title','content_brief','importance_definition','moments_to_avoid','brand_voice'];
+  const suggestionFields=suggestionFieldNames.map(name=>form.querySelector(`[name="${name}"]`)).filter(Boolean);
+  const updateReplaceOption=()=>{if(replaceLabel)replaceLabel.hidden=!suggestionFields.some(target=>target.value.trim());};
+  suggestionFields.forEach(target=>target.addEventListener('input',updateReplaceOption));
+  updateReplaceOption();
   button.addEventListener('click',async()=>{
     status.textContent='';
     const field=name=>form.querySelector(`[name="${name}"]`);
@@ -17,7 +23,7 @@ document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
       rights_confirmed:field('rights_confirmed')?.checked===true,
       source_name:form.querySelector('[name="file"]')?.files?.[0]?.name||''
     };
-    const fields=['title','content_brief','importance_definition','moments_to_avoid','brand_voice'].map(field);
+    const fields=suggestionFieldNames.map(field);
     if(!replaceExisting?.checked&&fields.every(target=>target?.value.trim())){
       status.textContent='All fields already have text. Clear a field or choose “Replace text already entered” to get a fresh draft.';
       return;
@@ -49,6 +55,7 @@ document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
         status.textContent=`Draft added to ${filled} empty field${filled===1?'':'s'}. Edit any suggestion to make it yours.${keptNote}`;
       }else status.textContent='Your fields already have text, so nothing was replaced. Clear a field to add a fresh suggestion there.';
       if(filled&&data.based_on==='youtube_metadata')status.textContent+=' Based on video details; full analysis starts after you create the project.';
+      updateReplaceOption();
     }catch(error){status.textContent=error.message||'We could not create suggestions. Please try again.';}
     finally{setButtonBusy(button,false);button.disabled=false;}
   });
