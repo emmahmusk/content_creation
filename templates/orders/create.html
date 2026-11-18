@@ -1,4 +1,7 @@
 {% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}<script defer src="{% static 'js/source-upload.js' %}?v=20261118a"></script>{% endblock %}
 
 {% block title %}New clip batch | Kraftaa{% endblock %}
 {% block body_class %}app-page create-page{% endblock %}
@@ -15,8 +18,9 @@
     <p>Add the source and tell Kraftaa what matters. You choose the moments that move into production.</p>
   </header>
 
-  <form method="post" enctype="multipart/form-data" class="order-form">
+  <form method="post" enctype="multipart/form-data" class="order-form" {% if direct_upload_enabled %}data-direct-upload-url="{% url 'orders:source-upload' %}" data-upload-max-bytes="{{ source_upload_max_bytes }}"{% endif %}>
     {% csrf_token %}
+    {{ asset_form.cloudinary_upload_token }}
 
     {% if form.non_field_errors or asset_form.non_field_errors %}
       <div class="project-form-alert" role="alert">
@@ -37,12 +41,16 @@
             {{ asset_form.file }}
             <span>MP4, MOV, WebM, MP3, WAV or M4A</span>
             {{ asset_form.file.errors }}
+            {{ asset_form.cloudinary_upload_token.errors }}
+            <progress data-source-upload-progress max="100" value="0" hidden aria-label="Recording upload progress"></progress>
+            <p data-source-upload-status role="status" aria-live="polite"></p>
+            <button type="button" class="link-button" data-source-upload-cancel hidden>Cancel upload</button>
           </div>
           <div class="url-zone">
             <span>OR PASTE A PUBLIC LINK</span>
             {{ asset_form.external_url }}
             {{ asset_form.external_url.errors }}
-            <small>YouTube links cannot be imported reliably. Download your upload from YouTube Studio and add the video file. Direct media links may work when their provider allows server access.</small>
+            <small>{% if youtube_imports_enabled %}Paste one YouTube video link to get started. We import the recording for analysis and clipping, then remove the downloaded original after your clips are produced. If YouTube denies access, upload the original file.{% else %}YouTube imports are currently disabled. Download your upload from YouTube Studio and add the video file.{% endif %} Direct media links may work when their provider allows server access.</small>
           </div>
         </div>
         <div class="rights-notice">
@@ -50,6 +58,7 @@
           <label for="{{ asset_form.rights_confirmed.id_for_label }}"><strong>Authorized content only.</strong> I own this content or have permission to download, clip, and republish it.</label>
           {{ asset_form.rights_confirmed.errors }}
         </div>
+        {% include 'orders/_brief_suggestions.html' %}
       </div>
     </section>
 
@@ -59,7 +68,6 @@
         <h2>What should count as a strong clip?</h2>
         <p>Give the AI the same direction you would give a senior clipper: audience, outcome, tone, priorities, and exclusions.</p>
 
-        {% include 'orders/_brief_suggestions.html' %}
         <div class="mission-form">
           <div class="mission-field mission-field-wide">
             {{ form.title.label_tag }}

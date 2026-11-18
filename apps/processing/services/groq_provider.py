@@ -99,6 +99,8 @@ def _is_rate_limited(response):
         error = response.json().get("error", {})
     except (AttributeError, TypeError, ValueError):
         return False
+    if isinstance(error, dict) and "request too large" in str(error.get("message", "")).lower():
+        return False
     return isinstance(error, dict) and (error.get("code") or error.get("type")) == "rate_limit_exceeded"
 
 
@@ -117,7 +119,7 @@ def _post_with_rate_limit_retries(url, *, endpoint, model, **kwargs):
         )
         # Avoid holding a worker for a long quota reset; the normal error path
         # logs the provider's reset headers and lets the user retry later.
-        if delay > 30:
+        if delay > 60:
             return response
         for uploaded_file in (kwargs.get("files") or {}).values():
             if isinstance(uploaded_file, (tuple, list)) and len(uploaded_file) > 1:
@@ -300,7 +302,61 @@ CLIP_SCHEMA = {
 }
 
 
+def _transcript_windows(transcript, limit):
+    """Cover every segment, retaining boundary context within a bounded request."""
+    lines = []
+    for line in transcript.splitlines(keepends=True):
+        if len(line) <= limit:
+            lines.append(line)
+            continue
+        match = re.match(r"(\[\d+-\d+\]\s*)", line)
+        prefix = match.group(1) if match else ""
+        body = line[len(prefix):]
+        step = max(1, limit - len(prefix) - 1)
+        lines.extend(prefix + body[index:index + step] + "\n" for index in range(0, len(body), step))
+    windows, current = [], []
+    for line in lines:
+        if current and sum(map(len, current)) + len(line) > limit:
+            windows.append("".join(current))
+            overlap = []
+            for previous in reversed(current):
+                if sum(map(len, overlap)) + len(previous) > limit // 3:
+                    break
+                overlap.insert(0, previous)
+            while overlap and sum(map(len, overlap)) + len(line) > limit:
+                overlap.pop(0)
+            current = overlap
+        current.append(line)
+    if current:
+        windows.append("".join(current))
+    return windows or [""]
+
+
 def plan_package(transcript, brief, duration_ms, preferences=None):
+    """Rank bounded transcript windows so long recordings stay within model limits."""
+    preferences = preferences or {}
+    count = max(1, min(int(preferences.get("desired_clip_count", 5)), 10))
+    windows = _transcript_windows(transcript, settings.GROQ_TRANSCRIPT_WINDOW_CHARS)
+    packages = [_plan_package_window(window, brief, duration_ms, preferences) for window in windows]
+    if len(packages) == 1:
+        return packages[0]
+    candidates = [clip for package in packages for clip in package.get("clips", [])]
+    candidates.sort(key=lambda clip: float(clip.get("score", 0)), reverse=True)
+    selected = []
+    for clip in candidates:
+        start, end = int(clip.get("start_ms", 0)), int(clip.get("end_ms", 0))
+        if start < 0 or end <= start or end > duration_ms:
+            continue
+        if any(start < int(other["end_ms"]) and end > int(other["start_ms"]) for other in selected):
+            continue
+        selected.append({**clip, "rank": len(selected) + 1})
+        if len(selected) == count:
+            break
+    return {"summary": "\n".join(str(package.get("summary", "")) for package in packages)[:2000],
+            "clips": selected, "social_posts": {}, "youtube": {}, "newsletter": {}}
+
+
+def _plan_package_window(transcript, brief, duration_ms, preferences=None):
     preferences = preferences or {}
     count = max(1, min(int(preferences.get("desired_clip_count", 5)), 10))
     prompt = f"""Analyze this timestamped transcript and select exactly {count} distinct, self-contained moments.
@@ -327,7 +383,7 @@ Rules:
 - Keep the summary under 60 words. Return exactly {count} clips and no extra fields or prose.
 
 TRANSCRIPT:
-{transcript[:90000]}"""
+{transcript}"""
     result = generate_json(
         "You are an expert short-form video editor. Use only evidence and timestamps supplied in the transcript.",
         prompt,

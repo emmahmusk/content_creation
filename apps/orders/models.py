@@ -75,6 +75,9 @@ class ContentOrder(models.Model):
 class SourceAsset(models.Model):
     order = models.ForeignKey(ContentOrder, on_delete=models.CASCADE, related_name="source_assets")
     file = models.FileField(upload_to="source/%Y/%m/", blank=True, validators=[FileExtensionValidator(["mp4", "mov", "mkv", "webm", "ogv", "ogg", "mp3", "wav", "m4a"])])
+    # Internal cache, kept separate so cleanup can never delete a user's upload.
+    imported_file = models.FileField(upload_to="imports/youtube/%Y/%m/", blank=True)
+    youtube_imported_at = models.DateTimeField(null=True, blank=True)
     external_url = models.URLField(blank=True)
     original_filename = models.CharField(max_length=255, blank=True)
     duration_seconds = models.PositiveIntegerField(blank=True, null=True)
@@ -85,12 +88,19 @@ class SourceAsset(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
         from apps.processing.services.public_media import is_youtube_url
-        if not self.file and not self.external_url:
+        if not self.file and not self.external_url and not self.cloudinary_public_id:
             raise ValidationError("Upload a file or provide an external video URL.")
-        if not self.file and self.external_url and is_youtube_url(self.external_url):
+        if not settings.YOUTUBE_IMPORTS_ENABLED and not self.file and self.external_url and is_youtube_url(self.external_url):
             raise ValidationError({"external_url": "Upload the original video file instead of a YouTube link."})
         if self.external_url and not self.rights_confirmed:
             raise ValidationError({"rights_confirmed": "Confirm that you own this content or have permission to repurpose it."})
+        if not self.file and self.external_url and is_youtube_url(self.external_url) and settings.YOUTUBE_IMPORTS_ENABLED:
+            from apps.processing.services.youtube import canonical_url
+            from apps.processing.services.public_media import PublicMediaError
+            try:
+                canonical_url(self.external_url)
+            except (PublicMediaError, ValueError):
+                raise ValidationError({"external_url": "Provide a valid single YouTube video URL."}) from None
     def __str__(self):
         return self.original_filename or self.external_url or str(self.pk)
 

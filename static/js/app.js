@@ -35,6 +35,8 @@ document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
       importance_definition:field('importance_definition')?.value.trim()||'',
       moments_to_avoid:field('moments_to_avoid')?.value.trim()||'',
       brand_voice:field('brand_voice')?.value.trim()||'',
+      external_url:field('external_url')?.value.trim()||'',
+      rights_confirmed:field('rights_confirmed')?.checked===true,
       source_name:form.querySelector('[name="file"]')?.files?.[0]?.name||''
     };
     const fields=['title','content_brief','importance_definition','moments_to_avoid','brand_voice'].map(field);
@@ -42,7 +44,7 @@ document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
       status.textContent='All fields already have text. Clear a field or choose “Replace text already entered” to get a fresh draft.';
       return;
     }
-    setButtonBusy(button,true,'Drafting your brief…');
+    setButtonBusy(button,true,values.external_url?'Reading video details…':'Drafting your brief…');
     try{
       const csrf=form.querySelector('[name="csrfmiddlewaretoken"]')?.value||'';
       const response=await fetch(toolbar.dataset.suggestUrl,{
@@ -54,6 +56,7 @@ document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
       if(!response.ok)throw new Error(data.error||'Suggestions are unavailable right now.');
       let filled=0,kept=0;
       Object.entries(data.suggestions||{}).forEach(([name,value])=>{
+        if(!['title','content_brief','importance_definition','moments_to_avoid','brand_voice'].includes(name))return;
         const target=field(name);
         if(!target||!String(value||'').trim())return;
         if(target.value.trim()&&!replaceExisting?.checked){kept++;return;}
@@ -67,6 +70,7 @@ document.querySelectorAll('[data-brief-suggest]').forEach(toolbar=>{
         const keptNote=kept?` ${kept} field${kept===1?' was':'s were'} left unchanged.`:'';
         status.textContent=`Draft added to ${filled} empty field${filled===1?'':'s'}. Edit any suggestion to make it yours.${keptNote}`;
       }else status.textContent='Your fields already have text, so nothing was replaced. Clear a field to add a fresh suggestion there.';
+      if(filled&&data.based_on==='youtube_metadata')status.textContent+=' Based on video details; full analysis starts after you create the project.';
     }catch(error){status.textContent=error.message||'We could not create suggestions. Please try again.';}
     finally{setButtonBusy(button,false);button.disabled=false;}
   });

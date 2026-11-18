@@ -3,6 +3,9 @@ from django.conf import settings
 from django.core.validators import FileExtensionValidator
 from .models import ContentOrder, SourceAsset, WalkthroughWaitlist
 from apps.processing.services.public_media import is_youtube_url
+from apps.processing.services.youtube import canonical_url
+from apps.processing.services.public_media import PublicMediaError
+from apps.processing.services import source_handoff
 
 PLATFORMS = [("linkedin", "LinkedIn"), ("x", "X / Twitter"), ("instagram", "Instagram"), ("youtube", "YouTube"), ("newsletter", "Newsletter / article")]
 class ContentOrderForm(forms.ModelForm):
@@ -46,6 +49,13 @@ class ContentOrderForm(forms.ModelForm):
         }
 
 class SourceAssetForm(forms.ModelForm):
+    cloudinary_upload_token = forms.CharField(required=False, widget=forms.HiddenInput)
+
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
+        self.upload_metadata = None
+        super().__init__(*args, **kwargs)
+
     rights_confirmed = forms.BooleanField(
         required=False,
         label="I confirm that I own this content or have permission to download, clip, and republish it.",
@@ -65,16 +75,34 @@ class SourceAssetForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if not cleaned.get("file") and not cleaned.get("external_url"):
+        token = cleaned.get("cloudinary_upload_token")
+        if token:
+            if not self.user or cleaned.get("file") or cleaned.get("external_url"):
+                raise forms.ValidationError("Choose one recording or one source link.")
+            if not cleaned.get("rights_confirmed"):
+                self.add_error("rights_confirmed", "Confirm your rights before uploading the recording.")
+            else:
+                try:
+                    self.upload_metadata = source_handoff.verify_upload(token, self.user)
+                    for key, value in self.upload_metadata.items():
+                        setattr(self.instance, key, value)
+                except source_handoff.SourceHandoffError as exc:
+                    self.add_error("cloudinary_upload_token", str(exc))
+        if not cleaned.get("file") and not cleaned.get("external_url") and not token:
             raise forms.ValidationError("Upload a video/audio file or provide a link.")
         if cleaned.get("external_url") and not cleaned.get("rights_confirmed"):
             self.add_error("rights_confirmed", "You must confirm your rights before importing a public URL.")
-        if cleaned.get("external_url") and not cleaned.get("file") and is_youtube_url(cleaned["external_url"]):
+        if not settings.YOUTUBE_IMPORTS_ENABLED and cleaned.get("external_url") and not cleaned.get("file") and is_youtube_url(cleaned["external_url"]):
             self.add_error(
                 "external_url",
                 "YouTube links cannot be imported reliably. Upload the original video file instead. "
                 "If it is your channel, download your upload from YouTube Studio first.",
             )
+        elif cleaned.get("external_url") and not cleaned.get("file") and is_youtube_url(cleaned["external_url"]):
+            try:
+                canonical_url(cleaned["external_url"])
+            except (PublicMediaError, ValueError):
+                self.add_error("external_url", "Provide a valid single YouTube video URL.")
         return cleaned
 
 

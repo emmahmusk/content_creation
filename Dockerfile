@@ -1,4 +1,6 @@
 FROM python:3.13-slim
+COPY --from=node:22-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+ENV YOUTUBE_JS_RUNTIME=node
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

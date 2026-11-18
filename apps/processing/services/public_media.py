@@ -63,6 +63,9 @@ def is_youtube_import_error(message):
             "too many requests",
             "rate limit",
             "rate-limited",
+            "youtube imports are cooling down",
+            "youtube import failed",
+            "youtube did not return",
             "cannot import youtube links reliably",
             "youtube may block app-based imports",
         )

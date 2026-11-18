@@ -1,4 +1,5 @@
 from rest_framework import permissions, viewsets
+from django.db import transaction
 from .models import ContentOrder, SourceAsset
 from .serializers import ContentOrderSerializer, SourceAssetSerializer, StaffContentOrderSerializer
 
@@ -27,3 +28,13 @@ class SourceAssetViewSet(viewsets.ModelViewSet):
         asset = serializer.save()
         if asset.file and not asset.original_filename:
             asset.original_filename = asset.file.name; asset.save(update_fields=["original_filename"])
+
+    def perform_destroy(self, instance):
+        from rest_framework.exceptions import ValidationError
+        from apps.processing.services.youtube_sources import discard
+        if instance.order.pipeline_runs.filter(status="running").exists() or not discard(instance):
+            raise ValidationError("Stop active processing and retry source cleanup before deleting this recording.")
+        old_public_id = instance.cloudinary_public_id
+        instance.delete()
+        from apps.processing.services.source_handoff import remove_unreferenced_original
+        transaction.on_commit(lambda: remove_unreferenced_original(old_public_id))

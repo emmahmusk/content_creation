@@ -24,6 +24,7 @@ from .models import Clip, ContentIntelligence, LearningSignal, PipelineRun, Publ
 from .serializers import ClipSerializer, ContentIntelligenceSerializer, LearningSignalSerializer, PipelineRunSerializer, PublicationJobSerializer, RepurposeAssetSerializer, TranscriptSegmentSerializer
 from .tasks import dispatch_intelligence, dispatch_pipeline, dispatch_render
 from .services.run_control import cancel_pipeline_run
+from .services import source_handoff
 
 class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class=PipelineRunSerializer
@@ -43,6 +44,10 @@ class PipelineRunViewSet(viewsets.ReadOnlyModelViewSet):
                 else:
                     release_reservation(reservation)
             asset=run.order.source_assets.order_by("-uploaded_at").first()
+            try:
+                source_handoff.ensure_ready(asset)
+            except source_handoff.SourceHandoffError as exc:
+                return Response({"detail":str(exc)},status=503)
             required=analysis_credit_cost((asset.duration_seconds or 0)*1000) if asset and asset.duration_seconds else 1
             available=available_balance(run.order.customer)
             if available < required:

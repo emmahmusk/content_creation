@@ -77,6 +77,18 @@ def upload_clip_file(clip, kind, source_path):
     return result
 
 
+def delete_source(asset):
+    """Remove an imported original and its derived previews, never clip exports."""
+    _configure()
+    import cloudinary.uploader
+    result = cloudinary.uploader.destroy(asset.cloudinary_public_id, resource_type="video", invalidate=True)
+    if result.get("result") not in {"ok", "not found"}:
+        raise CloudinaryConfigurationError("The original source could not be removed; cleanup will need retrying.")
+    asset.cloudinary_public_id = ""
+    asset.cloudinary_url = ""
+    asset.save(update_fields=["cloudinary_public_id", "cloudinary_url"])
+
+
 def audio_url(public_id):
     _configure()
     import cloudinary.utils

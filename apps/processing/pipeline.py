@@ -19,11 +19,19 @@ from apps.credits.services import (
     settle_render_reservation,
 )
 from .models import CAPTION_RENDER_VERSION, Clip, PipelineRun, StageRun, TranscriptSegment
-from .services import broll, media, nvidia, groq_provider, cloudinary_media, public_media
+from .services import broll, media, nvidia, groq_provider, cloudinary_media, public_media, youtube_sources
 from .services.run_control import PipelineCancelled, assert_pipeline_active
 from .services.thumbnails import create_thumbnail
 
 STAGES=[("ingest",5),("audio",12),("transcribe",30),("strategy",48),("broll",70),("render",90),("package",100)]
+
+
+def _remove_work(work):
+    root = (Path(settings.MEDIA_ROOT) / "work").resolve()
+    target = Path(work).resolve()
+    if target.parent != root:
+        raise ValueError("Refusing to remove a directory outside the pipeline work folder.")
+    shutil.rmtree(target, ignore_errors=True)
 
 def _stage(run,name):
     assert_pipeline_active(run)
@@ -72,7 +80,7 @@ def _download(url,destination):
                 output.write(chunk)
 
 def _source(order,work,run):
-    asset=order.source_assets.first()
+    asset=order.source_assets.order_by("-uploaded_at").first()
     if not asset: raise ValueError("This order has no source asset.")
     if asset.file:
         try:
@@ -80,6 +88,9 @@ def _source(order,work,run):
         except (NotImplementedError, ValueError):
             local_source=None
         if local_source and local_source.is_file(): return local_source
+    if public_media.is_youtube_url(asset.external_url) and not asset.file:
+        return youtube_sources.source(asset, work,
+                                      check_active=lambda: assert_pipeline_active(run) if run else None)
     if asset.cloudinary_public_id:
         suffix=Path(asset.original_filename or "").suffix.lower() or ".mp4"
         return cloudinary_media.download_source(asset,work/f"source-original{suffix}")
@@ -87,8 +98,6 @@ def _source(order,work,run):
         destination=work/"source-video"
         _download(asset.external_url,destination)
         return destination
-    if public_media.is_youtube_url(asset.external_url):
-        raise public_media.PublicMediaError(public_media.YOUTUBE_RECOVERY_MESSAGE)
     if asset.file:
         raise ValueError(
             "The uploaded source is no longer available on this Render instance, and no Cloudinary copy exists. "
@@ -200,6 +209,7 @@ def render_existing_clips(run_id):
         _complete(run,stage,{"rendered":rendered,"formats":["mp4","mp3","srt","jpg"],"broll":broll_report})
         _finish(run,order,"quality_review")
         OrderEvent.objects.create(order=order,event_type="exports_ready",message=f"{rendered} approved clip exports are ready to download.")
+        youtube_sources.discard_order_sources(order)
     except PipelineCancelled:
         if render_reservation is None and not run.storage_recovery:
             render_reservation=CreditReservation.objects.filter(
@@ -239,7 +249,9 @@ def render_existing_clips(run_id):
         order.status=ContentOrder.Status.QUALITY_CHECK;order.save(update_fields=["status","updated_at"])
         raise
     finally:
-        shutil.rmtree(work,ignore_errors=True)
+        if run.status == PipelineRun.Status.CANCELLED:
+            youtube_sources.discard_order_sources(order)
+        _remove_work(work)
 
 def execute_pipeline(run_id):
     run=PipelineRun.objects.select_related("order").get(pk=run_id); order=run.order
@@ -249,7 +261,7 @@ def execute_pipeline(run_id):
     try:
         assert_pipeline_active(run)
         run.started_at=run.started_at or timezone.now(); run.error=""; run.save(update_fields=["started_at","error","updated_at"])
-        stage=_stage(run,"ingest"); source=_source(order,work,run); asset=order.source_assets.first()
+        stage=_stage(run,"ingest"); source=_source(order,work,run); asset=order.source_assets.order_by("-uploaded_at").first()
         cloudinary_first=settings.MEDIA_PIPELINE_PRIMARY == "cloudinary" and cloudinary_media.configured()
         if cloudinary_first:
             try:
@@ -339,7 +351,6 @@ def execute_pipeline(run_id):
             _complete(run,stage,{"deliverables":1,"awaiting_approval":True,"cloudinary_previews":bool(asset.cloudinary_public_id)})
             _finish(run,order,"awaiting_approval")
             OrderEvent.objects.create(order=order,event_type="analysis_complete",message="Your AI-ranked clip recommendations are ready.")
-            shutil.rmtree(work,ignore_errors=True)
             return
 
         approved_clips=list(order.clips.filter(status=Clip.Status.APPROVED))
@@ -376,6 +387,7 @@ def execute_pipeline(run_id):
         _complete(run,stage,{"deliverables":delivered})
         _finish(run,order,"quality_review")
         OrderEvent.objects.create(order=order,event_type="pipeline_complete",message="Your clips and content package are ready for quality review.")
+        youtube_sources.discard_order_sources(order)
     except PipelineCancelled:
         if analysis_reservation:
             release_reservation(analysis_reservation)
@@ -399,4 +411,6 @@ def execute_pipeline(run_id):
         raise
     finally:
         run.refresh_from_db(fields=["status"])
-        if run.status in {PipelineRun.Status.REVIEW,PipelineRun.Status.CANCELLED}: shutil.rmtree(work,ignore_errors=True)
+        if run.status == PipelineRun.Status.CANCELLED:
+            youtube_sources.discard_order_sources(order)
+        _remove_work(work)

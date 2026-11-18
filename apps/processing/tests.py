@@ -4,6 +4,7 @@ from rest_framework.test import APIClient
 from apps.orders.models import ContentOrder
 from apps.orders.models import SourceAsset
 from apps.accounts.models import SocialHandle
+from apps.credits.models import CreditLedgerEntry
 from .models import BrollPlan, Clip, ContentIntelligence, PipelineRun, RepurposeAsset, StageRun, TranscriptSegment
 from .services import groq_provider
 from .services import media
@@ -47,6 +48,7 @@ class ProcessingAccessTests(TestCase):
 
     @patch("apps.processing.api.dispatch_pipeline")
     def test_owner_can_start_pipeline_from_api(self, dispatch):
+        CreditLedgerEntry.objects.create(user=self.owner, amount=2, entry_type=CreditLedgerEntry.Type.GIFT, description="Test analysis credits")
         client=APIClient(); client.force_authenticate(self.owner)
         response=client.post(f"/api/v1/pipeline-runs/{self.run.id}/start/")
         self.assertEqual(response.status_code,202)
@@ -87,6 +89,7 @@ class ProcessingAccessTests(TestCase):
     @patch("apps.processing.api.shutil.which",return_value="C:/tools/ffmpeg.exe")
     @override_settings(FFMPEG_BINARY="ffmpeg",FFPROBE_BINARY="ffprobe")
     def test_owner_can_render_existing_recommendations(self, which, dispatch):
+        CreditLedgerEntry.objects.create(user=self.owner, amount=2, entry_type=CreditLedgerEntry.Type.GIFT, description="Test render credits")
         self.run.status=PipelineRun.Status.REVIEW; self.run.current_stage="recommendations_ready"; self.run.save()
         self.order.clips.update(status=Clip.Status.APPROVED)
         client=APIClient(); client.force_authenticate(self.owner)

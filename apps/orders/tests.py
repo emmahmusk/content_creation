@@ -11,6 +11,7 @@ from .forms import SourceAssetForm
 from apps.deliverables.models import Deliverable
 from apps.processing.models import Clip, PipelineRun, StageRun, TranscriptSegment
 
+@override_settings(CLOUDINARY_CLOUD_NAME="", CLOUDINARY_API_KEY="", CLOUDINARY_API_SECRET="")
 class ContentOrderTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user("customer", password="safe-test-pass")
@@ -38,12 +39,30 @@ class ContentOrderTests(TestCase):
         with self.assertRaisesMessage(Exception, "Upload a file or provide"):
             asset.full_clean()
 
+    @override_settings(YOUTUBE_IMPORTS_ENABLED=True)
     def test_public_url_requires_rights_confirmation(self):
-        form=SourceAssetForm(data={"external_url":"https://www.youtube.com/watch?v=example"})
+        form=SourceAssetForm(data={"external_url":"https://www.youtube.com/watch?v=BaW_jenozKc"})
         self.assertFalse(form.is_valid())
         self.assertIn("rights_confirmed",form.errors)
-        form=SourceAssetForm(data={"external_url":"https://www.youtube.com/watch?v=example","rights_confirmed":True})
+        form=SourceAssetForm(data={"external_url":"https://www.youtube.com/watch?v=BaW_jenozKc","rights_confirmed":True})
         self.assertTrue(form.is_valid(),form.errors)
+
+    def test_youtube_live_switch_applies_to_forms_api_and_model_validation(self):
+        from django.core.exceptions import ValidationError
+        from .serializers import SourceAssetSerializer
+        data = {"external_url": "https://www.youtube.com/watch?v=BaW_jenozKc", "rights_confirmed": True}
+        for enabled in (False, True):
+            with self.subTest(enabled=enabled), override_settings(YOUTUBE_IMPORTS_ENABLED=enabled):
+                form = SourceAssetForm(data=data)
+                self.assertEqual(form.is_valid(), enabled, form.errors)
+                serializer = SourceAssetSerializer(data={"order": self.order.pk, **data})
+                self.assertEqual(serializer.is_valid(), enabled, serializer.errors)
+                asset = SourceAsset(order=self.order, **data)
+                if enabled:
+                    asset.full_clean()
+                else:
+                    with self.assertRaises(ValidationError):
+                        asset.full_clean()
 
     def test_create_page_uses_accessible_platform_cards(self):
         self.client.force_login(self.user)
@@ -53,7 +72,7 @@ class ContentOrderTests(TestCase):
         self.assertContains(response, 'class="platform-choice-grid"')
         self.assertContains(response, 'class="enhancement-choice-ui"')
         self.assertContains(response, 'name="target_platforms"', count=5)
-        self.assertContains(response, 'type="checkbox"', count=7)
+        self.assertContains(response, 'type="checkbox"', count=9)
         self.assertContains(response, 'name="broll_mode"', count=4)
         self.assertContains(response, "B-roll generation starts only for moments your team approves")
 
