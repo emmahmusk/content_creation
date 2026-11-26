@@ -50,3 +50,19 @@ class SocialHandle(models.Model):
 
     def __str__(self):
         return f"{self.get_platform_display()}: {self.handle}"
+
+
+class YouTubeAccount(models.Model):
+    """A user's OAuth-authorized YouTube channel. Token values are encrypted at rest."""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="youtube_account")
+    channel_id = models.CharField(max_length=80)
+    channel_title = models.CharField(max_length=160, blank=True)
+    access_token_encrypted = models.TextField()
+    refresh_token_encrypted = models.TextField(blank=True)
+    token_expiry = models.DateTimeField(null=True, blank=True)
+    scopes = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.channel_title or self.channel_id

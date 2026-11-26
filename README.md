@@ -17,6 +17,29 @@ Use Python 3.13. Python 3.14 is not currently supported by the NVIDIA Riva clien
 
 The default local configuration uses `PIPELINE_EXECUTION_MODE=thread`, so processing buttons run jobs in a background thread inside the Django process. Redis and a Celery worker are not required locally; start only `python manage.py runserver`. FFmpeg and FFprobe are used for media processing. YouTube imports use current `yt-dlp` (2026.10.26 or newer) and are enabled by default. Set `YOUTUBE_IMPORTS_ENABLED=False` to disable them. Install Deno (2.3+) on PATH, or Node (22+) with `YOUTUBE_JS_RUNTIME=node`; the Docker image includes Node. The `yt-dlp[default]` dependency supplies the EJS scripts needed for current YouTube extraction.
 
+### YouTube connect and publish now
+
+Direct publishing currently supports YouTube only. Instagram and TikTok remain saved destinations for drafts and planning; direct publishing for them is not enabled. Publishing uploads a rendered clip using the YouTube Data API. The default visibility is **Unlisted** to support a safe first review; the user can choose Private or Public before publishing.
+
+1. In Google Cloud Console, create/select a project, enable **YouTube Data API v3**, and configure the OAuth consent screen. Create an OAuth client of type **Web application**.
+2. Add the exact callback URL `https://YOUR-RENDER-HOST/accounts/youtube/callback/` to the OAuth client's **Authorized redirect URIs**. Use your real custom domain instead if that is the app's canonical URL. Redirect URI matching is exact.
+3. Add these Render environment variables (do not commit the client secret or encryption key):
+
+   ```ini
+   PIPELINE_EXECUTION_MODE=thread
+   YOUTUBE_CLIENT_ID=your-google-oauth-client-id
+   YOUTUBE_CLIENT_SECRET=your-google-oauth-client-secret
+   YOUTUBE_REDIRECT_URI=https://YOUR-RENDER-HOST/accounts/youtube/callback/
+   YOUTUBE_TOKEN_ENCRYPTION_KEY=your-generated-fernet-key
+   ```
+
+   Generate the key once with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. Keep it backed up and unchanged: replacing it makes already stored YouTube tokens unreadable.
+4. Deploy so the new dependencies and migration are applied (`python manage.py migrate` is the release/deploy migration step). In Kraftaa, open **Social profiles → Connect YouTube**, grant consent, then review a rendered clip and choose **Publish to YouTube now**. The upload form defaults to **Unlisted**; change visibility only when you intend to.
+
+OAuth consent screen **Testing** mode is suitable for a private integration check, but Google says test-user authorization expires after seven days for scopes like YouTube upload. Add the authorizing Google account as a test user and expect to reconnect when that authorization expires; move the consent screen to production and complete any Google verification Google requires before offering this broadly. Google requires OAuth for uploading, and `videos.insert` supports resumable media uploads. See [Google's web-server OAuth guide](https://developers.google.com/identity/protocols/oauth2/web-server), [YouTube upload guide](https://developers.google.com/youtube/data/guides/uploading_a_video), and [YouTube API authorization guide](https://developers.google.com/youtube/data/guides/authentication).
+
+Thread mode needs no Celery worker, Redis, or Key Value, but uploads run inside a web-service process. If Render restarts that process or a deployment happens mid-upload, the upload may fail and will need to be retried. A dedicated durable worker/scheduler is still the next step for dependable customer publishing. See [Google's current testing-mode expiry guidance](https://support.google.com/cloud/answer/15549945?hl=en).
+
 For production, set `PIPELINE_EXECUTION_MODE=celery`, configure `CELERY_BROKER_URL` with a durable Redis-compatible broker, and run `celery -A config worker -l info`. Do not enable Celery mode without a running broker.
 
 Alternatively, after filling in `.env`, run `docker compose up --build`; the included stack supplies PostgreSQL, Redis, FFmpeg, the Django web process, and a Celery media worker.

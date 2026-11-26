@@ -79,3 +79,12 @@
 .platform-select-trigger,.connection-workspace .connection-form input{box-sizing:border-box!important;height:58px!important;min-height:58px!important;max-height:58px!important}
 .platform-select-trigger{gap:10px;padding:0 42px 0 17px;font-size:14px;line-height:1;white-space:nowrap;overflow:hidden}
 .platform-select-trigger>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.youtube-oauth-card{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:24px clamp(18px,2vw,30px);margin:24px 0;border:1px solid var(--rule);border-radius:16px;background:var(--layer-raised);color:var(--text-primary)}
+.youtube-oauth-card small{color:var(--accent);font-size:10px;font-weight:800;letter-spacing:.15em}
+.youtube-oauth-card h2{margin:5px 0;font-size:22px}
+.youtube-oauth-card p{margin:0;color:var(--text-secondary);font-size:14px;line-height:1.55}
+.youtube-oauth-card form{margin:0}
+.publish-account-status{padding:12px 14px;border:1px solid var(--rule);border-radius:10px;background:var(--canvas-soft);color:var(--text-secondary)}
+.publish-account-status a{color:var(--text-primary);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.publish-result a{color:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:640px){.youtube-oauth-card{align-items:flex-start;flex-direction:column}.youtube-oauth-card .btn,.youtube-oauth-card form,.youtube-oauth-card form button{width:100%}}

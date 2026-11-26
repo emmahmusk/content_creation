@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.conf import settings
+from apps.accounts.models import YouTubeAccount
 from .models import BrollPlan, Clip, ContentIntelligence, LearningSignal, PipelineRun, PublicationJob, RepurposeAsset, StageRun, TranscriptSegment
 class StageRunSerializer(serializers.ModelSerializer):
     class Meta: model=StageRun; fields=["name","status","attempts","metadata","error","started_at","finished_at"]
@@ -39,10 +41,13 @@ class PublicationJobSerializer(serializers.ModelSerializer):
         user=self.context["request"].user;clip=attrs.get("clip");handle=attrs.get("social_handle");action=attrs.get("action")
         if clip.order.customer_id != user.id or handle.user_id != user.id: raise serializers.ValidationError("The clip and destination must belong to your account.")
         if action==PublicationJob.Action.SCHEDULE and not attrs.get("scheduled_for"): raise serializers.ValidationError({"scheduled_for":"Choose a publishing time."})
-        if action in {PublicationJob.Action.PUBLISH,PublicationJob.Action.REPUBLISH}: raise serializers.ValidationError({"action":"Connect an authenticated platform account before publishing directly. Saved handles can currently be used for drafts, queues, and schedules."})
+        if action in {PublicationJob.Action.PUBLISH,PublicationJob.Action.REPUBLISH}:
+            if handle.platform != "youtube": raise serializers.ValidationError({"social_handle":"Direct publishing is currently available for YouTube only."})
+            if not YouTubeAccount.objects.filter(user=user).exists(): raise serializers.ValidationError({"social_handle":"Connect your YouTube channel before publishing."})
+            if settings.PIPELINE_EXECUTION_MODE != "thread": raise serializers.ValidationError({"action":"YouTube publish now is currently configured for PIPELINE_EXECUTION_MODE=thread."})
         return attrs
     def create(self,validated_data):
-        action=validated_data["action"];status={PublicationJob.Action.DRAFT:PublicationJob.Status.DRAFT,PublicationJob.Action.QUEUE:PublicationJob.Status.QUEUED,PublicationJob.Action.SCHEDULE:PublicationJob.Status.SCHEDULED}.get(action,PublicationJob.Status.DRAFT)
+        action=validated_data["action"];status={PublicationJob.Action.DRAFT:PublicationJob.Status.DRAFT,PublicationJob.Action.QUEUE:PublicationJob.Status.QUEUED,PublicationJob.Action.SCHEDULE:PublicationJob.Status.SCHEDULED,PublicationJob.Action.PUBLISH:PublicationJob.Status.PUBLISHING,PublicationJob.Action.REPUBLISH:PublicationJob.Status.PUBLISHING}.get(action,PublicationJob.Status.DRAFT)
         return PublicationJob.objects.create(user=self.context["request"].user,status=status,**validated_data)
 
 class LearningSignalSerializer(serializers.ModelSerializer):

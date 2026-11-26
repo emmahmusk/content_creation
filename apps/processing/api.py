@@ -20,9 +20,10 @@ from apps.credits.services import (
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework import status
 from .models import Clip, ContentIntelligence, LearningSignal, PipelineRun, PublicationJob, RepurposeAsset, TranscriptSegment
 from .serializers import ClipSerializer, ContentIntelligenceSerializer, LearningSignalSerializer, PipelineRunSerializer, PublicationJobSerializer, RepurposeAssetSerializer, TranscriptSegmentSerializer
-from .tasks import dispatch_intelligence, dispatch_pipeline, dispatch_render
+from .tasks import dispatch_intelligence, dispatch_pipeline, dispatch_render, dispatch_youtube_publish
 from .services.run_control import cancel_pipeline_run
 from .services import source_handoff
 
@@ -232,6 +233,18 @@ class RepurposeAssetViewSet(viewsets.ModelViewSet):
 class PublicationJobViewSet(viewsets.ModelViewSet):
     serializer_class=PublicationJobSerializer;http_method_names=["get","post","head","options"]
     def get_queryset(self): return PublicationJob.objects.select_related("clip","social_handle").filter(user=self.request.user)
+    def create(self, request, *args, **kwargs):
+        serializer=self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        job=serializer.save()
+        if job.action in {PublicationJob.Action.PUBLISH,PublicationJob.Action.REPUBLISH}:
+            try:
+                dispatch_youtube_publish(job.pk)
+            except Exception as exc:
+                job.status=PublicationJob.Status.FAILED;job.error=f"Could not start YouTube upload: {exc}"[:2000];job.save(update_fields=["status","error","updated_at"])
+                return Response(self.get_serializer(job).data,status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return Response(self.get_serializer(job).data,status=status.HTTP_202_ACCEPTED)
+        return Response(serializer.data,status=status.HTTP_201_CREATED)
 
 class LearningSignalViewSet(viewsets.ModelViewSet):
     serializer_class=LearningSignalSerializer;http_method_names=["get","post","head","options"]

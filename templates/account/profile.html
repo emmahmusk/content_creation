@@ -19,6 +19,14 @@
   </header>
 
   <section class="connection-workspace" data-api-url="/api/v1/social-handles/" data-icon-sprite="{% static 'images/social-platforms.svg' %}">
+    <section class="youtube-oauth-card" aria-labelledby="youtube-connect-heading">
+      <div><small>DIRECT PUBLISHING</small><h2 id="youtube-connect-heading">YouTube</h2>
+        {% if youtube_account %}<p>Connected to <strong>{{ youtube_account.channel_title|default:youtube_account.channel_id }}</strong>. Publish-now uploads are available.</p>
+        {% else %}<p>Connect a YouTube channel to publish clips directly from Kraftaa. Your first publish defaults to Unlisted.</p>{% endif %}
+      </div>
+      {% if youtube_account %}<form method="post" action="{% url 'youtube-disconnect' %}">{% csrf_token %}<button class="download-chip" type="submit">Disconnect YouTube</button></form>
+      {% else %}<a class="btn btn-lime" href="{% url 'youtube-connect' %}">Connect YouTube</a>{% endif %}
+    </section>
     <div class="connection-compose">
       <div class="compose-intro"><div><small>ADD A DESTINATION</small><h2>Where should your<br>content travel next?</h2><p>Connect a public handle or profile URL. You can update or remove it at any time.</p></div></div>
       <form class="social-handle-form connection-form">

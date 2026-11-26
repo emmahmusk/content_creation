@@ -430,8 +430,54 @@ if(intel){
   document.querySelectorAll('.editor-accept').forEach(button=>button.addEventListener('click',async()=>{setButtonBusy(button,true,'Saving suggestion…');try{await api(`${intel.dataset.intelligenceUrl}accept-editor-recommendation/`,'POST',{action_id:button.dataset.actionId});button.textContent='Suggestion saved ✓';setButtonBusy(button,false);button.disabled=true;}catch(error){setButtonBusy(button,false);button.disabled=false;alert(error.message);}}));
   const publicationForm=document.querySelector('.publication-form');
   if(publicationForm){
-    const actionField=publicationForm.querySelector('[name="action"]'),scheduleField=publicationForm.querySelector('[name="scheduled_for"]'),titleField=publicationForm.querySelector('[name="title"]'),captionField=publicationForm.querySelector('[name="caption"]');
-    actionField.addEventListener('change',()=>publicationForm.querySelector('.schedule-field').classList.toggle('hidden',actionField.value!=='schedule'));
-    publicationForm.addEventListener('submit',async event=>{event.preventDefault();const destinations=[...publicationForm.querySelectorAll('[name="destination"]:checked')],button=publicationForm.querySelector('button[type="submit"]');const result=publicationForm.querySelector('.publish-result');if(!destinations.length){result.textContent='Choose at least one social profile.';return;}setButtonBusy(button,true,'Saving publishing plan…');const clipId=Number(intel.dataset.startUrl.match(/clips\/(\d+)/)[1]);try{await Promise.all(destinations.map(destination=>api(intel.dataset.publicationUrl,'POST',{clip:clipId,social_handle:Number(destination.value),action:actionField.value,scheduled_for:scheduleField.value||null,platform_payload:{title:titleField.value,caption:captionField.value}})));result.textContent=`Publishing plan saved for ${destinations.length} profile${destinations.length===1?'':'s'}.`;result.className='publish-result success';}catch(error){result.textContent=error.message;result.className='publish-result error';}finally{setButtonBusy(button,false);button.disabled=false;}});
+    const actionField=publicationForm.querySelector('[name="action"]');
+    const titleField=publicationForm.querySelector('[name="title"]');
+    const captionField=publicationForm.querySelector('[name="caption"]');
+    const privacyField=publicationForm.querySelector('.privacy-field');
+    const privacySelect=publicationForm.querySelector('[name="privacy_status"]');
+    actionField.addEventListener('change',()=>{
+      privacyField?.classList.toggle('hidden',actionField.value!=='publish');
+      publicationForm.querySelector('button[type="submit"]').textContent=actionField.value==='publish'?'Publish to YouTube now':'Save draft';
+    });
+    publicationForm.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const destinations=[...publicationForm.querySelectorAll('[name="destination"]:checked')];
+      const button=publicationForm.querySelector('button[type="submit"]');
+      const result=publicationForm.querySelector('.publish-result');
+      if(!destinations.length){result.textContent='Choose at least one social profile.';return;}
+      if(actionField.value==='publish'&&destinations.some(item=>item.closest('[data-platform]')?.dataset.platform!=='youtube')){
+        result.textContent='Publish now is currently available for YouTube only. Select only your YouTube channel.';
+        result.className='publish-result error';return;
+      }
+      setButtonBusy(button,true,actionField.value==='publish'?'Starting YouTube upload…':'Saving draft…');
+      const clipId=Number(intel.dataset.startUrl.match(/clips\/(\d+)/)[1]);
+      try{
+        const saved=await Promise.all(destinations.map(destination=>api(intel.dataset.publicationUrl,'POST',{
+          clip:clipId,social_handle:Number(destination.value),action:actionField.value,
+          platform_payload:{title:titleField.value,caption:captionField.value,privacy_status:privacySelect?.value||'unlisted'}
+        })));
+        if(actionField.value==='publish'){
+          result.textContent='Upload started. This can take a few minutes; keep this page open.';
+          result.className='publish-result success';
+          const pending=saved[0];
+          for(let attempt=0;attempt<180;attempt++){
+            await new Promise(resolve=>setTimeout(resolve,2000));
+            const current=await api(`${intel.dataset.publicationUrl}${pending.id}/`);
+            if(current.status==='published'){
+              result.textContent='Published to YouTube. ';
+              const link=document.createElement('a');
+              link.href=`https://www.youtube.com/watch?v=${encodeURIComponent(current.external_id)}`;
+              link.target='_blank';link.rel='noopener';link.textContent='Open video';result.append(link);break;
+            }
+            if(current.status==='failed'){result.textContent=current.error||'YouTube upload failed.';result.className='publish-result error';break;}
+            if(attempt===179)result.textContent='Upload is still processing. You can leave this page and check the publishing status again later.';
+          }
+        }else{
+          result.textContent=`Draft saved for ${destinations.length} profile${destinations.length===1?'':'s'}.`;
+          result.className='publish-result success';
+        }
+      }catch(error){result.textContent=error.message;result.className='publish-result error';}
+      finally{setButtonBusy(button,false);button.disabled=false;}
+    });
   }
 }
