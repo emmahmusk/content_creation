@@ -140,13 +140,15 @@
           {% endif %}
           <span class="media-duration">{{ clip.duration_seconds }}s</span>
         </div>
-
         <div class="clip-body">
           <div class="clip-meta">
             <span>CLIP {{ clip.rank|stringformat:'02d' }}</span>
             <span>{{ clip.start_timecode }} → {{ clip.end_timecode }}</span>
             <span class="clip-state-meta">{{ clip.get_status_display }}</span>
           </div>
+          {% if order.include_captions %}
+            {% if clip.status == 'rendered' and clip.caption_version < caption_render_version %}<p class="caption-render-note">This clip needs a refresh to apply the current caption layout.</p>{% elif clip.status == 'rendered' %}<p class="caption-render-note">Captions are burned into this video.</p>{% else %}<p class="caption-render-note">Captions are added when this clip is rendered.</p>{% endif %}
+          {% endif %}
           <div class="clip-intelligence-bar">
             <div class="clip-potential"><strong>{{ clip.score }}</strong><span>/10</span><b>{% if clip.score >= 9 %}Exceptional potential{% elif clip.score >= 8 %}High potential{% elif clip.score >= 7 %}Promising{% else %}Useful moment{% endif %}</b></div>
             <div class="clip-signal"><span>Hook</span><strong>{% if clip.score >= 9 %}Exceptional{% elif clip.score >= 8 %}Strong{% else %}Clear{% endif %}</strong></div>

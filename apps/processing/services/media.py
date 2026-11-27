@@ -139,6 +139,61 @@ def write_srt(segments, start_ms, end_ms, destination):
     Path(destination).write_text("\n".join(rows), encoding="utf-8")
     return destination
 
+
+def write_styled_ass(srt_path, destination):
+    """Convert an SRT sidecar to a portrait-sized ASS file for visible burn-in."""
+    content = Path(srt_path).read_text(encoding="utf-8-sig").strip()
+    blocks = re.split(r"\n[ \t]*\n", content)
+    events = []
+    timestamp_pattern = re.compile(
+        r"(\d{2,}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*"
+        r"(\d{2,}):(\d{2}):(\d{2}),(\d{3})"
+    )
+
+    def ass_time(hours, minutes, seconds, milliseconds):
+        centiseconds = int(milliseconds) // 10
+        return f"{int(hours)}:{int(minutes):02}:{int(seconds):02}.{centiseconds:02}"
+
+    for block in blocks:
+        lines = block.splitlines()
+        if len(lines) < 3:
+            continue
+        match = timestamp_pattern.fullmatch(lines[1].strip())
+        if not match:
+            continue
+        values = match.groups()
+        start = ass_time(*values[:4])
+        end = ass_time(*values[4:])
+        text_lines = [
+            line.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+            for line in lines[2:]
+        ]
+        caption = r"\N".join(text_lines).strip()
+        if caption:
+            events.append(f"Dialogue: 0,{start},{end},Default,,0,0,0,,{caption}")
+
+    if not events:
+        raise MediaError("Captions are enabled, but the subtitle file has no readable cues.")
+
+    header = f"""[Script Info]
+ScriptType: v4.00+
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+PlayResX: 1080
+PlayResY: 1920
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,{settings.SUBTITLE_FONT_SIZE},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0.5,2,72,72,{settings.SUBTITLE_MARGIN_V},1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(header + "\n".join(events) + "\n", encoding="utf-8")
+    return destination
+
 def normalize_broll_asset(source, destination, duration_ms):
     """Turn a generated image or stock/generated video into a silent 9:16 insert."""
     Path(destination).parent.mkdir(parents=True, exist_ok=True)
@@ -191,9 +246,11 @@ def render_vertical(source, start_ms, end_ms, subtitle, destination, broll_segme
     if include_captions:
         if not escaped or not Path(subtitle).is_file() or not Path(subtitle).stat().st_size:
             raise MediaError("Captions are enabled, but no subtitle file was available to render.")
+        ass_subtitle = Path(subtitle).with_suffix(".ass")
+        write_styled_ass(subtitle, ass_subtitle)
+        escaped_ass = str(ass_subtitle).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
         filters.append(
-            f"[{current}]subtitles='{escaped}':force_style='FontName=Arial,FontSize={settings.SUBTITLE_FONT_SIZE},PrimaryColour=&H00FFFFFF,"
-            f"OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,Alignment=2,MarginV={settings.SUBTITLE_MARGIN_V}'[vout]"
+            f"[{current}]subtitles='{escaped_ass}':original_size=1080x1920[vout]"
         )
         output_label = "vout"
     command += ["-filter_complex",";".join(filters),"-map",f"[{output_label}]","-map",f"{audio_index}:a?","-t",f"{duration:.3f}","-c:v","libx264","-preset","ultrafast","-threads",str(settings.FFMPEG_ENCODER_THREADS),"-crf","20","-c:a","aac","-b:a","160k","-movflags","+faststart","-shortest",str(destination)]

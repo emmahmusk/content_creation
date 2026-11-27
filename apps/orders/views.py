@@ -273,7 +273,12 @@ def order_detail(request, pk):
     clips=list(order.clips.all())
     rendered=sum(bool(clip.video_url) for clip in clips)
     missing_rendered=sum(clip.status == Clip.Status.RENDERED and not clip.video_url for clip in clips)
-    stale_caption_count=sum(clip.status == Clip.Status.RENDERED and clip.caption_version < CAPTION_RENDER_VERSION for clip in clips)
+    stale_caption_count=sum(
+        order.include_captions
+        and clip.status == Clip.Status.RENDERED
+        and clip.caption_version < CAPTION_RENDER_VERSION
+        for clip in clips
+    )
     approved=sum(clip.status == "approved" for clip in clips)
     source_asset = order.source_assets.order_by("-uploaded_at").first()
     source_recovery_required = bool(
@@ -290,6 +295,7 @@ def order_detail(request, pk):
         "rendered_count": rendered,
         "missing_rendered_count": missing_rendered,
         "stale_caption_count": stale_caption_count,
+        "caption_render_version": CAPTION_RENDER_VERSION,
         "can_restore_exports": bool(
             (missing_rendered or stale_caption_count)
             and source_asset

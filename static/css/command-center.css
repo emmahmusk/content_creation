@@ -256,6 +256,7 @@ body.app-page :is(.status-revision,.status-failed,.status-cancelled){
 .review-studio .clip-body{padding:0 0 0 34px}
 .clip-meta{border-bottom:1px solid var(--cc-line)}
 .clip-state-meta{margin-left:auto;color:var(--cc-muted)}
+.caption-render-note{margin:10px 0 -10px;color:var(--cc-muted);font-size:11px;line-height:1.45}
 .clip-intelligence-bar{display:grid;grid-template-columns:minmax(160px,1.3fr) repeat(3,minmax(82px,.7fr));gap:0;margin:20px 0 26px;border:1px solid var(--cc-line);background:var(--cc-surface)}
 .clip-intelligence-bar>div{min-width:0;padding:14px 15px;border-right:1px solid var(--cc-line)}
 .clip-intelligence-bar>div:last-child{border-right:0}

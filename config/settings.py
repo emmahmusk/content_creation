@@ -138,15 +138,15 @@ CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
 CLOUDINARY_DIRECT_UPLOADS_ENABLED = os.getenv("CLOUDINARY_DIRECT_UPLOADS_ENABLED", "True").lower() in {"1", "true", "yes"}
 CLOUDINARY_FALLBACK_ENABLED = os.getenv("CLOUDINARY_FALLBACK_ENABLED", "True").lower() in {"1", "true", "yes"}
 MEDIA_PIPELINE_PRIMARY = os.getenv("MEDIA_PIPELINE_PRIMARY", "cloudinary").lower()
-_subtitle_font_size = int(os.getenv("SUBTITLE_FONT_SIZE", "8"))
-# SRT captions use libass's compact script scale here, not output pixels. Map
-# explicit pixel-like values from the earlier setting back to that scale.
-if _subtitle_font_size > 12:
-    _subtitle_font_size = round(_subtitle_font_size / 6)
-SUBTITLE_FONT_SIZE = max(6, min(_subtitle_font_size, 12))
+_subtitle_font_size = int(os.getenv("SUBTITLE_FONT_SIZE", "52"))
+# Legacy values used SRT's default 384x288 ASS canvas. New ASS exports use the
+# 1080x1920 portrait canvas, so keep font sizing in output-pixel-like units.
+if _subtitle_font_size <= 12:
+    _subtitle_font_size *= 6
+SUBTITLE_FONT_SIZE = max(36, min(_subtitle_font_size, 72))
 _subtitle_margin_v = int(os.getenv("SUBTITLE_MARGIN_V", "440"))
-# Older configs used a small margin scale (12-32). Convert it to output-frame
-# units so captions sit in the lower-middle safe area of a 9:16 export.
+# Older configs used a small margin scale (12-32). Convert those to portrait
+# output pixels; new ASS captions use a matching 1080x1920 script canvas.
 if _subtitle_margin_v <= 64:
     _subtitle_margin_v *= 18
 SUBTITLE_MARGIN_V = max(300, min(_subtitle_margin_v, 650))
