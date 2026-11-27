@@ -60,3 +60,36 @@
 .payment-request-summary>span,.payment-request-summary>strong{color:var(--text-primary)}
 .studio-empty{border-color:var(--rule);background:var(--layer);color:var(--text-primary)}
 .intelligence-page .intel-jump{background:color-mix(in srgb,var(--cc-canvas) 94%,transparent);color:var(--cc-ink)}
+
+/* Keep alternate currency checkout readable in every appearance and accent palette. */
+.credit-plan{
+  border-color:var(--rule);
+  background:var(--layer);
+  color:var(--text-primary);
+}
+.credit-plan .plan-heading>span{color:var(--text-primary)}
+.credit-plan .plan-heading p,.credit-plan .plan-description{color:var(--text-secondary)}
+.credit-plan .plan-limits{border-color:var(--rule-soft)}
+.credit-plan .plan-limits li{border-color:var(--rule-soft);color:var(--text-primary)}
+.credit-plan .plan-limits span,.credit-plan .plan-heading h3 small{color:var(--text-secondary)}
+.credit-plan .plan-buy-secondary{
+  border:1px solid var(--rule);
+  background:var(--canvas-soft);
+  color:var(--text-primary);
+  transition:background-color .18s ease,border-color .18s ease,transform .18s ease;
+}
+.credit-plan .plan-buy-secondary:hover{
+  border-color:var(--accent);
+  background:var(--accent-soft);
+  color:var(--text-primary);
+  transform:translateY(-1px);
+}
+.credit-plan .plan-buy-secondary:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:3px;
+}
+.credit-plan .plan-buy-secondary:disabled{
+  color:var(--text-secondary);
+  cursor:not-allowed;
+  transform:none;
+}
